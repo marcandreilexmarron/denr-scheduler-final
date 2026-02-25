@@ -39,18 +39,22 @@ export default function Landing() {
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [viewYear, setViewYear] = useState<number>(new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState<number>(new Date().getMonth() + 1);
-  const [isNarrow, setIsNarrow] = useState<boolean>(false);
-  const [leftOpen, setLeftOpen] = useState<boolean>(false);
-  const [rightOpen, setRightOpen] = useState<boolean>(false);
-  const [officesData, setOfficesData] = useState<{ topLevelOffices: any[]; services: any[] } | null>(null);
+  const [officesData, setOfficesData] = useState<{
+    topLevelOffices: Array<{ name: string }>;
+    services: Array<{ name: string; offices: Array<{ name: string }> }>;
+  } | null>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [detailEvent, setDetailEvent] = useState<any | null>(null);
+  const [isPortrait, setIsPortrait] = useState<boolean>(true);
   useEffect(() => {
     function update() {
       try {
-        setIsNarrow(window.innerWidth < 1024);
-      } catch {}
+        const m = window.matchMedia && window.matchMedia("(orientation: portrait)");
+        setIsPortrait(m ? m.matches : window.innerHeight >= window.innerWidth);
+      } catch {
+        setIsPortrait(true);
+      }
     }
     update();
     window.addEventListener("resize", update);
@@ -98,6 +102,7 @@ export default function Landing() {
     const c = CATEGORY_COLORS[key] || { bg: "#eeeeee", fg: "#333333", border: "#dddddd" };
     return { background: c.bg, color: c.fg, borderColor: c.border };
   }
+  const CATEGORIES = ["workshop", "meeting", "training", "conference", "travel", "activity", "others - specified"];
   function eventMatchesOffice(e: any, officeName: string) {
     if (!officeName) return true;
     if (e.office && e.office === officeName) return true;
@@ -276,8 +281,8 @@ export default function Landing() {
 
   return (
     <div style={{ padding: 16 }}>
-      <div style={{ position: "relative", display: "grid", gridTemplateColumns: `${leftOpen ? "240px" : "0px"} 1fr ${rightOpen ? "320px" : "0px"}`, gap: 16, alignItems: "stretch", transition: "grid-template-columns 220ms ease" }}>
-        <aside className="card hover-scroll" style={{ padding: 12, height: "calc(100vh - 140px)", display: leftOpen ? "block" : "none", gridColumn: "1 / 2" }}>
+      <div style={{ position: "relative", display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "minmax(0, 4fr) minmax(0, 1fr)", gap: 16, alignItems: "stretch" }}>
+        <aside className="card hover-scroll" style={{ padding: 12, height: "calc(100vh - 140px)", display: "none", gridColumn: "1 / 2" }}>
           <h3>Regional Office</h3>
           <ul className="list">
             <li
@@ -330,7 +335,7 @@ export default function Landing() {
             ))}
           </div>
         </aside>
-        <main className="card hover-scroll" style={{ padding: 12, height: "calc(100vh - 140px)", gridColumn: "2 / 3", minWidth: 0 }}>
+        <main className="card hover-scroll" style={{ padding: 12, minWidth: 0 }}>
           <Calendar
             officeFilter={officeFilter}
             onOfficeFilterChange={setOfficeFilter}
@@ -338,11 +343,107 @@ export default function Landing() {
             onCategoryFilterChange={setCategoryFilter}
             hideMonthList={true}
             showScopeToggle={false}
-            categoriesAsChips={true}
+            categoriesAsChips={false}
             showOfficeSelector={false}
+            showCategorySelector={false}
+            showTitle={false}
+            headerBelow={
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 300px", minWidth: 200 }}>
+                  <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Select Office</label>
+                  <select
+                    value={officeFilter}
+                    onChange={(e) => setOfficeFilter(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: 10,
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                      background: "var(--card)",
+                      fontSize: 14
+                    }}
+                  >
+                    <option value="">All Offices</option>
+                    {officesData && (
+                      <>
+                        <optgroup label="Top-level Offices">
+                          {officesData.topLevelOffices.map((o: { name: string }) => (
+                            <option key={o.name} value={o.name}>{o.name}</option>
+                          ))}
+                        </optgroup>
+                        {officesData.services.map((svc: { name: string; offices: Array<{ name: string }> }) => (
+                          <optgroup key={svc.name} label={svc.name}>
+                            {svc.offices.map((o: { name: string }) => (
+                              <option key={o.name} value={o.name}>{o.name}</option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                </div>
+                <div style={{ width: 260 }}>
+                  <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Category</label>
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: 10,
+                      border: `2px solid ${categoryFilter ? categoryStyle(categoryFilter).borderColor : "var(--border)"}`,
+                      borderRadius: 10,
+                      background: categoryFilter ? categoryStyle(categoryFilter).background : "var(--card)",
+                      color: categoryFilter ? categoryStyle(categoryFilter).color : "inherit",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      boxShadow: categoryFilter ? `0 0 0 3px ${categoryStyle(categoryFilter).borderColor}` : "none",
+                      filter: categoryFilter ? "saturate(1.35) brightness(1.05)" : "none"
+                    }}
+                  >
+                    <option value="">All Categories</option>
+                    {CATEGORIES.map((c) => {
+                      const styles = categoryStyle(c);
+                      return (
+                        <option
+                          key={c}
+                          value={c}
+                          style={{
+                            background: styles.background,
+                            color: styles.color,
+                            fontWeight: 700
+                          }}
+                        >
+                          {c}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => { setOfficeFilter(""); setCategoryFilter(""); setSelectedDate(null); }}
+                    style={{
+                      padding: "10px 12px",
+                      background: "#e2e8f0",
+                      color: "#0f172a",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: 8,
+                      cursor: "pointer",
+                      fontSize: 14,
+                      fontWeight: 600
+                    }}
+                    title="Clear filters"
+                    aria-label="Clear filters"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              </div>
+            }
             selectedDate={selectedDate ?? undefined}
-            onDateSelect={(date) => {
-              setSelectedDate(date);
+            onDateSelect={(date, _events) => {
+              setSelectedDate((prev) => (prev === date ? null : date));
             }}
             disableDateModal={true}
             onViewChange={(y, m) => {
@@ -353,37 +454,12 @@ export default function Landing() {
             }}
           />
         </main>
-        <section className="card hover-scroll" style={{ padding: 12, height: "calc(100vh - 140px)", display: rightOpen ? "block" : "none", gridColumn: "3 / 4", overflow: "hidden" }}>
+        <section className="card hover-scroll" style={{ padding: 12, overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <h3 style={{ margin: 0 }}>
               {selectedDate ? `Events on ${formatDateLabel(selectedDate)}` : "Upcoming Events This Month"}
             </h3>
-            <span style={{ display: "inline-flex", gap: 8 }}>
-            {selectedDate && (
-              <span>
-                <button
-                  onClick={() => { setSelectedDate(null); }}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "4px 10px",
-                    background: "transparent",
-                    color: "#2563eb",
-                    border: "1px solid var(--border)",
-                    borderRadius: 999,
-                    fontSize: 12,
-                    cursor: "pointer"
-                  }}
-                  aria-label="Clear selected date"
-                  title="Clear selected date"
-                >
-                  <span aria-hidden>×</span>
-                  <span>Clear</span>
-                </button>
-              </span>
-            )}
-            </span>
+            
           </div>
           <ul className="list">
             {(selectedDate ? selectedDateEventsComputed : monthEvents).length === 0 ? (
@@ -416,121 +492,7 @@ export default function Landing() {
             categoryStyle={categoryStyle}
           />
         </section>
-        {/* Prominent edge toggles */}
-        {leftOpen ? (
-          <button
-            onClick={() => setLeftOpen(false)}
-            title="Collapse Offices"
-            aria-label="Collapse Offices"
-            style={{
-              position: "absolute",
-              left: 240,
-              top: -8,
-              transform: "translate(-50%, -50%)",
-              zIndex: 10,
-              background: "var(--primary)",
-              color: "var(--primary-contrast)",
-              border: "none",
-              borderRadius: 999,
-              width: isNarrow ? 44 : 36,
-              height: isNarrow ? 44 : 36,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              fontWeight: 600
-            }}
-          >
-            <ChevronLeft style={{ width: isNarrow ? 20 : 18, height: isNarrow ? 20 : 18 }} aria-hidden />
-          </button>
-        ) : (
-          <button
-            onClick={() => setLeftOpen(true)}
-            title="Expand Offices"
-            aria-label="Expand Offices"
-            style={{
-              position: "absolute",
-              left: 0,
-              top: -8,
-              transform: "translate(-50%, -50%)",
-              zIndex: 10,
-              background: "var(--primary)",
-              color: "var(--primary-contrast)",
-              border: "none",
-              borderRadius: 999,
-              width: isNarrow ? 44 : 36,
-              height: isNarrow ? 44 : 36,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              fontWeight: 600
-            }}
-          >
-            <ChevronRight style={{ width: isNarrow ? 20 : 18, height: isNarrow ? 20 : 18 }} aria-hidden />
-          </button>
-        )}
-        {rightOpen ? (
-          <button
-            onClick={() => setRightOpen(false)}
-            title="Collapse Events"
-            aria-label="Collapse Events"
-            style={{
-              position: "absolute",
-              right: 320,
-              top: -8,
-              transform: "translate(50%, -50%)",
-              zIndex: 10,
-              background: "var(--primary)",
-              color: "var(--primary-contrast)",
-              border: "none",
-              borderRadius: 999,
-              width: isNarrow ? 44 : 36,
-              height: isNarrow ? 44 : 36,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              fontWeight: 600
-            }}
-          >
-            <ChevronRight style={{ width: isNarrow ? 20 : 18, height: isNarrow ? 20 : 18 }} aria-hidden />
-          </button>
-        ) : (
-          <button
-            onClick={() => setRightOpen(true)}
-            title="Expand Events"
-            aria-label="Expand Events"
-            style={{
-              position: "absolute",
-              right: 0,
-              top: -8,
-              transform: "translate(50%, -50%)",
-              zIndex: 10,
-              background: "var(--primary)",
-              color: "var(--primary-contrast)",
-              border: "none",
-              borderRadius: 999,
-              width: isNarrow ? 44 : 36,
-              height: isNarrow ? 44 : 36,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              fontWeight: 600
-            }}
-          >
-            <ChevronLeft style={{ width: isNarrow ? 20 : 18, height: isNarrow ? 20 : 18 }} aria-hidden />
-          </button>
-        )}
+        
       </div>
     </div>
   );

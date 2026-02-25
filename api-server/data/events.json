@@ -1,5 +1,245 @@
 [
-{"id":"fa200335-01a4-481c-a59c-fe6866e04721","category":"meeting","type":"Internal","title":"Monthly Meeting","description":"A scheduled monthly meeting between divisional chiefs","location":"Conference Room- Ground Floor","dateType":"single","date":"2026-02-25","startDate":"","endDate":"","startTime":"13:00","endTime":"17:00","participants":["Alice Office — Office of the Regional Director","Carla Office — Office of the Assistant Regional Director for Management Services","Ella Office — Office of the Assistant Regional Director for Technical Services","Surveys and Mapping Division","Licenses, Patents and Deeds Division","Conservation and Development Division","Enforcement Division","Planning and Management Division","Legal Division","Administrative Division","Finance Division"],"office":"Office of the Regional Director"},
-{"id":"5cf00290-f83e-4c72-aa37-dae57ad07562","category":"workshop","type":"Internal","title":"Network Configuration","description":"","location":"HR Training Center","dateType":"range","date":"","startDate":"2026-03-02","endDate":"2026-03-05","startTime":"08:00","endTime":"17:00","participants":["Alice Planning — Planning and Management Division","Carla Planning — Planning and Management Division","Diego Planning — Planning and Management Division"],"office":"Office of the Regional Director"},
-{"id":"1df525f7-a0f1-4612-b406-b9ad32b231c3","category":"meeting","type":"Internal","title":"Meeting","description":"","location":"Conference Room- Ground Floor","dateType":"single","date":"2026-02-26","startDate":"","endDate":"","startTime":"08:00","endTime":"17:00","participants":["Alice Surveys — Surveys and Mapping Division","Carla Surveys — Surveys and Mapping Division","Diego Surveys — Surveys and Mapping Division","Ben Administrative — Administrative Division","Carla Administrative — Administrative Division","Surveys and Mapping Division","Licenses, Patents and Deeds Division","Conservation and Development Division","Enforcement Division","Planning and Management Division","Legal Division","Administrative Division","Finance Division"],"office":"Office of the Regional Director"}
+  {
+    "id": "e1d7a2a0-2c70-4b69-9f4e-001",
+    "category": "meeting",
+    "type": "Internal",
+    "title": "Monthly Planning Coordination",
+    "description": "Review of targets and deliverables for the new month.",
+    "location": "Regional Office Conference Room A",
+    "dateType": "single",
+    "date": "2026-03-26",
+    "startDate": "",
+    "endDate": "",
+    "startTime": "09:00",
+    "endTime": "10:30",
+    "participants": [
+      "Legal Division",
+      "Finance Division",
+      "Pia Estrada — Office of the Regional Director",
+      "Yana Vergara — Planning and Management Division"
+    ],
+    "office": "Planning and Management Division",
+    "attachments": [
+      {
+        "name": "Agenda.pdf",
+        "url": "https://example.com/agenda-feb-planning.pdf"
+      }
+    ]
+  },
+  {
+    "id": "ab92b6f3-3a20-4d6f-9b7c-002",
+    "category": "training",
+    "type": "Internal",
+    "title": "GIS Fundamentals Training",
+    "description": "Introductory GIS sessions for technical staff.",
+    "location": "Training Room 2",
+    "dateType": "range",
+    "date": "",
+    "startDate": "2026-03-10",
+    "endDate": "2026-03-12",
+    "startTime": "09:00",
+    "endTime": "16:00",
+    "participants": [
+      "Xander Diaz — Surveys and Mapping Division",
+      "Yana Vergara — Planning and Management Division",
+      "Levi Nicolas — Administrative Division",
+      "Alex Gonzales — Surveys and Mapping Division"
+    ],
+    "office": "Surveys and Mapping Division",
+    "attachments": []
+  },
+  {
+    "id": "f3b1a0c2-8d55-4b2a-9b9e-003",
+    "category": "conference",
+    "type": "External",
+    "title": "Regional Environmental Summit",
+    "description": "Annual summit with LGUs and partner agencies.",
+    "location": "Regional Convention Center",
+    "dateType": "range",
+    "date": "",
+    "startDate": "2026-03-19",
+    "endDate": "2026-03-20",
+    "startTime": "08:30",
+    "endTime": "17:00",
+    "participants": [
+      "Enforcement Division",
+      "Pia Estrada — Office of the Regional Director",
+      "Bella Morales — Conservation and Development Division",
+      "Cyrus Ocampo — Conservation and Development Division",
+      "Dahlia Padilla — Conservation and Development Division"
+    ],
+    "office": "Office of the Regional Director",
+    "attachments": []
+  },
+  {
+    "id": "c2f9d8ee-4b1e-4a22-8c9d-004",
+    "category": "travel",
+    "type": "Internal",
+    "title": "Field Inspection: Land Title Verification",
+    "description": "On-site validation of pending land title applications.",
+    "location": "Bataan and Zambales",
+    "dateType": "range",
+    "date": "",
+    "startDate": "2026-03-22",
+    "endDate": "2026-03-23",
+    "startTime": "07:30",
+    "endTime": "18:00",
+    "participants": [
+      "Enforcement Division",
+      "Iris Castillo — Licenses, Patents and Deeds Division"
+    ],
+    "office": "Licenses, Patents and Deeds Division",
+    "attachments": []
+  },
+  {
+    "id": "d4109af1-5c6e-4d3d-9a1b-005",
+    "category": "activity",
+    "type": "External",
+    "title": "Mangrove Planting Drive",
+    "description": "Community-led planting with coastal barangays.",
+    "location": "Orion Coastal Area",
+    "dateType": "single",
+    "date": "2026-03-15",
+    "startDate": "",
+    "endDate": "",
+    "startTime": "06:30",
+    "endTime": "11:30",
+    "participants": [
+      "Anton Macapagal — Conservation and Development Division",
+      "Jasmine Villanueva — Office of the Assistant Regional Director for Technical Services",
+      "Yana Vergara — Planning and Management Division",
+      "Zed Yap 2 — Planning and Management Division"
+    ],
+    "office": "Conservation and Development Division",
+    "attachments": []
+  },
+  {
+    "id": "e57d8c3a-7f22-4a12-8a3a-006",
+    "category": "workshop",
+    "type": "Internal",
+    "title": "Budget Utilization Workshop",
+    "description": "Hands-on workshop on FY utilization and reporting.",
+    "location": "Finance Office Hall",
+    "dateType": "single",
+    "date": "2026-03-13",
+    "startDate": "",
+    "endDate": "",
+    "startTime": "13:30",
+    "endTime": "16:30",
+    "participants": [
+      "Planning and Management Division",
+      "Paolo Diaz — Finance Division",
+      "Levi Nicolas — Administrative Division",
+      "Nolan Pascual — Administrative Division",
+      "Yana Vergara — Planning and Management Division"
+    ],
+    "office": "Finance Division",
+    "attachments": []
+  },
+  {
+    "id": "a1b2c3d4-1111-2222-3333-007",
+    "category": "meeting",
+    "type": "Internal",
+    "title": "Enforcement Coordination Meeting",
+    "description": "Case updates and joint operations planning.",
+    "location": "Enforcement Briefing Room",
+    "dateType": "single",
+    "date": "2026-03-19",
+    "startDate": "",
+    "endDate": "",
+    "startTime": "14:00",
+    "endTime": "16:00",
+    "participants": [
+      "Legal Division",
+      "Cyrus Gonzales — Enforcement Division",
+      "Pia Estrada — Office of the Regional Director"
+    ],
+    "office": "Enforcement Division",
+    "attachments": []
+  },
+  {
+    "id": "0f0e9d8c-aaaa-bbbb-cccc-008",
+    "category": "others - specified",
+    "categoryDetail": "CSR outreach",
+    "type": "Internal",
+    "title": "Employee Outreach: School Donation",
+    "description": "Donation drive for local public school supplies.",
+    "location": "San Fernando Elementary School",
+    "dateType": "single",
+    "date": "2026-03-28",
+    "startDate": "",
+    "endDate": "",
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "participants": [
+      "Mara Ortiz — Administrative Division",
+      "Queenie Evangelista — Finance Division"
+    ],
+    "office": "Administrative Division",
+    "attachments": []
+  },
+  {
+    "id": "99c0b88e-5555-6666-7777-009",
+    "category": "training",
+    "type": "Internal",
+    "title": "Legal Updates Briefing",
+    "description": "New environmental compliance guidelines and case rulings.",
+    "location": "Legal Division Boardroom",
+    "dateType": "single",
+    "date": "2026-03-24",
+    "startDate": "",
+    "endDate": "",
+    "startTime": "10:00",
+    "endTime": "11:30",
+    "participants": [
+      "Enforcement Division",
+      "Hazel Garcia — Legal Division",
+      "Iris Castillo — Licenses, Patents and Deeds Division"
+    ],
+    "office": "Legal Division",
+    "attachments": []
+  },
+  {
+    "id": "2211aa33-bb44-cc55-dd66-010",
+    "category": "workshop",
+    "type": "External",
+    "title": "LGU Land Use Planning Workshop",
+    "description": "Support session with LGUs on CLUP integration.",
+    "location": "Provincial Capitol",
+    "dateType": "range",
+    "date": "",
+    "startDate": "2026-03-05",
+    "endDate": "2026-03-06",
+    "startTime": "09:00",
+    "endTime": "17:00",
+    "participants": [
+      "Pia Estrada — Office of the Regional Director",
+      "Ken Castillo — Office of the Assistant Regional Director for Management Services",
+      "Yana Vergara — Planning and Management Division",
+      "Carlos Bautista 2 — Planning and Management Division"
+    ],
+    "office": "Office of the Regional Director",
+    "attachments": []
+  },
+  {
+    "id": "5e4d3c2b-1a2b-3c4d-4e5f-011",
+    "category": "activity",
+    "type": "Internal",
+    "title": "Records Inventory Day",
+    "description": "Quarterly inventory and archiving of documents.",
+    "location": "Records Section",
+    "dateType": "single",
+    "date": "2026-03-08",
+    "startDate": "",
+    "endDate": "",
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "participants": [
+      "Planning and Management Division",
+      "Olive Ramos — Administrative Division",
+      "Yana Vergara — Planning and Management Division"
+    ],
+    "office": "Administrative Division",
+    "attachments": []
+  }
 ]

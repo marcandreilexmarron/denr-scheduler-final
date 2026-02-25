@@ -64,7 +64,9 @@ function Shell() {
         <span style={{ marginLeft: "auto" }}>
           {user ? (
             <>
-              <span style={{ marginRight: 8 }}>{user.officeName ? `${user.officeName}` : user.sub} ({user.role})</span>
+              <span style={{ marginRight: 8 }}>
+                {user.officeName ? `${user.officeName}` : user.sub} ({user.service || "Top-level Offices"})
+              </span>
               <button onClick={() => { clearToken(); window.location.assign("/"); }}>Logout</button>
             </>
           ) : (

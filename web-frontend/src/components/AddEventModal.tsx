@@ -13,7 +13,11 @@ export default function AddEventModal({
   categories,
   availableOffices,
   onSubmit,
-  officesData
+  officesData,
+  mode,
+  initialEvent,
+  submitLabel,
+  title
 }: {
   open: boolean;
   onClose: () => void;
@@ -38,6 +42,10 @@ export default function AddEventModal({
     attachments?: any[];
   }) => void;
   officesData?: { topLevelOffices: Array<{ name: string }>; services: Array<{ name: string; offices: Array<{ name: string }> }> };
+  mode?: "add" | "edit";
+  initialEvent?: any | null;
+  submitLabel?: string;
+  title?: string;
 }) {
   const [employeesData, setEmployeesData] = useState<{ byOffice: Record<string, string[]> } | null>(null);
   const [state, setState] = useState<any>({
@@ -58,6 +66,7 @@ export default function AddEventModal({
     attachments: [],
     _participantInput: ""
   });
+  const isEdit = (mode ?? "add") === "edit";
   const isRange = state.dateType === "range";
   const titleError = String(state.title || "").trim() ? null : "Title is required";
   const dateRangeError = isRange && state.startDate && state.endDate && state.endDate < state.startDate ? "End date must be on or after start date" : null;
@@ -69,12 +78,56 @@ export default function AddEventModal({
 
   useEffect(() => {
     if (!open) return;
-    const url = `/employees.json?v=${Date.now()}`;
+    const url = `/api/employees?v=${Date.now()}`;
     fetch(url, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setEmployeesData(d))
       .catch(() => setEmployeesData({ byOffice: {} }));
   }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    if (initialEvent && isEdit) {
+      const ev = initialEvent;
+      const isR = String(ev?.dateType || "single") === "range";
+      setState({
+        category: ev.category || "meeting",
+        categoryDetail: ev.categoryDetail || "",
+        type: ev.type || "Internal",
+        title: ev.title || "",
+        description: ev.description || "",
+        location: ev.location || "",
+        dateType: isR ? "range" : "single",
+        date: isR ? "" : (ev.date || defaultDate),
+        startDate: isR ? (ev.startDate || defaultDate) : defaultDate,
+        endDate: isR ? (ev.endDate || ev.startDate || defaultDate) : defaultDate,
+        startTime: ev.startTime || "",
+        endTime: ev.endTime || "",
+        participants: Array.isArray(ev.participants) ? ev.participants : [],
+        office: ev.office ?? null,
+        attachments: Array.isArray(ev.attachments) ? ev.attachments : [],
+        _participantInput: ""
+      });
+    } else {
+      setState({
+        category: "meeting",
+        categoryDetail: "",
+        type: "Internal",
+        title: "",
+        description: "",
+        location: "",
+        dateType: "single",
+        date: defaultDate,
+        startDate: defaultDate,
+        endDate: defaultDate,
+        startTime: "",
+        endTime: "",
+        participants: [],
+        office: null,
+        attachments: [],
+        _participantInput: ""
+      });
+    }
+  }, [open, initialEvent, isEdit, defaultDate]);
   function getEmployeesForOffice(officeName: string) {
     const known = new Set<string>([
       ...(availableOffices || []),
@@ -101,8 +154,7 @@ export default function AddEventModal({
     }
     const chosen = employeeChoices.filter((n) => employeeChecked[n]);
     const formatted = chosen.map((n) => `${n} — ${employeeModalOffice}`);
-    const existing = new Set(state.participants || []);
-    const next = [...existing, ...formatted] as string[];
+    const next = Array.from(new Set([...(state.participants || []), ...formatted]));
     setState({ ...state, participants: next });
     setEmployeeModalOffice(null);
   }
@@ -111,6 +163,7 @@ export default function AddEventModal({
     e.preventDefault();
     if (!isValid) return;
     let participants: string[] = Array.isArray(state.participants) ? [...state.participants] : [];
+    participants = Array.from(new Set(participants));
     if (participants.includes("Division Chiefs") && officesData) {
       participants = participants.filter((x) => x !== "Division Chiefs");
       const divisionOffices = officesData.services.flatMap((svc) => svc.offices.map((o) => o.name));
@@ -140,7 +193,7 @@ export default function AddEventModal({
   return (
     <Modal open={open} onClose={onClose}>
       <form onSubmit={submit} style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12, marginBottom: 12, maxWidth: 720 }}>
-        <h2 style={{ margin: "0 0 4px 0" }}>New Event</h2>
+        <h2 style={{ margin: "0 0 4px 0" }}>{title ?? (isEdit ? "Edit Event" : "New Event")}</h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 8 }}>
           <div>
             <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Category</label>
@@ -169,7 +222,7 @@ export default function AddEventModal({
         <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>Details</div>
         {normalizeCategory(state.category) === "others - specified" && (
           <div>
-            <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Specify category</label>
+            <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Specify Category</label>
             <input
               style={{ width: "100%", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
               placeholder="Specify category"
@@ -179,7 +232,7 @@ export default function AddEventModal({
           </div>
         )}
         <div>
-          <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Event title</label>
+          <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Event Title</label>
           <input
             style={{ width: "100%", padding: 10, border: `1px solid ${titleError ? "#dc2626" : "var(--border)"}`, borderRadius: 8, background: "var(--card)", fontSize: 14 }}
             placeholder="Title"
@@ -217,7 +270,7 @@ export default function AddEventModal({
                 checked={state.dateType !== "range"}
                 onChange={() => setState({ ...state, dateType: "single" })}
               />
-              <span>Single date</span>
+              <span>Single Date</span>
             </label>
             <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <input
@@ -225,13 +278,13 @@ export default function AddEventModal({
                 checked={state.dateType === "range"}
                 onChange={() => setState({ ...state, dateType: "range", startDate: defaultDate, endDate: defaultDate })}
               />
-              <span>Date range</span>
+              <span>Date Range</span>
             </label>
           </div>
           {state.dateType === "range" ? (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               <div>
-                <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Start date</label>
+                <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Start Date</label>
                 <input
                   type="date"
                   style={{ width: "100%", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
@@ -240,7 +293,7 @@ export default function AddEventModal({
                 />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>End date</label>
+                <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>End Date</label>
                 <input
                   type="date"
                   min={state.startDate || undefined}
@@ -265,11 +318,11 @@ export default function AddEventModal({
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           <div>
-            <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Start time</label>
+            <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Start Time</label>
             <input type="time" style={{ width: "100%", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }} value={state.startTime} onChange={(e) => setState({ ...state, startTime: e.target.value })} />
           </div>
           <div>
-            <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>End time</label>
+            <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>End Time</label>
             <input type="time" style={{ width: "100%", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }} value={state.endTime} onChange={(e) => setState({ ...state, endTime: e.target.value })} />
           </div>
         </div>
@@ -305,7 +358,7 @@ export default function AddEventModal({
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEmployeePicker(name); }}
                               role="button"
                               style={{ padding: "2px 8px", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer" }}
-                              title="Select employees"
+                              title="Select Employees"
                             >
                               {name}
                             </span>
@@ -366,7 +419,7 @@ export default function AddEventModal({
                                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEmployeePicker(name); }}
                                   role="button"
                                   style={{ padding: "2px 8px", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer" }}
-                                  title="Select employees"
+                                  title="Select Employees"
                                 >
                                   {name}
                                 </span>
@@ -403,7 +456,7 @@ export default function AddEventModal({
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEmployeePicker(o); }}
                           role="button"
                           style={{ padding: "2px 8px", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer" }}
-                          title="Select employees"
+                          title="Select Employees"
                         >
                           {o}
                         </span>
@@ -458,9 +511,9 @@ export default function AddEventModal({
             type="submit"
             style={{
               padding: "10px 12px",
-              background: "var(--primary)",
-              color: "var(--primary-contrast)",
-              border: "none",
+              background: "#2563eb",
+              color: "#ffffff",
+              border: "1px solid #1d4ed8",
               borderRadius: 8,
               cursor: "pointer",
               fontSize: 14,
@@ -469,11 +522,11 @@ export default function AddEventModal({
             }}
             disabled={!isValid}
           >
-            Create
+            {submitLabel ?? (isEdit ? "Save" : "Create")}
           </button>
           <button
             type="button"
-            style={{ padding: "10px 12px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14 }}
+            style={{ padding: "10px 12px", background: "#f1f5f9", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: 8, cursor: "pointer", fontSize: 14 }}
             onClick={onClose}
           >
             Cancel

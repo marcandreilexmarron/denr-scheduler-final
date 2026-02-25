@@ -36,11 +36,14 @@ export default function Calendar(props?: {
   showScopeToggle?: boolean;
   categoriesAsChips?: boolean;
   showOfficeSelector?: boolean;
+  showCategorySelector?: boolean;
   onDateSelect?: (date: string, events: any[]) => void;
   disableDateModal?: boolean;
   selectedDate?: string;
   allowCreate?: boolean;
   canEditEvent?: (e: any, user?: any) => boolean;
+  headerBelow?: React.ReactNode;
+  showTitle?: boolean;
 }) {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -52,6 +55,13 @@ export default function Calendar(props?: {
   const [editing, setEditing] = useState<any | null>(null);
   const [availableOffices, setAvailableOffices] = useState<string[]>([]);
   const [officesData, setOfficesData] = useState<{ topLevelOffices: Array<{ name: string }>; services: Array<{ name: string; offices: Array<{ name: string }> }> } | null>(null);
+  const [compact, setCompact] = useState<boolean>(() => {
+    try {
+      return window.innerWidth < 640;
+    } catch {
+      return false;
+    }
+  });
   const user = getUserFromToken();
   const canEdit = !!(user?.role?.endsWith?.("ADMIN") || user?.role?.endsWith?.("OFFICE"));
   const allowCreate = props?.allowCreate !== undefined ? !!props.allowCreate : canEdit;
@@ -71,6 +81,7 @@ export default function Calendar(props?: {
   const showScopeToggle = props?.showScopeToggle !== undefined ? !!props.showScopeToggle : true;
   const categoriesAsChips = !!props?.categoriesAsChips;
   const showOfficeSelector = props?.showOfficeSelector !== undefined ? !!props.showOfficeSelector : true;
+  const showCategorySelector = props?.showCategorySelector !== undefined ? !!props.showCategorySelector : true;
 
   useEffect(() => {
     fetch(`/api/calendar?month=${month}&year=${year}`)
@@ -79,6 +90,18 @@ export default function Calendar(props?: {
     if (props?.onViewChange) props.onViewChange(year, month);
   }, [month, year]);
 
+  useEffect(() => {
+    function onResize() {
+      try {
+        setCompact(window.innerWidth < 640);
+      } catch {
+        setCompact(false);
+      }
+    }
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   useEffect(() => {
     fetch("/api/events").then((r) => r.json()).then((d) => setEventsAll(d));
     const t = getToken();
@@ -169,50 +192,102 @@ export default function Calendar(props?: {
   const eventsIndex = useMemo(() => {
     const map = new Map<string, any[]>();
     const src = eventsAll.filter((e) => eventMatchesOffice(e, officeFilter) && eventMatchesCategory(e, categoryFilter));
+    const holidayDays = new Set<number>((data?.calendarDays || []).filter((d) => d.holiday).map((d: any) => d.day).filter((n: any) => typeof n === "number"));
+    function isWorkingDay(d: Date) {
+      const wd = d.getDay();
+      return wd >= 1 && wd <= 5;
+    }
+    function isHoliday(d: Date) {
+      if (!data) return false;
+      if (d.getFullYear() !== year || d.getMonth() + 1 !== month) return false;
+      return holidayDays.has(d.getDate());
+    }
+    function isFutureOrToday(d: Date) {
+      const now = new Date();
+      const a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      return b.getTime() >= a.getTime();
+    }
+    function withinBusinessHours(e: any) {
+      const s = String(e.startTime || "");
+      const t = String(e.endTime || "");
+      if (!/^\d{2}:\d{2}$/.test(s) || !/^\d{2}:\d{2}$/.test(t)) return false;
+      return s >= "08:00" && t <= "17:00";
+    }
     for (const e of src) {
       if (e.dateType === "range" && e.startDate && e.endDate) {
         const start = parseDate(e.startDate);
         const end = parseDate(e.endDate);
         const cursor = new Date(start);
         while (cursor <= end) {
-          const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
-          if (!map.has(key)) map.set(key, []);
-          map.get(key)!.push(e);
+          if (isWorkingDay(cursor) && !isHoliday(cursor) && isFutureOrToday(cursor) && withinBusinessHours(e)) {
+            const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
+            if (!map.has(key)) map.set(key, []);
+            map.get(key)!.push(e);
+          }
           cursor.setDate(cursor.getDate() + 1);
         }
       } else if (e.date) {
         const d = parseDate(e.date);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        if (!map.has(key)) map.set(key, []);
-        map.get(key)!.push(e);
+        if (isWorkingDay(d) && !isHoliday(d) && isFutureOrToday(d) && withinBusinessHours(e)) {
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          if (!map.has(key)) map.set(key, []);
+          map.get(key)!.push(e);
+        }
       }
     }
     return map;
-  }, [eventsAll, officeFilter, categoryFilter]);
+  }, [eventsAll, officeFilter, categoryFilter, data, month, year]);
 
   const officeEventsIndex = useMemo(() => {
     const map = new Map<string, any[]>();
     const src = eventsOffice.filter((e) => eventMatchesOffice(e, officeFilter) && eventMatchesCategory(e, categoryFilter));
+    const holidayDays = new Set<number>((data?.calendarDays || []).filter((d) => d.holiday).map((d: any) => d.day).filter((n: any) => typeof n === "number"));
+    function isWorkingDay(d: Date) {
+      const wd = d.getDay();
+      return wd >= 1 && wd <= 5;
+    }
+    function isHoliday(d: Date) {
+      if (!data) return false;
+      if (d.getFullYear() !== year || d.getMonth() + 1 !== month) return false;
+      return holidayDays.has(d.getDate());
+    }
+    function isFutureOrToday(d: Date) {
+      const now = new Date();
+      const a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      return b.getTime() >= a.getTime();
+    }
+    function withinBusinessHours(e: any) {
+      const s = String(e.startTime || "");
+      const t = String(e.endTime || "");
+      if (!/^\d{2}:\d{2}$/.test(s) || !/^\d{2}:\d{2}$/.test(t)) return false;
+      return s >= "08:00" && t <= "17:00";
+    }
     for (const e of src) {
       if (e.dateType === "range" && e.startDate && e.endDate) {
         const start = parseDate(e.startDate);
         const end = parseDate(e.endDate);
         const cursor = new Date(start);
         while (cursor <= end) {
-          const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
-          if (!map.has(key)) map.set(key, []);
-          map.get(key)!.push(e);
+          if (isWorkingDay(cursor) && !isHoliday(cursor) && isFutureOrToday(cursor) && withinBusinessHours(e)) {
+            const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
+            if (!map.has(key)) map.set(key, []);
+            map.get(key)!.push(e);
+          }
           cursor.setDate(cursor.getDate() + 1);
         }
       } else if (e.date) {
         const d = parseDate(e.date);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        if (!map.has(key)) map.set(key, []);
-        map.get(key)!.push(e);
+        if (isWorkingDay(d) && !isHoliday(d) && isFutureOrToday(d) && withinBusinessHours(e)) {
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          if (!map.has(key)) map.set(key, []);
+          map.get(key)!.push(e);
+        }
       }
     }
     return map;
-  }, [eventsOffice, officeFilter, categoryFilter]);
+  }, [eventsOffice, officeFilter, categoryFilter, data, month, year]);
 
   const [scope, setScope] = useState<"all" | "office">("all");
   const idx = scope === "all" ? eventsIndex : officeEventsIndex;
@@ -276,7 +351,9 @@ export default function Calendar(props?: {
 
   return (
     <div style={{ padding: 24 }}>
-      <h1 style={{ textAlign: "center", margin: "0 0 8px 0" }}>Calendar</h1>
+      {(props?.showTitle ?? true) && (
+        <h1 style={{ textAlign: "center", margin: "0 0 8px 0" }}>Calendar</h1>
+      )}
       <div
         style={{
           display: "grid",
@@ -321,6 +398,11 @@ export default function Calendar(props?: {
           Next ›
         </button>
       </div>
+      {props?.headerBelow && (
+        <div style={{ marginTop: 8 }}>
+          {props.headerBelow}
+        </div>
+      )}
       <div style={{ marginTop: 8, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         {showScopeToggle && (
           <>
@@ -332,7 +414,7 @@ export default function Calendar(props?: {
                 checked={scope === "all"}
                 onChange={() => setScope("all")}
               />{" "}
-              All events
+              All Events
             </label>
             <label>
               <input
@@ -342,21 +424,21 @@ export default function Calendar(props?: {
                 checked={scope === "office"}
                 onChange={() => setScope("office")}
               />{" "}
-              My office
+              My Office
             </label>
           </>
         )}
         {showOfficeSelector && (
           <select value={officeFilter} onChange={(e) => setOfficeFilter(e.target.value)}>
-            <option value="">All offices</option>
+            <option value="">All Offices</option>
             {availableOffices.map((o) => (
               <option key={o} value={o}>{o}</option>
             ))}
           </select>
         )}
-        {!categoriesAsChips && (
+        {!categoriesAsChips && showCategorySelector && (
           <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-            <option value="">All categories</option>
+            <option value="">All Categories</option>
             {categories.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
@@ -381,11 +463,14 @@ export default function Calendar(props?: {
             onClick={() => setCategoryFilter("")}
             className="chip"
             style={{
-              background: categoryFilter ? "transparent" : "#e5e7eb",
-              color: categoryFilter ? "inherit" : "var(--text)",
+              background: categoryFilter ? "transparent" : "#e2e8f0",
+              color: categoryFilter ? "inherit" : "#0f172a",
               border: `1px solid ${categoryFilter ? "var(--border)" : "#cbd5e1"}`,
               flex: "1 1 0",
-              minWidth: 80
+              minWidth: 80,
+              borderRadius: 999,
+              padding: "8px 12px",
+              fontWeight: 600
             }}
           >
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>All</span>
@@ -400,24 +485,19 @@ export default function Calendar(props?: {
                 onClick={() => setCategoryFilter(c)}
                 className="chip"
                 style={{
-                  background: active ? styles.background : "transparent",
-                  color: active ? styles.color : "inherit",
-                  border: `1px solid ${active ? styles.borderColor : "var(--border)"}`,
+                  background: styles.background,
+                  color: styles.color,
+                  border: `1px solid ${styles.borderColor}`,
                   flex: "1 1 0",
-                  minWidth: 80
+                  minWidth: 80,
+                  borderRadius: 999,
+                  padding: "8px 12px",
+                  boxShadow: active ? `0 0 0 2px ${styles.borderColor}` : "none",
+                  filter: active ? "saturate(1.25) brightness(1.05)" : "saturate(1.1)",
+                  opacity: active ? 1 : 0.9,
+                  transition: "filter 120ms ease, box-shadow 120ms ease, opacity 120ms ease"
                 }}
               >
-                <span
-                  aria-hidden
-                  style={{
-                    display: "inline-block",
-                    width: 10,
-                    height: 10,
-                    borderRadius: 3,
-                    background: styles.background,
-                    border: `1px solid ${styles.borderColor}`
-                  }}
-                />
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{c}</span>
               </button>
             );
@@ -449,8 +529,8 @@ export default function Calendar(props?: {
               aria-selected={isSelected ? true : undefined}
               style={{
                 border: isSelected ? `2px solid var(--primary)` : "1px solid #ddd",
-                height: 110,
-                padding: 6,
+                height: compact ? 84 : 110,
+                padding: compact ? 4 : 6,
                 display: "flex",
                 flexDirection: "column",
                 overflow: "hidden",
@@ -463,7 +543,13 @@ export default function Calendar(props?: {
                 const dayKey = `${year}-${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
                 const list = idx.get(dayKey) ?? [];
                 if (props?.onDateSelect) props.onDateSelect(dayKey, list);
-                if (!props?.disableDateModal) setSelected({ date: dayKey, events: list });
+                if (!props?.disableDateModal) {
+                  if (selected && selected.date === dayKey) {
+                    setSelected(null);
+                  } else {
+                    setSelected({ date: dayKey, events: list });
+                  }
+                }
               }}
             >
               <div style={{ fontWeight: 600, lineHeight: "16px", marginBottom: 2 }}>{d.day}</div>
@@ -478,14 +564,14 @@ export default function Calendar(props?: {
                         <div
                           key={j}
                           style={{
-                            fontSize: 12,
+                            fontSize: compact ? 11 : 12,
                             whiteSpace: "nowrap",
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                             display: "flex",
                             alignItems: "center",
                             gap: 6,
-                            lineHeight: "16px",
+                            lineHeight: compact ? "14px" : "16px",
                             background: s.background,
                             color: s.color,
                             border: `1px solid ${s.borderColor}`,
@@ -631,22 +717,53 @@ export default function Calendar(props?: {
           <h3>Events This Month</h3>
           <ul className="list">
             {(() => {
-              const filtered = listSource
-                .filter((e) => eventMatchesOffice(e, officeFilter) && eventMatchesCategory(e, categoryFilter))
-                .filter((e) => {
-                  if (e.dateType === "range" && e.startDate && e.endDate) {
-                    const start = parseDate(e.startDate);
-                    const end = parseDate(e.endDate);
-                    return (start.getFullYear() === year && start.getMonth() + 1 === month) ||
-                           (end.getFullYear() === year && end.getMonth() + 1 === month) ||
-                           (start.getFullYear() <= year && end.getFullYear() >= year &&
-                            start.getMonth() + 1 <= month && end.getMonth() + 1 >= month);
-                  } else if (e.date) {
-                    const d = parseDate(e.date);
-                    return d.getFullYear() === year && d.getMonth() + 1 === month;
+              const holidayDays = new Set<number>((data?.calendarDays || []).filter((d) => d.holiday).map((d: any) => d.day).filter((n: any) => typeof n === "number"));
+              function isWorkingDay(d: Date) {
+                const wd = d.getDay();
+                return wd >= 1 && wd <= 5;
+              }
+              function isHoliday(d: Date) {
+                if (!data) return false;
+                if (d.getFullYear() !== year || d.getMonth() + 1 !== month) return false;
+                return holidayDays.has(d.getDate());
+              }
+              function isFutureOrToday(d: Date) {
+                const now = new Date();
+                const a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                return b.getTime() >= a.getTime();
+              }
+              function withinBusinessHours(e: any) {
+                const s = String(e.startTime || "");
+                const t = String(e.endTime || "");
+                if (!/^\d{2}:\d{2}$/.test(s) || !/^\d{2}:\d{2}$/.test(t)) return false;
+                return s >= "08:00" && t <= "17:00";
+              }
+              function eventHasValidDayInMonth(e: any) {
+                if (!withinBusinessHours(e)) return false;
+                if (e.dateType === "range" && e.startDate && e.endDate) {
+                  const start = parseDate(e.startDate);
+                  const end = parseDate(e.endDate);
+                  const cursor = new Date(start);
+                  while (cursor <= end) {
+                    if (cursor.getFullYear() === year && cursor.getMonth() + 1 === month && isWorkingDay(cursor) && !isHoliday(cursor) && isFutureOrToday(cursor)) {
+                      return true;
+                    }
+                    cursor.setDate(cursor.getDate() + 1);
                   }
                   return false;
-                });
+                } else if (e.date) {
+                  const d = parseDate(e.date);
+                  if (d.getFullYear() === year && d.getMonth() + 1 === month && isWorkingDay(d) && !isHoliday(d) && isFutureOrToday(d)) {
+                    return true;
+                  }
+                  return false;
+                }
+                return false;
+              }
+              const filtered = listSource
+                .filter((e) => eventMatchesOffice(e, officeFilter) && eventMatchesCategory(e, categoryFilter))
+                .filter((e) => eventHasValidDayInMonth(e));
               if (filtered.length === 0) {
                 return <li className="list-item">No events are scheduled</li>;
               }

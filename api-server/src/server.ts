@@ -32,6 +32,58 @@ function writeEventsFile(p: string, events: any[]) {
   fs.writeFileSync(p, content, "utf-8");
 }
 
+function parseDateTime(dateStr?: string, timeStr?: string): Date | null {
+  if (!dateStr) return null;
+  try {
+    const [y, m, d] = dateStr.split("-").map((n: string) => Number(n));
+    let hh = 23, mm = 59;
+    if (timeStr && /^\d{2}:\d{2}$/.test(timeStr)) {
+      const [h2, m2] = timeStr.split(":").map((n: string) => Number(n));
+      hh = isFinite(h2) ? h2 : 23;
+      mm = isFinite(m2) ? m2 : 59;
+    }
+    return new Date(y, (m || 1) - 1, d || 1, hh, mm, 0, 0);
+  } catch {
+    return null;
+  }
+}
+function startOfToday(): Date {
+  const n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate(), 0, 0, 0, 0);
+}
+function isEventPast(ev: any): boolean {
+  // Past = event's last day is before today (ignore time-of-day)
+  const today = startOfToday().getTime();
+  if (ev?.dateType === "range" && ev?.startDate && ev?.endDate) {
+    const end = parseDateTime(ev.endDate, ev.endTime) || parseDateTime(ev.endDate, "17:00");
+    return (end?.getTime() ?? today) < today;
+  }
+  if (ev?.date) {
+    const end = parseDateTime(ev.date, ev.endTime || ev.startTime || "17:00");
+    // Treat a single-day event as past only if its day is strictly before today
+    const endDay = end ? new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime() : today;
+    return endDay < today;
+  }
+  return false;
+}
+function archivePastEvents(): any[] {
+  const eventsPath = path.join(dataDir, "events.json");
+  const archivePath = path.join(dataDir, "events-archive.json");
+  const events = (readJson(eventsPath) as any[]).map((e) => {
+    if (!e.id) e.id = crypto.randomUUID();
+    return e;
+  });
+  const archivedExisting = readJson(archivePath) as any[];
+  const past = events.filter(isEventPast);
+  const upcoming = events.filter((e) => !isEventPast(e));
+  if (past.length > 0) {
+    writeEventsFile(eventsPath, upcoming);
+    writeEventsFile(archivePath, [...archivedExisting, ...past]);
+    return upcoming;
+  }
+  return events;
+}
+
 function ensureEventIds(): any[] {
   const p = path.join(dataDir, "events.json");
   const events = readJson(p) as any[];
@@ -149,13 +201,13 @@ app.post("/api/login", (req, res) => {
 });
 
 app.get("/api/events", (_req, res) => {
-  const events = ensureEventIds();
+  const events = archivePastEvents();
   res.json(events);
 });
 
 app.get("/api/office/events", authMiddleware, (req, res) => {
   const user = (req as any).user as any;
-  const events = ensureEventIds();
+  const events = archivePastEvents();
   const { services } = getServicesStructure();
   const svc = services.find((s: any) => s.name === user.service);
   const serviceOfficeNames = new Set((svc?.offices ?? []).map((o: any) => o.name));
@@ -174,6 +226,11 @@ app.get("/api/office/events", authMiddleware, (req, res) => {
 
 app.get("/api/holidays", (_req, res) => {
   const p = path.join(dataDir, "holidays.json");
+  res.json(readJson(p));
+});
+
+app.get("/api/employees", (_req, res) => {
+  const p = path.join(dataDir, "employees.json");
   res.json(readJson(p));
 });
 
@@ -235,10 +292,16 @@ app.delete("/api/users/:username", authMiddleware, requireRole("ADMIN"), (req, r
 
 app.post("/api/events", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), (req, res) => {
   const p = path.join(dataDir, "events.json");
-  const events = readJson(p) as any[];
+  const events = archivePastEvents(); // also ensures ids for current records
   const user = (req as any).user as any;
   const id = crypto.randomUUID();
-  const payload = { id, ...req.body };
+  const payload = {
+    id,
+    ...req.body,
+    createdBy: user?.sub || user?.username || null,
+    createdByOffice: user?.officeName || null,
+    createdAt: new Date().toISOString()
+  };
   if (!("office" in payload) || payload.office == null) {
     payload.office = user?.officeName ?? null;
   }
@@ -249,9 +312,18 @@ app.post("/api/events", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), (re
 
 app.put("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), (req, res) => {
   const p = path.join(dataDir, "events.json");
+  archivePastEvents(); // move any past items first
   const events = readJson(p) as any[];
+  const user = (req as any).user as any;
   const idx = events.findIndex((e: any) => e.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: "not_found" });
+  if (isEventPast(events[idx])) return res.status(409).json({ error: "event_archived_or_past" });
+  const isAdmin = String(user?.role || "").replace(/^ROLE_/, "").endsWith("ADMIN");
+  const userOffice = user?.officeName || null;
+  const ownerOffice = events[idx]?.office ?? events[idx]?.createdByOffice ?? null;
+  if (!isAdmin && (!ownerOffice || ownerOffice !== userOffice)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
   const updated = { ...events[idx], ...req.body, id: events[idx].id };
   events[idx] = updated;
   writeEventsFile(p, events);
@@ -260,9 +332,19 @@ app.put("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), 
 
 app.delete("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), (req, res) => {
   const p = path.join(dataDir, "events.json");
+  archivePastEvents(); // move any past items first
   const events = readJson(p) as any[];
+  const user = (req as any).user as any;
+  const idx = events.findIndex((e: any) => e.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: "not_found" });
+  if (isEventPast(events[idx])) return res.status(409).json({ error: "event_archived_or_past" });
+  const isAdmin = String(user?.role || "").replace(/^ROLE_/, "").endsWith("ADMIN");
+  const userOffice = user?.officeName || null;
+  const ownerOffice = events[idx]?.office ?? events[idx]?.createdByOffice ?? null;
+  if (!isAdmin && (!ownerOffice || ownerOffice !== userOffice)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
   const next = events.filter((e: any) => e.id !== req.params.id);
-  if (next.length === events.length) return res.status(404).json({ error: "not_found" });
   writeEventsFile(p, next);
   res.status(204).end();
 });

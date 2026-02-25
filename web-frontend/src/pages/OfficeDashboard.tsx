@@ -45,6 +45,22 @@ export default function OfficeDashboard() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [detailEvent, setDetailEvent] = useState<any | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [holidays, setHolidays] = useState<Array<{ month: number; day: number; name: string }>>([]);
+  const [editing, setEditing] = useState<any | null>(null);
+  const [isPortrait, setIsPortrait] = useState<boolean>(true);
+  useEffect(() => {
+    function update() {
+      try {
+        const m = window.matchMedia && window.matchMedia("(orientation: portrait)");
+        setIsPortrait(m ? m.matches : window.innerHeight >= window.innerWidth);
+      } catch {
+        setIsPortrait(true);
+      }
+    }
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   useEffect(() => {
     fetch("/api/offices-data")
@@ -53,6 +69,9 @@ export default function OfficeDashboard() {
     fetch("/api/events")
       .then((r) => r.json())
       .then((d) => setEvents(d));
+    fetch("/api/holidays")
+      .then((r) => r.json())
+      .then((d) => setHolidays(Array.isArray(d) ? d : []));
   }, []);
 
   const CATEGORY_OPTIONS = ["workshop", "meeting", "training", "conference", "travel", "activity", "others - specified"];
@@ -227,23 +246,56 @@ export default function OfficeDashboard() {
     d.setHours(hh || 0, mm || 0, 0, 0);
     return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
   }
+  function isWorkingDay(d: Date) {
+    const wd = d.getDay();
+    return wd >= 1 && wd <= 5;
+  }
+  function isHoliday(d: Date) {
+    return holidays.some((h) => h.month === d.getMonth() + 1 && h.day === d.getDate());
+  }
+  function isFutureOrToday(d: Date) {
+    const now = new Date();
+    const a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    return b.getTime() >= a.getTime();
+  }
+  function withinBusinessHours(e: any) {
+    const s = String(e.startTime || "");
+    const t = String(e.endTime || "");
+    if (!/^\d{2}:\d{2}$/.test(s) || !/^\d{2}:\d{2}$/.test(t)) return false;
+    return s >= "08:00" && t <= "17:00";
+  }
+  function eventHasValidDayInMonth(e: any, y: number, m: number) {
+    if (!withinBusinessHours(e)) return false;
+    if (e.dateType === "range" && e.startDate && e.endDate) {
+      const start = parseDate(e.startDate);
+      const end = parseDate(e.endDate);
+      const cursor = new Date(start);
+      while (cursor <= end) {
+        if (cursor.getFullYear() === y && cursor.getMonth() + 1 === m && isWorkingDay(cursor) && !isHoliday(cursor) && isFutureOrToday(cursor)) {
+          return true;
+        }
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      return false;
+    } else if (e.date) {
+      const d = parseDate(e.date);
+      if (d.getFullYear() === y && d.getMonth() + 1 === m && isWorkingDay(d) && !isHoliday(d) && isFutureOrToday(d)) {
+        return withinBusinessHours(e);
+      }
+      return false;
+    }
+    return false;
+  }
+  function eventValidOnSpecificDay(e: any, day: Date) {
+    if (!withinBusinessHours(e)) return false;
+    if (!isWorkingDay(day) || isHoliday(day) || !isFutureOrToday(day)) return false;
+    return true;
+  }
   const monthEvents = useMemo(() => {
     return events
       .filter((e) => eventMatchesOffice(e, officeFilter) && eventMatchesCategory(e, categoryFilter))
-      .filter((e) => {
-        if (e.dateType === "range" && e.startDate && e.endDate) {
-          const start = parseDate(e.startDate);
-          const end = parseDate(e.endDate);
-          return (start.getFullYear() === viewYear && start.getMonth() + 1 === viewMonth) ||
-                 (end.getFullYear() === viewYear && end.getMonth() + 1 === viewMonth) ||
-                 (start.getFullYear() <= viewYear && end.getFullYear() >= viewYear &&
-                  start.getMonth() + 1 <= viewMonth && end.getMonth() + 1 >= viewMonth);
-        } else if (e.date) {
-          const d = parseDate(e.date);
-          return d.getFullYear() === viewYear && d.getMonth() + 1 === viewMonth;
-        }
-        return false;
-      });
+      .filter((e) => eventHasValidDayInMonth(e, viewYear, viewMonth));
   }, [events, officeFilter, categoryFilter, viewYear, viewMonth]);
   const selectedDateEventsComputed = useMemo(() => {
     if (!selectedDate) return [];
@@ -254,21 +306,23 @@ export default function OfficeDashboard() {
         if (e.dateType === "range" && e.startDate && e.endDate) {
           const start = parseDate(e.startDate);
           const end = parseDate(e.endDate);
-          return day >= start && day <= end;
+          if (day < start || day > end) return false;
+          return eventValidOnSpecificDay(e, day);
         } else if (e.date) {
           const d = parseDate(e.date);
-          return d.getFullYear() === day.getFullYear() && d.getMonth() === day.getMonth() && d.getDate() === day.getDate();
+          if (!(d.getFullYear() === day.getFullYear() && d.getMonth() === day.getMonth() && d.getDate() === day.getDate())) return false;
+          return eventValidOnSpecificDay(e, day);
         }
         return false;
       });
-  }, [events, officeFilter, categoryFilter, selectedDate]);
+  }, [events, officeFilter, categoryFilter, selectedDate, holidays]);
 
   function canEditEvent(e: any) {
     const user = me;
     if (!user) return false;
     if (String(user.role || "").endsWith("ADMIN")) return true;
-    const uid = user.sub || (user as any)?.username;
-    return !!(e && e.createdBy && e.createdBy === uid);
+    const myOffice = user.officeName || "";
+    return !!(e && (e.office === myOffice || e.createdByOffice === myOffice));
   }
 
   function reloadEvents() {
@@ -278,74 +332,27 @@ export default function OfficeDashboard() {
   }
 
   const canAdd = !!(me?.role?.endsWith?.("ADMIN") || me?.role?.endsWith?.("OFFICE"));
+  function deleteEvent(id: string) {
+    const t = getToken();
+    if (!t) return;
+    fetch(`/api/events/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${t}` } })
+      .then((r) => {
+        if (r.status === 204) {
+          reloadEvents();
+        } else {
+          return r.json().then((j) => {
+            alert(j?.error || "Delete failed");
+          }).catch(() => alert("Delete failed"));
+        }
+      })
+      .catch(() => alert("Delete failed"));
+  }
+  // Removed inline saveEdit in favor of using AddEventModal in edit mode
 
   return (
     <div style={{ padding: 16 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "240px 1fr 320px", gap: 16 }}>
-        <aside className="card hover-scroll" style={{ padding: 12, height: "calc(100vh - 140px)" }}>
-          <h3>Regional Office</h3>
-          <ul className="list">
-            <li
-              className="list-item"
-              style={{ cursor: "pointer", outline: officeFilter ? "none" : "2px solid var(--primary)" }}
-              onClick={() => setOfficeFilter("")}
-            >
-              <strong>All offices</strong>
-            </li>
-          </ul>
-          <div style={{ marginTop: 8 }}>
-            <h4 style={{ margin: "8px 0" }}>Top-level Offices</h4>
-            <ul className="list">
-              {officesData?.topLevelOffices.map((o: any) => (
-                <li
-                  key={o.name}
-                  className="list-item"
-                  onClick={() => setOfficeFilter(o.name)}
-                  style={{ cursor: "pointer", outline: officeFilter === o.name ? "2px solid var(--primary)" : "none" }}
-                >
-                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    {renderIcon(o.icon, o.name)}
-                    <span>{o.name}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div style={{ marginTop: 8 }}>
-            <h4 style={{ margin: "8px 0" }}>Services</h4>
-            {officesData?.services.map((s: any) => (
-              <div key={s.name} style={{ marginBottom: 8 }}>
-                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>{s.name}</div>
-                <ul className="list">
-                  {s.offices.map((o: any) => (
-                    <li
-                      key={o.name}
-                      className="list-item"
-                      onClick={() => setOfficeFilter(o.name)}
-                      style={{ cursor: "pointer", outline: officeFilter === o.name ? "2px solid var(--primary)" : "none" }}
-                    >
-                      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        {renderIcon(o.icon, o.name)}
-                        <span>{o.name}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </aside>
+      <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "minmax(0, 4fr) minmax(0, 1fr)", gap: 16 }}>
         <main className="card hover-scroll" style={{ padding: 12, height: "calc(100vh - 140px)" }}>
-          {canAdd && (
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-              <button
-                onClick={() => setAddOpen(true)}
-                style={{ padding: "6px 12px", borderRadius: 8, background: "var(--primary)", color: "var(--primary-contrast)", border: "none", cursor: "pointer" }}
-              >
-                Add Event
-              </button>
-            </div>
-          )}
           <Calendar
             officeFilter={officeFilter}
             onOfficeFilterChange={setOfficeFilter}
@@ -353,11 +360,129 @@ export default function OfficeDashboard() {
             onCategoryFilterChange={setCategoryFilter}
             hideMonthList={true}
             showScopeToggle={false}
-            categoriesAsChips={true}
+            categoriesAsChips={false}
             showOfficeSelector={false}
+            showCategorySelector={false}
+            showTitle={false}
+            headerBelow={
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 300px", minWidth: 200 }}>
+                  <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Select Office</label>
+                  <select
+                    value={officeFilter}
+                    onChange={(e) => setOfficeFilter(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: 10,
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                      background: "var(--card)",
+                      fontSize: 14
+                    }}
+                  >
+                    <option value="">All Offices</option>
+                    {officesData && (
+                      <>
+                        <optgroup label="Top-level Offices">
+                          {officesData.topLevelOffices.map((o: { name: string }) => (
+                            <option key={o.name} value={o.name}>{o.name}</option>
+                          ))}
+                        </optgroup>
+                        {officesData.services.map((svc: { name: string; offices: Array<{ name: string }> }) => (
+                          <optgroup key={svc.name} label={svc.name}>
+                            {svc.offices.map((o: { name: string }) => (
+                              <option key={o.name} value={o.name}>{o.name}</option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                </div>
+                <div style={{ width: 260 }}>
+                  <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Category</label>
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: 10,
+                      border: `2px solid ${categoryFilter ? categoryStyle(categoryFilter).borderColor : "var(--border)"}`,
+                      borderRadius: 10,
+                      background: categoryFilter ? categoryStyle(categoryFilter).background : "var(--card)",
+                      color: categoryFilter ? categoryStyle(categoryFilter).color : "inherit",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      boxShadow: categoryFilter ? `0 0 0 3px ${categoryStyle(categoryFilter).borderColor}` : "none",
+                      filter: categoryFilter ? "saturate(1.35) brightness(1.05)" : "none"
+                    }}
+                  >
+                    <option value="">All Categories</option>
+                    {CATEGORY_OPTIONS.map((c) => {
+                      const styles = categoryStyle(c);
+                      return (
+                        <option
+                          key={c}
+                          value={c}
+                          style={{
+                            background: styles.background,
+                            color: styles.color,
+                            fontWeight: 700
+                          }}
+                        >
+                          {c}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => { setOfficeFilter(me?.officeName || ""); setCategoryFilter(""); setSelectedDate(null); }}
+                    style={{
+                      padding: "10px 12px",
+                      background: "#e2e8f0",
+                      color: "#0f172a",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: 8,
+                      cursor: "pointer",
+                      fontSize: 14,
+                      fontWeight: 600
+                    }}
+                    title="Clear filters"
+                    aria-label="Clear filters"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+                {canAdd && (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setAddOpen(true)}
+                      style={{
+                        padding: "10px 12px",
+                        background: "#2563eb",
+                        color: "#ffffff",
+                        border: "1px solid #1d4ed8",
+                        borderRadius: 8,
+                        cursor: "pointer",
+                        fontSize: 14,
+                        fontWeight: 600
+                      }}
+                      title="Add Event"
+                      aria-label="Add Event"
+                    >
+                      Add Event
+                    </button>
+                  </div>
+                )}
+              </div>
+            }
             selectedDate={selectedDate ?? undefined}
-            onDateSelect={(date) => {
-              setSelectedDate(date);
+            onDateSelect={(date, _events) => {
+              setSelectedDate((prev) => (prev === date ? null : date));
             }}
             disableDateModal={true}
             allowCreate={true}
@@ -393,36 +518,48 @@ export default function OfficeDashboard() {
                 });
             }}
           />
+          <AddEventModal
+            open={!!editing}
+            onClose={() => setEditing(null)}
+            defaultDate={
+              editing
+                ? (editing.date || editing.startDate || `${viewYear}-${String(viewMonth).padStart(2, "0")}-01`)
+                : `${viewYear}-${String(viewMonth).padStart(2, "0")}-01`
+            }
+            categories={CATEGORY_OPTIONS}
+            availableOffices={availableOffices}
+            officesData={officesData ?? undefined}
+            mode="edit"
+            initialEvent={editing ?? undefined}
+            submitLabel="Save"
+            title="Edit Event"
+            onSubmit={(payload) => {
+              const t = getToken();
+              if (!t || !editing) return;
+              const body = { ...editing, ...payload };
+              fetch(`/api/events/${editing.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
+                body: JSON.stringify(body)
+              })
+                .then((r) => r.json())
+                .then((res) => {
+                  if ((res as any)?.error) {
+                    alert((res as any).error);
+                    return;
+                  }
+                  setEditing(null);
+                  reloadEvents();
+                })
+                .catch(() => alert("Save failed"));
+            }}
+          />
         </main>
         <section className="card hover-scroll" style={{ padding: 12, height: "calc(100vh - 140px)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <h3 style={{ margin: 0 }}>
               {selectedDate ? `Events on ${formatDateLabel(selectedDate)}` : "Upcoming Events This Month"}
             </h3>
-            {selectedDate && (
-              <span>
-                <button
-                  onClick={() => { setSelectedDate(null); }}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "4px 10px",
-                    background: "transparent",
-                    color: "#2563eb",
-                    border: "1px solid var(--border)",
-                    borderRadius: 999,
-                    fontSize: 12,
-                    cursor: "pointer"
-                  }}
-                  aria-label="Clear selected date"
-                  title="Clear selected date"
-                >
-                  <span aria-hidden>×</span>
-                  <span>Clear</span>
-                </button>
-              </span>
-            )}
           </div>
           <ul className="list">
             {(selectedDate ? selectedDateEventsComputed : monthEvents).length === 0 ? (
@@ -441,8 +578,37 @@ export default function OfficeDashboard() {
                   }}
                 >
                   <div>
-                    <strong>{e.title}</strong>
-                    {e.category && <span className="badge" style={categoryStyle(e.category)}>{e.category}</span>}
+                    <div>
+                      <strong>{e.title}</strong>
+                    </div>
+                    {e.category && (
+                      <div style={{ marginTop: 4 }}>
+                        <span className="badge" style={categoryStyle(e.category)}>{e.category}</span>
+                      </div>
+                    )}
+                    {canEditEvent(e) && (
+                      <div style={{ marginTop: 6, display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
+                        <button
+                          onClick={(ev) => { ev.stopPropagation(); setEditing({ ...e }); }}
+                          style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #93c5fd", background: "#dbeafe", color: "#1d4ed8", cursor: "pointer" }}
+                          title="Edit event"
+                          aria-label="Edit event"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            if (confirm("Delete this event?")) deleteEvent(e.id);
+                          }}
+                          style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #ef4444", background: "#fee2e2", color: "#991b1b", cursor: "pointer" }}
+                          title="Delete event"
+                          aria-label="Delete event"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </li>
               ))
@@ -456,6 +622,7 @@ export default function OfficeDashboard() {
             canEditEvent={(e) => canEditEvent(e)}
             onEdit={() => alert("Open the date cell and use Edit in calendar modal")}
           />
+          
         </section>
       </div>
     </div>
