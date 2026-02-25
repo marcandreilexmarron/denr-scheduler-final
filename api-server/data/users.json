@@ -1,0 +1,86 @@
+[
+  {
+    "username": "admin",
+    "password": "password",
+    "role": "ADMIN",
+    "officeName": "Administrator",
+    "service": "System"
+  },
+  {
+    "username": "ord_admin",
+    "password": "password",
+    "role": "OFFICE",
+    "officeName": "Office of the Regional Director",
+    "service": "Regional Office"
+  },
+  {
+    "username": "ardms_admin",
+    "password": "password",
+    "role": "OFFICE",
+    "officeName": "Office of the Assistant Regional Director for Management Services",
+    "service": "Regional Office"
+  },
+  {
+    "username": "ardts_admin",
+    "password": "password",
+    "role": "OFFICE",
+    "officeName": "Office of the Assistant Regional Director for Technical Services",
+    "service": "Regional Office"
+  },
+  {
+    "username": "smd_admin",
+    "password": "password",
+    "role": "OFFICE",
+    "officeName": "Surveys and Mapping Division",
+    "service": "Technical Services"
+  },
+  {
+    "username": "lpdd_admin",
+    "password": "password",
+    "role": "OFFICE",
+    "officeName": "Licenses, Patents and Deeds Division",
+    "service": "Technical Services"
+  },
+  {
+    "username": "cdd_admin",
+    "password": "password",
+    "role": "OFFICE",
+    "officeName": "Conservation and Development Division",
+    "service": "Technical Services"
+  },
+  {
+    "username": "ed_admin",
+    "password": "password",
+    "role": "OFFICE",
+    "officeName": "Enforcement Division",
+    "service": "Technical Services"
+  },
+  {
+    "username": "pmd_admin",
+    "password": "password",
+    "role": "OFFICE",
+    "officeName": "Planning and Management Division",
+    "service": "Management Services"
+  },
+  {
+    "username": "ld_admin",
+    "password": "password",
+    "role": "OFFICE",
+    "officeName": "Legal Division",
+    "service": "Management Services"
+  },
+  {
+    "username": "ad_admin",
+    "password": "password",
+    "role": "OFFICE",
+    "officeName": "Administrative Division",
+    "service": "Management Services"
+  },
+  {
+    "username": "fd_admin",
+    "password": "password",
+    "role": "OFFICE",
+    "officeName": "Finance Division",
+    "service": "Management Services"
+  }
+]
