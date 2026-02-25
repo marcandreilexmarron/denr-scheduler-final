@@ -478,8 +478,14 @@ export default function Landing() {
                   }}
                 >
                   <div>
-                    <strong>{e.title}</strong>
-                    {e.category && <span className="badge" style={categoryStyle(e.category)}>{e.category}</span>}
+                    <div>
+                      <strong>{e.title}</strong>
+                    </div>
+                    {e.category && (
+                    <div>
+                      <span className="badge" style={categoryStyle(e.category)}>{e.category}</span>
+                    </div>
+                    )}
                   </div>
                 </li>
               ))
