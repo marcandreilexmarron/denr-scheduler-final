@@ -335,7 +335,7 @@ export default function Landing() {
             ))}
           </div>
         </aside>
-        <main className="card hover-scroll" style={{ padding: 12, minWidth: 0 }}>
+        <main className="card hover-scroll" style={{ padding: "0 12px 12px 12px", minWidth: 0, height: "calc(100vh - 140px)" }}>
           <Calendar
             officeFilter={officeFilter}
             onOfficeFilterChange={setOfficeFilter}
@@ -454,7 +454,7 @@ export default function Landing() {
             }}
           />
         </main>
-        <section className="card hover-scroll" style={{ padding: 12, overflow: "hidden" }}>
+        <section className="card hover-scroll" style={{ padding: 12, height: "calc(100vh - 140px)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <h3 style={{ margin: 0 }}>
               {selectedDate ? `Events on ${formatDateLabel(selectedDate)}` : "Upcoming Events This Month"}

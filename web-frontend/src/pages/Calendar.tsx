@@ -350,173 +350,185 @@ export default function Calendar(props?: {
   }
 
   return (
-    <div style={{ padding: 24 }}>
-      {(props?.showTitle ?? true) && (
-        <h1 style={{ textAlign: "center", margin: "0 0 8px 0" }}>Calendar</h1>
-      )}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr auto 1fr",
-          alignItems: "center",
-          marginTop: 8
-        }}
-      >
-        <button
-          onClick={prev}
-          style={{
-            justifySelf: "start",
-            background: "transparent",
-            color: "var(--text)",
-            border: "1px solid var(--border)",
-            borderRadius: 999,
-            padding: "4px 10px",
-            lineHeight: "20px",
-            cursor: "pointer"
-          }}
-          aria-label="Previous month"
-        >
-          ‹ Prev
-        </button>
-        <div style={{ textAlign: "center", fontWeight: 600 }}>
-          {data?.yearMonth ?? ""}
-        </div>
-        <button
-          onClick={next}
-          style={{
-            justifySelf: "end",
-            background: "transparent",
-            color: "var(--text)",
-            border: "1px solid var(--border)",
-            borderRadius: 999,
-            padding: "4px 10px",
-            lineHeight: "20px",
-            cursor: "pointer"
-          }}
-          aria-label="Next month"
-        >
-          Next ›
-        </button>
-      </div>
-      {props?.headerBelow && (
-        <div style={{ marginTop: 8 }}>
-          {props.headerBelow}
-        </div>
-      )}
-      <div style={{ marginTop: 8, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        {showScopeToggle && (
-          <>
-            <label style={{ marginRight: 12 }}>
-              <input
-                type="radio"
-                name="scope"
-                value="all"
-                checked={scope === "all"}
-                onChange={() => setScope("all")}
-              />{" "}
-              All Events
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="scope"
-                value="office"
-                checked={scope === "office"}
-                onChange={() => setScope("office")}
-              />{" "}
-              My Office
-            </label>
-          </>
+    <div style={{ padding: 0 }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 5, background: "var(--card)", padding: "24px 24px 8px 24px", borderBottom: "1px solid var(--border)" }}>
+        {(props?.showTitle ?? true) && (
+          <h1 style={{ textAlign: "center", margin: "0 0 8px 0" }}>Calendar</h1>
         )}
-        {showOfficeSelector && (
-          <select value={officeFilter} onChange={(e) => setOfficeFilter(e.target.value)}>
-            <option value="">All Offices</option>
-            {availableOffices.map((o) => (
-              <option key={o} value={o}>{o}</option>
-            ))}
-          </select>
-        )}
-        {!categoriesAsChips && showCategorySelector && (
-          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-            <option value="">All Categories</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        )}
-      </div>
-      {categoriesAsChips && (
         <div
           style={{
-            marginTop: 8,
-            display: "flex",
-            gap: 8,
-            flexWrap: "nowrap",
-            overflowX: "auto",
-            scrollbarGutter: "stable",
-            alignItems: "stretch",
-            width: "100%"
+            display: "grid",
+            gridTemplateColumns: "1fr auto 1fr",
+            alignItems: "center",
+            marginTop: 8
           }}
         >
           <button
-            type="button"
-            onClick={() => setCategoryFilter("")}
-            className="chip"
+            onClick={prev}
             style={{
-              background: categoryFilter ? "transparent" : "#e2e8f0",
-              color: categoryFilter ? "inherit" : "#0f172a",
-              border: `1px solid ${categoryFilter ? "var(--border)" : "#cbd5e1"}`,
-              flex: "1 1 0",
-              minWidth: 80,
+              justifySelf: "start",
+              background: "transparent",
+              color: "var(--text)",
+              border: "1px solid var(--border)",
               borderRadius: 999,
-              padding: "8px 12px",
-              fontWeight: 600
+              padding: "4px 10px",
+              lineHeight: "20px",
+              cursor: "pointer"
+            }}
+            aria-label="Previous month"
+          >
+            ‹ Prev
+          </button>
+          <div style={{ textAlign: "center", fontWeight: 600 }}>
+            {data?.yearMonth ?? ""}
+          </div>
+          <button
+            onClick={next}
+            style={{
+              justifySelf: "end",
+              background: "transparent",
+              color: "var(--text)",
+              border: "1px solid var(--border)",
+              borderRadius: 999,
+              padding: "4px 10px",
+              lineHeight: "20px",
+              cursor: "pointer"
+            }}
+            aria-label="Next month"
+          >
+            Next ›
+          </button>
+        </div>
+        {props?.headerBelow && (
+          <div style={{ marginTop: 8 }}>
+            {props.headerBelow}
+          </div>
+        )}
+        <div style={{ marginTop: 8, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          {showScopeToggle && (
+            <>
+              <label style={{ marginRight: 12 }}>
+                <input
+                  type="radio"
+                  name="scope"
+                  value="all"
+                  checked={scope === "all"}
+                  onChange={() => setScope("all")}
+                />{" "}
+                All Events
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="scope"
+                  value="office"
+                  checked={scope === "office"}
+                  onChange={() => setScope("office")}
+                />{" "}
+                My Office
+              </label>
+            </>
+          )}
+          {showOfficeSelector && (
+            <select value={officeFilter} onChange={(e) => setOfficeFilter(e.target.value)}>
+              <option value="">All Offices</option>
+              {availableOffices.map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </select>
+          )}
+          {!categoriesAsChips && showCategorySelector && (
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+              <option value="">All Categories</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          )}
+        </div>
+        {categoriesAsChips && (
+          <div
+            style={{
+              marginTop: 8,
+              display: "flex",
+              gap: 8,
+              flexWrap: "nowrap",
+              overflowX: "auto",
+              scrollbarGutter: "stable",
+              alignItems: "stretch",
+              width: "100%"
             }}
           >
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>All</span>
-          </button>
-          {categories.map((c) => {
-            const active = normalizeCategory(c) === normalizeCategory(categoryFilter);
-            const styles = categoryStyle(c);
-            return (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setCategoryFilter(c)}
-                className="chip"
-                style={{
-                  background: styles.background,
-                  color: styles.color,
-                  border: `1px solid ${styles.borderColor}`,
-                  flex: "1 1 0",
-                  minWidth: 80,
-                  borderRadius: 999,
-                  padding: "8px 12px",
-                  boxShadow: active ? `0 0 0 2px ${styles.borderColor}` : "none",
-                  filter: active ? "saturate(1.25) brightness(1.05)" : "saturate(1.1)",
-                  opacity: active ? 1 : 0.9,
-                  transition: "filter 120ms ease, box-shadow 120ms ease, opacity 120ms ease"
-                }}
-              >
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{c}</span>
-              </button>
-            );
-          })}
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("")}
+              className="chip"
+              style={{
+                background: categoryFilter ? "transparent" : "#e2e8f0",
+                color: categoryFilter ? "inherit" : "#0f172a",
+                border: `1px solid ${categoryFilter ? "var(--border)" : "#cbd5e1"}`,
+                flex: "1 1 0",
+                minWidth: 80,
+                borderRadius: 999,
+                padding: "8px 12px",
+                fontWeight: 600
+              }}
+            >
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>All</span>
+            </button>
+            {categories.map((c) => {
+              const active = normalizeCategory(c) === normalizeCategory(categoryFilter);
+              const styles = categoryStyle(c);
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCategoryFilter(c)}
+                  className="chip"
+                  style={{
+                    background: styles.background,
+                    color: styles.color,
+                    border: `1px solid ${styles.borderColor}`,
+                    flex: "1 1 0",
+                    minWidth: 80,
+                    borderRadius: 999,
+                    padding: "8px 12px",
+                    boxShadow: active ? `0 0 0 2px ${styles.borderColor}` : "none",
+                    filter: active ? "saturate(1.25) brightness(1.05)" : "saturate(1.1)",
+                    opacity: active ? 1 : 0.9,
+                    transition: "filter 120ms ease, box-shadow 120ms ease, opacity 120ms ease"
+                  }}
+                >
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{c}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(7, 1fr)",
+            gap: 6,
+            marginTop: 12
+          }}
+        >
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+            <div key={d} style={{ fontWeight: "bold", textAlign: "center", height: 28, lineHeight: "28px" }}>
+              {d}
+            </div>
+          ))}
         </div>
-      )}
+      </div>
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(7, 1fr)",
           gap: 6,
-          marginTop: 12
+          marginTop: 6,
+          padding: "0 24px 24px 24px"
         }}
       >
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-          <div key={d} style={{ fontWeight: "bold", textAlign: "center", height: 28, lineHeight: "28px" }}>
-            {d}
-          </div>
-        ))}
         {data?.calendarDays.map((d, i) => {
           const key = typeof d.day === "number" ? `${year}-${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}` : "";
           const isSelected =
