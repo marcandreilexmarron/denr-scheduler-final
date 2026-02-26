@@ -47,6 +47,7 @@ export default function Landing() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [detailEvent, setDetailEvent] = useState<any | null>(null);
   const [isPortrait, setIsPortrait] = useState<boolean>(true);
+  const [holidays, setHolidays] = useState<Array<{ month: number; day: number; name: string }>>([]);
   useEffect(() => {
     function update() {
       try {
@@ -68,6 +69,9 @@ export default function Landing() {
     fetch("/api/events")
       .then((r) => r.json())
       .then((d) => setEvents(d));
+    fetch("/api/holidays")
+      .then((r) => r.json())
+      .then((d) => setHolidays(Array.isArray(d) ? d : []));
   }, []);
 
   useEffect(() => {
@@ -135,6 +139,23 @@ export default function Landing() {
       return s;
     }
   }
+  function isWorkingDay(d: Date) {
+    const wd = d.getDay();
+    return wd >= 1 && wd <= 5;
+  }
+  function isHoliday(d: Date) {
+    return holidays.some((h) => h.month === d.getMonth() + 1 && h.day === d.getDate());
+  }
+  function isFutureOrToday(d: Date) {
+    const now = new Date();
+    const a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    return b.getTime() >= a.getTime();
+  }
+  function eventValidOnSpecificDay(e: any, day: Date) {
+    if (!isWorkingDay(day) || isHoliday(day) || !isFutureOrToday(day)) return false;
+    return true;
+  }
   function formatTime(t?: string) {
     if (!t) return "";
     const [hh, mm] = t.split(":").map(Number);
@@ -151,14 +172,16 @@ export default function Landing() {
         if (e.dateType === "range" && e.startDate && e.endDate) {
           const start = parseDate(e.startDate);
           const end = parseDate(e.endDate);
-          return day >= start && day <= end;
+          if (day < start || day > end) return false;
+          return eventValidOnSpecificDay(e, day);
         } else if (e.date) {
           const d = parseDate(e.date);
-          return d.getFullYear() === day.getFullYear() && d.getMonth() === day.getMonth() && d.getDate() === day.getDate();
+          if (!(d.getFullYear() === day.getFullYear() && d.getMonth() === day.getMonth() && d.getDate() === day.getDate())) return false;
+          return eventValidOnSpecificDay(e, day);
         }
         return false;
       });
-  }, [events, officeFilter, categoryFilter, selectedDate]);
+  }, [events, officeFilter, categoryFilter, selectedDate, holidays]);
   const monthEvents = useMemo(() => {
     return events
       .filter((e) => eventMatchesOffice(e, officeFilter) && eventMatchesCategory(e, categoryFilter))
@@ -166,17 +189,23 @@ export default function Landing() {
         if (e.dateType === "range" && e.startDate && e.endDate) {
           const start = parseDate(e.startDate);
           const end = parseDate(e.endDate);
-          return (start.getFullYear() === viewYear && start.getMonth() + 1 === viewMonth) ||
-                 (end.getFullYear() === viewYear && end.getMonth() + 1 === viewMonth) ||
-                 (start.getFullYear() <= viewYear && end.getFullYear() >= viewYear &&
-                  start.getMonth() + 1 <= viewMonth && end.getMonth() + 1 >= viewMonth);
+          // include only if there exists at least one working, non-holiday, non-past day in this month
+          const cursor = new Date(start);
+          const monthIndex = viewMonth - 1;
+          while (cursor <= end) {
+            if (cursor.getFullYear() === viewYear && cursor.getMonth() === monthIndex && eventValidOnSpecificDay(e, cursor)) {
+              return true;
+            }
+            cursor.setDate(cursor.getDate() + 1);
+          }
+          return false;
         } else if (e.date) {
           const d = parseDate(e.date);
-          return d.getFullYear() === viewYear && d.getMonth() + 1 === viewMonth;
+          return d.getFullYear() === viewYear && d.getMonth() + 1 === viewMonth && eventValidOnSpecificDay(e, d);
         }
         return false;
       });
-  }, [events, officeFilter, categoryFilter, viewYear, viewMonth]);
+  }, [events, officeFilter, categoryFilter, viewYear, viewMonth, holidays]);
 
   const officeNames: string[] = useMemo(() => {
     if (!officesData) return [];

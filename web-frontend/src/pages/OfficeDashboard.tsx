@@ -259,14 +259,7 @@ export default function OfficeDashboard() {
     const b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
     return b.getTime() >= a.getTime();
   }
-  function withinBusinessHours(e: any) {
-    const s = String(e.startTime || "");
-    const t = String(e.endTime || "");
-    if (!/^\d{2}:\d{2}$/.test(s) || !/^\d{2}:\d{2}$/.test(t)) return false;
-    return s >= "08:00" && t <= "17:00";
-  }
   function eventHasValidDayInMonth(e: any, y: number, m: number) {
-    if (!withinBusinessHours(e)) return false;
     if (e.dateType === "range" && e.startDate && e.endDate) {
       const start = parseDate(e.startDate);
       const end = parseDate(e.endDate);
@@ -281,14 +274,13 @@ export default function OfficeDashboard() {
     } else if (e.date) {
       const d = parseDate(e.date);
       if (d.getFullYear() === y && d.getMonth() + 1 === m && isWorkingDay(d) && !isHoliday(d) && isFutureOrToday(d)) {
-        return withinBusinessHours(e);
+        return true;
       }
       return false;
     }
     return false;
   }
   function eventValidOnSpecificDay(e: any, day: Date) {
-    if (!withinBusinessHours(e)) return false;
     if (!isWorkingDay(day) || isHoliday(day) || !isFutureOrToday(day)) return false;
     return true;
   }

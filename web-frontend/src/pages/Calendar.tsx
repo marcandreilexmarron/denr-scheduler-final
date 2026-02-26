@@ -208,19 +208,13 @@ export default function Calendar(props?: {
       const b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
       return b.getTime() >= a.getTime();
     }
-    function withinBusinessHours(e: any) {
-      const s = String(e.startTime || "");
-      const t = String(e.endTime || "");
-      if (!/^\d{2}:\d{2}$/.test(s) || !/^\d{2}:\d{2}$/.test(t)) return false;
-      return s >= "08:00" && t <= "17:00";
-    }
     for (const e of src) {
       if (e.dateType === "range" && e.startDate && e.endDate) {
         const start = parseDate(e.startDate);
         const end = parseDate(e.endDate);
         const cursor = new Date(start);
         while (cursor <= end) {
-          if (isWorkingDay(cursor) && !isHoliday(cursor) && isFutureOrToday(cursor) && withinBusinessHours(e)) {
+          if (isWorkingDay(cursor) && !isHoliday(cursor) && isFutureOrToday(cursor)) {
             const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
             if (!map.has(key)) map.set(key, []);
             map.get(key)!.push(e);
@@ -229,7 +223,7 @@ export default function Calendar(props?: {
         }
       } else if (e.date) {
         const d = parseDate(e.date);
-        if (isWorkingDay(d) && !isHoliday(d) && isFutureOrToday(d) && withinBusinessHours(e)) {
+        if (isWorkingDay(d) && !isHoliday(d) && isFutureOrToday(d)) {
           const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
           if (!map.has(key)) map.set(key, []);
           map.get(key)!.push(e);
@@ -258,19 +252,13 @@ export default function Calendar(props?: {
       const b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
       return b.getTime() >= a.getTime();
     }
-    function withinBusinessHours(e: any) {
-      const s = String(e.startTime || "");
-      const t = String(e.endTime || "");
-      if (!/^\d{2}:\d{2}$/.test(s) || !/^\d{2}:\d{2}$/.test(t)) return false;
-      return s >= "08:00" && t <= "17:00";
-    }
     for (const e of src) {
       if (e.dateType === "range" && e.startDate && e.endDate) {
         const start = parseDate(e.startDate);
         const end = parseDate(e.endDate);
         const cursor = new Date(start);
         while (cursor <= end) {
-          if (isWorkingDay(cursor) && !isHoliday(cursor) && isFutureOrToday(cursor) && withinBusinessHours(e)) {
+          if (isWorkingDay(cursor) && !isHoliday(cursor) && isFutureOrToday(cursor)) {
             const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
             if (!map.has(key)) map.set(key, []);
             map.get(key)!.push(e);
@@ -279,7 +267,7 @@ export default function Calendar(props?: {
         }
       } else if (e.date) {
         const d = parseDate(e.date);
-        if (isWorkingDay(d) && !isHoliday(d) && isFutureOrToday(d) && withinBusinessHours(e)) {
+        if (isWorkingDay(d) && !isHoliday(d) && isFutureOrToday(d)) {
           const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
           if (!map.has(key)) map.set(key, []);
           map.get(key)!.push(e);
@@ -745,14 +733,7 @@ export default function Calendar(props?: {
                 const b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
                 return b.getTime() >= a.getTime();
               }
-              function withinBusinessHours(e: any) {
-                const s = String(e.startTime || "");
-                const t = String(e.endTime || "");
-                if (!/^\d{2}:\d{2}$/.test(s) || !/^\d{2}:\d{2}$/.test(t)) return false;
-                return s >= "08:00" && t <= "17:00";
-              }
               function eventHasValidDayInMonth(e: any) {
-                if (!withinBusinessHours(e)) return false;
                 if (e.dateType === "range" && e.startDate && e.endDate) {
                   const start = parseDate(e.startDate);
                   const end = parseDate(e.endDate);

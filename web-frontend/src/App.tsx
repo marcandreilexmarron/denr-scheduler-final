@@ -56,16 +56,15 @@ function Shell() {
           {user && (
             <>
               {user?.role?.endsWith("ADMIN") && <Link to="/admin">Admin</Link>}
-              <Link to="/office-dashboard">Office Dashboard</Link>
-              <Link to="/offices">Offices</Link>
             </>
           )}
         </div>
-        <span style={{ marginLeft: "auto" }}>
+        <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
           {user ? (
             <>
-              <span style={{ marginRight: 8 }}>
-                {user.officeName ? `${user.officeName}` : user.sub} ({user.service || "Top-level Offices"})
+              <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", lineHeight: 1.2 }}>
+                <span>{user.officeName ? user.officeName : user.sub}</span>
+                <span style={{ fontSize: 12, color: "#6b7280" }}>{user.service || "Top-level Offices"}</span>
               </span>
               <button onClick={() => { clearToken(); window.location.assign("/"); }}>Logout</button>
             </>

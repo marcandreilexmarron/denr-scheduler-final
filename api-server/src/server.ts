@@ -100,6 +100,61 @@ function ensureEventIds(): any[] {
   return events;
 }
 
+function backfillDivisionChiefTokens() {
+  const p = path.join(dataDir, "events.json");
+  const events = readJson(p) as any[];
+  const { services } = getServicesStructure();
+  const divisionOffices = new Set((services ?? []).flatMap((svc: any) => (svc?.offices ?? []).map((o: any) => o.name)));
+  let mutated = false;
+  for (const ev of events) {
+    const parts: string[] = Array.isArray(ev?.participants) ? ev.participants : [];
+    const tokens: string[] = Array.isArray(ev?.participantTokens) ? ev.participantTokens : [];
+    if (tokens.includes("Division Chiefs")) continue;
+    if (divisionOffices.size === 0) continue;
+    let hasAllDivisionOffices = true;
+    for (const name of divisionOffices) {
+      if (!parts.includes(name)) {
+        hasAllDivisionOffices = false;
+        break;
+      }
+    }
+    if (hasAllDivisionOffices) {
+      ev.participantTokens = [...tokens, "Division Chiefs"];
+      mutated = true;
+    }
+  }
+  if (mutated) {
+    writeEventsFile(p, events);
+  }
+}
+
+function backfillDivisionChiefTokensArchive() {
+  const p = path.join(dataDir, "events-archive.json");
+  const events = readJson(p) as any[];
+  const { services } = getServicesStructure();
+  const divisionOffices = new Set((services ?? []).flatMap((svc: any) => (svc?.offices ?? []).map((o: any) => o.name)));
+  let mutated = false;
+  for (const ev of events) {
+    const parts: string[] = Array.isArray(ev?.participants) ? ev.participants : [];
+    const tokens: string[] = Array.isArray(ev?.participantTokens) ? ev.participantTokens : [];
+    if (tokens.includes("Division Chiefs")) continue;
+    if (divisionOffices.size === 0) continue;
+    let hasAllDivisionOffices = true;
+    for (const name of divisionOffices) {
+      if (!parts.includes(name)) {
+        hasAllDivisionOffices = false;
+        break;
+      }
+    }
+    if (hasAllDivisionOffices) {
+      ev.participantTokens = [...tokens, "Division Chiefs"];
+      mutated = true;
+    }
+  }
+  if (mutated) {
+    writeEventsFile(p, events);
+  }
+}
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const dataDir = path.resolve(__dirname, "..", "data");
@@ -200,14 +255,63 @@ app.post("/api/login", (req, res) => {
   res.json({ token });
 });
 
+function isHolidayDate(d: Date, holidays: Array<{ month: number; day: number }>) {
+  return holidays.some((h) => h.month === d.getMonth() + 1 && h.day === d.getDate());
+}
+function parseYMD(s?: string): Date | null {
+  if (!s) return null;
+  try {
+    const [y, m, d] = String(s).split("-").map((n) => Number(n));
+    return new Date(y, (m || 1) - 1, d || 1);
+  } catch {
+    return null;
+  }
+}
+function isHolidayOnlyEvent(ev: any, holidays: Array<{ month: number; day: number }>): boolean {
+  if (ev?.dateType === "range" && ev?.startDate && ev?.endDate) {
+    const start = parseYMD(ev.startDate);
+    const end = parseYMD(ev.endDate);
+    if (!start || !end) return false;
+    const cur = new Date(start);
+    let anyNonHoliday = false;
+    while (cur <= end) {
+      if (!isHolidayDate(cur, holidays)) {
+        anyNonHoliday = true;
+        break;
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    return !anyNonHoliday;
+  }
+  if (ev?.date) {
+    const d = parseYMD(ev.date);
+    return d ? isHolidayDate(d, holidays) : false;
+  }
+  return false;
+}
+
 app.get("/api/events", (_req, res) => {
-  const events = archivePastEvents();
+  archivePastEvents();
+  backfillDivisionChiefTokens();
+  backfillDivisionChiefTokensArchive();
+  const holidaysPath = path.join(dataDir, "holidays.json");
+  const holidays = readJson(holidaysPath) as Array<{ month: number; day: number; name: string }>;
+  const simpleHolidays = holidays.map((h) => ({ month: h.month, day: h.day }));
+  const p = path.join(dataDir, "events.json");
+  const events = (readJson(p) as any[]).filter((e) => !isHolidayOnlyEvent(e, simpleHolidays));
   res.json(events);
 });
 
 app.get("/api/office/events", authMiddleware, (req, res) => {
+  archivePastEvents();
+  backfillDivisionChiefTokens();
+  backfillDivisionChiefTokensArchive();
   const user = (req as any).user as any;
-  const events = archivePastEvents();
+  const holidaysPath = path.join(dataDir, "holidays.json");
+  const holidays = readJson(holidaysPath) as Array<{ month: number; day: number; name: string }>;
+  const simpleHolidays = holidays.map((h) => ({ month: h.month, day: h.day }));
+  const p = path.join(dataDir, "events.json");
+  const events = (readJson(p) as any[]).filter((e) => !isHolidayOnlyEvent(e, simpleHolidays));
   const { services } = getServicesStructure();
   const svc = services.find((s: any) => s.name === user.service);
   const serviceOfficeNames = new Set((svc?.offices ?? []).map((o: any) => o.name));

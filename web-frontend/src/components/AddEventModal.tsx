@@ -40,6 +40,7 @@ export default function AddEventModal({
     participants: string[];
     office: string | null;
     attachments?: any[];
+    participantTokens?: string[];
   }) => void;
   officesData?: { topLevelOffices: Array<{ name: string }>; services: Array<{ name: string; offices: Array<{ name: string }> }> };
   mode?: "add" | "edit";
@@ -89,6 +90,15 @@ export default function AddEventModal({
     if (initialEvent && isEdit) {
       const ev = initialEvent;
       const isR = String(ev?.dateType || "single") === "range";
+      let participantsFromEvent: string[] = Array.isArray(ev.participants) ? [...ev.participants] : [];
+      // If this event recorded the special token "Division Chiefs", collapse any expanded division offices back to the token for editing
+      if (Array.isArray(ev.participantTokens) && ev.participantTokens.includes("Division Chiefs") && officesData) {
+        const divisionOffices = officesData.services.flatMap((svc) => svc.offices.map((o) => o.name));
+        participantsFromEvent = participantsFromEvent.filter((p) => !divisionOffices.includes(p));
+        if (!participantsFromEvent.includes("Division Chiefs")) {
+          participantsFromEvent.push("Division Chiefs");
+        }
+      }
       setState({
         category: ev.category || "meeting",
         categoryDetail: ev.categoryDetail || "",
@@ -102,7 +112,7 @@ export default function AddEventModal({
         endDate: isR ? (ev.endDate || ev.startDate || defaultDate) : defaultDate,
         startTime: ev.startTime || "",
         endTime: ev.endTime || "",
-        participants: Array.isArray(ev.participants) ? ev.participants : [],
+        participants: participantsFromEvent,
         office: ev.office ?? null,
         attachments: Array.isArray(ev.attachments) ? ev.attachments : [],
         _participantInput: ""
@@ -127,7 +137,7 @@ export default function AddEventModal({
         _participantInput: ""
       });
     }
-  }, [open, initialEvent, isEdit, defaultDate]);
+  }, [open, initialEvent, isEdit, defaultDate, officesData]);
   function getEmployeesForOffice(officeName: string) {
     const known = new Set<string>([
       ...(availableOffices || []),
@@ -164,6 +174,11 @@ export default function AddEventModal({
     if (!isValid) return;
     let participants: string[] = Array.isArray(state.participants) ? [...state.participants] : [];
     participants = Array.from(new Set(participants));
+    // Capture high-level participant tokens before expansion
+    const participantTokens: string[] = [];
+    if (participants.includes("Division Chiefs")) {
+      participantTokens.push("Division Chiefs");
+    }
     if (participants.includes("Division Chiefs") && officesData) {
       participants = participants.filter((x) => x !== "Division Chiefs");
       const divisionOffices = officesData.services.flatMap((svc) => svc.offices.map((o) => o.name));
@@ -185,7 +200,8 @@ export default function AddEventModal({
       startTime: state.startTime,
       endTime: state.endTime,
       participants,
-      office: state.office
+      office: state.office,
+      participantTokens: participantTokens.length ? participantTokens : undefined
     };
     onSubmit(payload);
   }
