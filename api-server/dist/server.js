@@ -7,6 +7,7 @@ import { authMiddleware, signToken, requireRole, requireAnyRole } from "./auth.j
 import crypto from "crypto";
 import { DateTime } from "luxon";
 import { fileURLToPath } from "url";
+import { readEvents, writeEvents, readArchivedEvents, writeArchivedEvents, readUsers, writeUsers, readHolidays, readEmployees, getDataDir } from "./storage-select.js";
 dotenv.config();
 const app = express();
 app.use(cors());
@@ -66,27 +67,25 @@ function isEventPast(ev) {
     }
     return false;
 }
-function archivePastEvents() {
-    const eventsPath = path.join(dataDir, "events.json");
-    const archivePath = path.join(dataDir, "events-archive.json");
-    const events = readJson(eventsPath).map((e) => {
+async function archivePastEvents() {
+    const current = await readEvents();
+    const events = current.map((e) => {
         if (!e.id)
             e.id = crypto.randomUUID();
         return e;
     });
-    const archivedExisting = readJson(archivePath);
+    const archivedExisting = await readArchivedEvents();
     const past = events.filter(isEventPast);
     const upcoming = events.filter((e) => !isEventPast(e));
     if (past.length > 0) {
-        writeEventsFile(eventsPath, upcoming);
-        writeEventsFile(archivePath, [...archivedExisting, ...past]);
+        await writeEvents(upcoming);
+        await writeArchivedEvents([...archivedExisting, ...past]);
         return upcoming;
     }
     return events;
 }
-function ensureEventIds() {
-    const p = path.join(dataDir, "events.json");
-    const events = readJson(p);
+async function ensureEventIds() {
+    const events = await readEvents();
     let mutated = false;
     for (const ev of events) {
         if (!ev.id) {
@@ -95,13 +94,12 @@ function ensureEventIds() {
         }
     }
     if (mutated) {
-        writeEventsFile(p, events);
+        await writeEvents(events);
     }
     return events;
 }
-function backfillDivisionChiefTokens() {
-    const p = path.join(dataDir, "events.json");
-    const events = readJson(p);
+async function backfillDivisionChiefTokens() {
+    const events = await readEvents();
     const { services } = getServicesStructure();
     const divisionOffices = new Set((services ?? []).flatMap((svc) => (svc?.offices ?? []).map((o) => o.name)));
     let mutated = false;
@@ -125,12 +123,11 @@ function backfillDivisionChiefTokens() {
         }
     }
     if (mutated) {
-        writeEventsFile(p, events);
+        await writeEvents(events);
     }
 }
-function backfillDivisionChiefTokensArchive() {
-    const p = path.join(dataDir, "events-archive.json");
-    const events = readJson(p);
+async function backfillDivisionChiefTokensArchive() {
+    const events = await readArchivedEvents();
     const { services } = getServicesStructure();
     const divisionOffices = new Set((services ?? []).flatMap((svc) => (svc?.offices ?? []).map((o) => o.name)));
     let mutated = false;
@@ -154,12 +151,12 @@ function backfillDivisionChiefTokensArchive() {
         }
     }
     if (mutated) {
-        writeEventsFile(p, events);
+        await writeArchivedEvents(events);
     }
 }
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dataDir = path.resolve(__dirname, "..", "data");
+const dataDir = getDataDir();
 function getServicesStructure() {
     const topLevelOffices = [
         { name: "Office of the Regional Director", icon: "fa-building-user" },
@@ -198,7 +195,7 @@ app.get("/api/me", authMiddleware, (req, res) => {
 app.get("/api/offices-data", (_req, res) => {
     res.json(getServicesStructure());
 });
-app.get("/api/calendar", (req, res) => {
+app.get("/api/calendar", async (req, res) => {
     const month = req.query.month ? Number(req.query.month) : undefined;
     const year = req.query.year ? Number(req.query.year) : undefined;
     const now = DateTime.now();
@@ -207,8 +204,7 @@ app.get("/api/calendar", (req, res) => {
         month: month ?? now.month,
         day: 1
     });
-    const holidaysPath = path.join(dataDir, "holidays.json");
-    const allHolidays = readJson(holidaysPath);
+    const allHolidays = (await readHolidays());
     const monthHolidays = allHolidays.filter((h) => h.month === ym.month);
     let firstDayOfWeek = ym.weekday; // 1=Mon..7=Sun
     if (firstDayOfWeek === 7)
@@ -236,10 +232,9 @@ app.get("/api/calendar", (req, res) => {
         holidays: monthHolidays
     });
 });
-app.post("/api/login", (req, res) => {
+app.post("/api/login", async (req, res) => {
     const { username, password } = req.body || {};
-    const p = path.join(dataDir, "users.json");
-    const users = readJson(p);
+    const users = await readUsers();
     const user = users.find((u) => u.username === username && u.password === password);
     if (!user)
         return res.status(401).json({ error: "invalid_credentials" });
@@ -288,27 +283,23 @@ function isHolidayOnlyEvent(ev, holidays) {
     }
     return false;
 }
-app.get("/api/events", (_req, res) => {
-    archivePastEvents();
-    backfillDivisionChiefTokens();
-    backfillDivisionChiefTokensArchive();
-    const holidaysPath = path.join(dataDir, "holidays.json");
-    const holidays = readJson(holidaysPath);
+app.get("/api/events", async (_req, res) => {
+    await archivePastEvents();
+    await backfillDivisionChiefTokens();
+    await backfillDivisionChiefTokensArchive();
+    const holidays = (await readHolidays());
     const simpleHolidays = holidays.map((h) => ({ month: h.month, day: h.day }));
-    const p = path.join(dataDir, "events.json");
-    const events = readJson(p).filter((e) => !isHolidayOnlyEvent(e, simpleHolidays));
+    const events = (await readEvents()).filter((e) => !isHolidayOnlyEvent(e, simpleHolidays));
     res.json(events);
 });
-app.get("/api/office/events", authMiddleware, (req, res) => {
-    archivePastEvents();
-    backfillDivisionChiefTokens();
-    backfillDivisionChiefTokensArchive();
+app.get("/api/office/events", authMiddleware, async (req, res) => {
+    await archivePastEvents();
+    await backfillDivisionChiefTokens();
+    await backfillDivisionChiefTokensArchive();
     const user = req.user;
-    const holidaysPath = path.join(dataDir, "holidays.json");
-    const holidays = readJson(holidaysPath);
+    const holidays = (await readHolidays());
     const simpleHolidays = holidays.map((h) => ({ month: h.month, day: h.day }));
-    const p = path.join(dataDir, "events.json");
-    const events = readJson(p).filter((e) => !isHolidayOnlyEvent(e, simpleHolidays));
+    const events = (await readEvents()).filter((e) => !isHolidayOnlyEvent(e, simpleHolidays));
     const { services } = getServicesStructure();
     const svc = services.find((s) => s.name === user.service);
     const serviceOfficeNames = new Set((svc?.offices ?? []).map((o) => o.name));
@@ -327,17 +318,14 @@ app.get("/api/office/events", authMiddleware, (req, res) => {
     });
     res.json(filtered);
 });
-app.get("/api/holidays", (_req, res) => {
-    const p = path.join(dataDir, "holidays.json");
-    res.json(readJson(p));
+app.get("/api/holidays", async (_req, res) => {
+    res.json(await readHolidays());
 });
-app.get("/api/employees", (_req, res) => {
-    const p = path.join(dataDir, "employees.json");
-    res.json(readJson(p));
+app.get("/api/employees", async (_req, res) => {
+    res.json(await readEmployees());
 });
-app.get("/api/users", authMiddleware, (_req, res) => {
-    const p = path.join(dataDir, "users.json");
-    const users = readJson(p);
+app.get("/api/users", authMiddleware, async (_req, res) => {
+    const users = await readUsers();
     const sanitized = users.map((u) => ({
         username: u.username,
         role: u.role,
@@ -346,22 +334,20 @@ app.get("/api/users", authMiddleware, (_req, res) => {
     }));
     res.json(sanitized);
 });
-app.post("/api/users", authMiddleware, requireRole("ADMIN"), (req, res) => {
+app.post("/api/users", authMiddleware, requireRole("ADMIN"), async (req, res) => {
     const { username, password, role, officeName, service } = req.body || {};
     if (!username || !password || !role)
         return res.status(400).json({ error: "invalid_payload" });
-    const p = path.join(dataDir, "users.json");
-    const users = readJson(p);
+    const users = await readUsers();
     if (users.find((u) => u.username === username))
         return res.status(409).json({ error: "exists" });
     const payload = { username, password, role, officeName: officeName ?? null, service: service ?? null };
     users.push(payload);
-    fs.writeFileSync(p, JSON.stringify(users, null, 2), "utf-8");
+    await writeUsers(users);
     res.status(201).json({ username, role, officeName: payload.officeName, service: payload.service });
 });
-app.put("/api/users/:username", authMiddleware, requireRole("ADMIN"), (req, res) => {
-    const p = path.join(dataDir, "users.json");
-    const users = readJson(p);
+app.put("/api/users/:username", authMiddleware, requireRole("ADMIN"), async (req, res) => {
+    const users = await readUsers();
     const idx = users.findIndex((u) => u.username === req.params.username);
     if (idx === -1)
         return res.status(404).json({ error: "not_found" });
@@ -374,12 +360,11 @@ app.put("/api/users/:username", authMiddleware, requireRole("ADMIN"), (req, res)
         password: req.body.password ?? prev.password
     };
     users[idx] = next;
-    fs.writeFileSync(p, JSON.stringify(users, null, 2), "utf-8");
+    await writeUsers(users);
     res.json({ username: next.username, role: next.role, officeName: next.officeName, service: next.service });
 });
-app.delete("/api/users/:username", authMiddleware, requireRole("ADMIN"), (req, res) => {
-    const p = path.join(dataDir, "users.json");
-    const users = readJson(p);
+app.delete("/api/users/:username", authMiddleware, requireRole("ADMIN"), async (req, res) => {
+    const users = await readUsers();
     const user = users.find((u) => u.username === req.params.username);
     if (!user)
         return res.status(404).json({ error: "not_found" });
@@ -389,12 +374,11 @@ app.delete("/api/users/:username", authMiddleware, requireRole("ADMIN"), (req, r
             return res.status(400).json({ error: "last_admin" });
     }
     const next = users.filter((u) => u.username !== req.params.username);
-    fs.writeFileSync(p, JSON.stringify(next, null, 2), "utf-8");
+    await writeUsers(next);
     res.status(204).end();
 });
-app.post("/api/events", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), (req, res) => {
-    const p = path.join(dataDir, "events.json");
-    const events = archivePastEvents(); // also ensures ids for current records
+app.post("/api/events", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), async (req, res) => {
+    const events = await archivePastEvents(); // also ensures ids for current records
     const user = req.user;
     const id = crypto.randomUUID();
     const payload = {
@@ -408,13 +392,12 @@ app.post("/api/events", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), (re
         payload.office = user?.officeName ?? null;
     }
     events.push(payload);
-    writeEventsFile(p, events);
+    await writeEvents(events);
     res.status(201).json(payload);
 });
-app.put("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), (req, res) => {
-    const p = path.join(dataDir, "events.json");
-    archivePastEvents(); // move any past items first
-    const events = readJson(p);
+app.put("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), async (req, res) => {
+    await archivePastEvents(); // move any past items first
+    const events = await readEvents();
     const user = req.user;
     const idx = events.findIndex((e) => e.id === req.params.id);
     if (idx === -1)
@@ -429,13 +412,12 @@ app.put("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), 
     }
     const updated = { ...events[idx], ...req.body, id: events[idx].id };
     events[idx] = updated;
-    writeEventsFile(p, events);
+    await writeEvents(events);
     res.json(updated);
 });
-app.delete("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), (req, res) => {
-    const p = path.join(dataDir, "events.json");
-    archivePastEvents(); // move any past items first
-    const events = readJson(p);
+app.delete("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), async (req, res) => {
+    await archivePastEvents(); // move any past items first
+    const events = await readEvents();
     const user = req.user;
     const idx = events.findIndex((e) => e.id === req.params.id);
     if (idx === -1)
@@ -449,7 +431,7 @@ app.delete("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]
         return res.status(403).json({ error: "forbidden" });
     }
     const next = events.filter((e) => e.id !== req.params.id);
-    writeEventsFile(p, next);
+    await writeEvents(next);
     res.status(204).end();
 });
 const port = Number(process.env.PORT || 3000);
