@@ -10,6 +10,9 @@ export default function AddEventModal({
   open,
   onClose,
   defaultDate,
+  defaultDateType,
+  defaultStartDate,
+  defaultEndDate,
   categories,
   availableOffices,
   onSubmit,
@@ -17,11 +20,15 @@ export default function AddEventModal({
   mode,
   initialEvent,
   submitLabel,
-  title
+  title,
+  variant
 }: {
   open: boolean;
   onClose: () => void;
   defaultDate: string;
+  defaultDateType?: "single" | "range";
+  defaultStartDate?: string;
+  defaultEndDate?: string;
   categories: string[];
   availableOffices: string[];
   onSubmit: (payload: {
@@ -47,8 +54,12 @@ export default function AddEventModal({
   initialEvent?: any | null;
   submitLabel?: string;
   title?: string;
+  variant?: "modal" | "page";
 }) {
+  const isPage = (variant ?? "modal") === "page";
+  const isOpen = isPage ? true : open;
   const [employeesData, setEmployeesData] = useState<{ byOffice: Record<string, string[]> } | null>(null);
+  const [holidays, setHolidays] = useState<Array<{ month: number; day: number; name: string }>>([]);
   const [state, setState] = useState<any>({
     category: "meeting",
     categoryDetail: "",
@@ -56,10 +67,10 @@ export default function AddEventModal({
     title: "",
     description: "",
     location: "",
-    dateType: "single",
+    dateType: (defaultDateType ?? "single"),
     date: defaultDate,
-    startDate: defaultDate,
-    endDate: defaultDate,
+    startDate: (defaultStartDate ?? defaultDate),
+    endDate: (defaultEndDate ?? defaultDate),
     startTime: "",
     endTime: "",
     participants: [],
@@ -72,21 +83,48 @@ export default function AddEventModal({
   const titleError = String(state.title || "").trim() ? null : "Title is required";
   const dateRangeError = isRange && state.startDate && state.endDate && state.endDate < state.startDate ? "End date must be on or after start date" : null;
   const timeRangeError = state.startTime && state.endTime && state.endTime <= state.startTime ? "End time must be after start time" : null;
-  const isValid = !titleError && !dateRangeError && !timeRangeError;
+  const today = (() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${dd}`;
+  })();
+  function isHolidayDate(s?: string) {
+    if (!s) return false;
+    const [y, m, d] = s.split("-").map(Number);
+    if (!m || !d) return false;
+    return holidays.some((h) => h.month === m && h.day === d);
+  }
+  const pastSingleError = state.dateType !== "range" && state.date && state.date < today ? "Date must be today or later" : null;
+  const holidaySingleError = state.dateType !== "range" && isHolidayDate(state.date) ? "Selected date is a holiday" : null;
+  const startPastError = state.dateType === "range" && state.startDate && state.startDate < today ? "Start date must be today or later" : null;
+  // For ranges, holidays will be automatically skipped; do not error on holiday starts/ends
+  const scheduleErrors = [pastSingleError, holidaySingleError, startPastError].filter(Boolean) as string[];
+  const holidaysNote = state.dateType === "range" ? "Holidays within the range will be excluded" : "";
+  const isValidSchedule = scheduleErrors.length === 0 && !dateRangeError;
+  const isValid = !titleError && isValidSchedule && !timeRangeError;
   const [employeeModalOffice, setEmployeeModalOffice] = useState<string | null>(null);
   const [employeeChoices, setEmployeeChoices] = useState<string[]>([]);
   const [employeeChecked, setEmployeeChecked] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (!open) return;
+    if (!isOpen) return;
     const url = `/api/employees?v=${Date.now()}`;
     fetch(url, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setEmployeesData(d))
       .catch(() => setEmployeesData({ byOffice: {} }));
-  }, [open]);
+  }, [isOpen]);
   useEffect(() => {
-    if (!open) return;
+    if (!isOpen) return;
+    fetch("/api/holidays")
+      .then((r) => r.json())
+      .then((d) => Array.isArray(d) ? setHolidays(d) : setHolidays([]))
+      .catch(() => setHolidays([]));
+  }, [isOpen]);
+  useEffect(() => {
+    if (!isOpen) return;
     if (initialEvent && isEdit) {
       const ev = initialEvent;
       const isR = String(ev?.dateType || "single") === "range";
@@ -125,10 +163,10 @@ export default function AddEventModal({
         title: "",
         description: "",
         location: "",
-        dateType: "single",
+        dateType: (defaultDateType ?? "single"),
         date: defaultDate,
-        startDate: defaultDate,
-        endDate: defaultDate,
+        startDate: (defaultStartDate ?? defaultDate),
+        endDate: (defaultEndDate ?? defaultDate),
         startTime: "",
         endTime: "",
         participants: [],
@@ -137,7 +175,7 @@ export default function AddEventModal({
         _participantInput: ""
       });
     }
-  }, [open, initialEvent, isEdit, defaultDate, officesData]);
+  }, [isOpen, initialEvent, isEdit, defaultDate, defaultDateType, defaultStartDate, defaultEndDate, officesData]);
   function getEmployeesForOffice(officeName: string) {
     const known = new Set<string>([
       ...(availableOffices || []),
@@ -206,8 +244,7 @@ export default function AddEventModal({
     onSubmit(payload);
   }
 
-  return (
-    <Modal open={open} onClose={onClose}>
+  const formEl = (
       <form onSubmit={submit} style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12, marginBottom: 12, maxWidth: 720 }}>
         <h2 style={{ margin: "0 0 4px 0" }}>{title ?? (isEdit ? "Edit Event" : "New Event")}</h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 8 }}>
@@ -222,6 +259,9 @@ export default function AddEventModal({
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
+            {(normalizeCategory(state.category) === "workshop" || normalizeCategory(state.category) === "training") && (
+              <div style={{ marginTop: 6, fontSize: 12, color: "var(--muted)" }}>A report will be needed after the event.</div>
+            )}
           </div>
           <div>
             <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Type</label>
@@ -304,6 +344,7 @@ export default function AddEventModal({
                 <input
                   type="date"
                   style={{ width: "100%", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
+                  min={today}
                   value={state.startDate}
                   onChange={(e) => setState({ ...state, startDate: e.target.value })}
                 />
@@ -325,12 +366,20 @@ export default function AddEventModal({
               <input
                 type="date"
                 style={{ width: "100%", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
+                min={today}
                 value={state.date}
                 onChange={(e) => setState({ ...state, date: e.target.value })}
               />
             </div>
           )}
-          {dateRangeError && <div style={{ color: "#dc2626", fontSize: 12, marginTop: 6 }}>{dateRangeError}</div>}
+          {(dateRangeError || scheduleErrors.length > 0) && (
+            <div style={{ color: "#dc2626", fontSize: 12, marginTop: 6 }}>
+              {dateRangeError || scheduleErrors.join(". ")}
+            </div>
+          )}
+          {isValidSchedule && holidaysNote && (
+            <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 4 }}>{holidaysNote}</div>
+          )}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           <div>
@@ -549,6 +598,17 @@ export default function AddEventModal({
           </button>
         </div>
       </form>
+  );
+  if (isPage) {
+    return (
+      <div style={{ padding: 12 }}>
+        {formEl}
+      </div>
+    );
+  }
+  return (
+    <Modal open={open} onClose={onClose}>
+      {formEl}
     </Modal>
   );
 }

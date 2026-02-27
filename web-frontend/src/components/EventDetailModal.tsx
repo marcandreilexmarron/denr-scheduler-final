@@ -17,9 +17,8 @@ export default function EventDetailModal({
   canEditEvent?: (e: any) => boolean;
   onEdit?: (e: any) => void;
 }) {
-  const [hoveredOffice, setHoveredOffice] = React.useState<string | null>(null);
-  const [hoveredEmployees, setHoveredEmployees] = React.useState<string[]>([]);
-  const [anchorRect, setAnchorRect] = React.useState<DOMRect | null>(null);
+  const [selectedOffice, setSelectedOffice] = React.useState<string | null>(null);
+  const [selectedEmployees, setSelectedEmployees] = React.useState<string[]>([]);
   const [divisionOfficeNames, setDivisionOfficeNames] = React.useState<string[]>([]);
   const [officeServiceMap, setOfficeServiceMap] = React.useState<Record<string, string>>({});
   const [serviceOrder, setServiceOrder] = React.useState<string[]>([]);
@@ -68,12 +67,27 @@ export default function EventDetailModal({
     d.setHours(hh || 0, mm || 0, 0, 0);
     return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
   }
+  React.useEffect(() => {
+    if (!open) {
+      setSelectedOffice(null);
+      setSelectedEmployees([]);
+    }
+  }, [open, event]);
+  React.useEffect(() => {
+    setSelectedOffice(null);
+    setSelectedEmployees([]);
+  }, [event]);
+  const handleClose = React.useCallback(() => {
+    setSelectedOffice(null);
+    setSelectedEmployees([]);
+    onClose();
+  }, [onClose]);
   return (
     <>
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={handleClose}>
       {event && (
-        <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 12, justifyContent: "space-between" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16, maxWidth: "100%", width: "100%", boxSizing: "border-box", margin: "0 auto" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, justifyContent: "flex-start", gridColumn: "1 / 2" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {event.category && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
@@ -82,12 +96,16 @@ export default function EventDetailModal({
                 </div>
               )}
               <h2 style={{ margin: 0 }}>{event.title}</h2>
+              {(() => {
+                const cat = String(event.category || "").trim().toLowerCase();
+                if (cat === "workshop" || cat === "training") {
+                  return <div style={{ fontSize: 12, color: "var(--muted)" }}>A report will be needed after the event.</div>;
+                }
+                return null;
+              })()}
             </div>
-            {canEditEvent && canEditEvent(event) && onEdit && (
-              <button onClick={() => onEdit(event)}>Edit</button>
-            )}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: 8, alignItems: "start", borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 6, alignItems: "start", borderTop: "1px solid var(--border)", paddingTop: 10, gridColumn: "1 / 2" }}>
             <div style={{ color: "var(--muted)" }}>Date & time</div>
             <div>
               {event.dateType === "range" && event.startDate && event.endDate
@@ -97,16 +115,16 @@ export default function EventDetailModal({
             {event.location && (
               <>
                 <div style={{ color: "var(--muted)" }}>Location</div>
-                <div>{event.location}</div>
+                <div style={{ overflowWrap: "anywhere" }}>{event.location}</div>
               </>
             )}
             <div style={{ color: "var(--muted)" }}>From</div>
             <div>{event.creatingOffice || event.office || "Unknown office"}</div>
           </div>
           {event.description && (
-            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10 }}>
               <div style={{ marginBottom: 6, color: "var(--muted)", fontSize: 12 }}>Description</div>
-              <div>{event.description}</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{event.description}</div>
             </div>
           )}
           {Array.isArray(event.participants) && event.participants.length > 0 && (() => {
@@ -159,7 +177,7 @@ export default function EventDetailModal({
               groups["Other"].others.push(...unknown);
             }
             return (
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10 }}>
                 <div style={{ marginBottom: 6, color: "var(--muted)", fontSize: 12 }}>Participants</div>
                 {hasAllDivisionOffices && (
                   <div style={{ marginBottom: 6 }}>
@@ -177,19 +195,16 @@ export default function EventDetailModal({
                   return (
                     <div key={`svc-${svc}`} style={{ marginBottom: 8 }}>
                       <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 4 }}>{svc}</div>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", maxWidth: "100%" }}>
                         {g.collapsed.map(([off, emps]) => (
                           <span
                             key={`off-${svc}-${off}`}
                             className="badge"
-                            style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "help" }}
-                            onMouseEnter={(e) => {
-                              setHoveredOffice(off);
-                              setHoveredEmployees(emps);
-                              const el = e.currentTarget as HTMLElement;
-                              setAnchorRect(el.getBoundingClientRect());
+                            style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer" }}
+                            onClick={() => {
+                              setSelectedOffice(off);
+                              setSelectedEmployees(emps);
                             }}
-                            onMouseLeave={() => setHoveredOffice((v) => (v === off ? null : v))}
                           >
                             {off}
                             <span
@@ -227,7 +242,7 @@ export default function EventDetailModal({
             );
           })()}
           {Array.isArray(event.attachments) && event.attachments.length > 0 && (
-            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, gridColumn: "1 / 2" }}>
               <div style={{ marginBottom: 6, color: "var(--muted)", fontSize: 12 }}>Attachments</div>
               <ul className="list">
                 {event.attachments.map((a: any, i: number) => {
@@ -242,36 +257,93 @@ export default function EventDetailModal({
               </ul>
             </div>
           )}
+          {canEditEvent && canEditEvent(event) && onEdit && (
+            <div style={{ display: "flex", justifyContent: "flex-end", borderTop: "1px solid var(--border)", paddingTop: 10, gridColumn: "1 / 2" }}>
+              <button
+                onClick={() => onEdit(event)}
+                style={{
+                  padding: "8px 10px",
+                  background: "#2563eb",
+                  color: "#ffffff",
+                  border: "1px solid #1d4ed8",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontWeight: 600
+                }}
+                title="Edit event"
+                aria-label="Edit event"
+              >
+                Edit
+              </button>
+            </div>
+          )}
         </div>
       )}
     </Modal>
-    {hoveredOffice && hoveredOffice !== "Division Chiefs" && anchorRect && createPortal(
-      <div
-        style={{
-          position: "fixed",
-          zIndex: 2000,
-          top: Math.round(anchorRect.bottom + 4),
-          left: Math.round(Math.min(anchorRect.left, window.innerWidth - 320)),
-          maxWidth: 320,
-          padding: "6px 8px",
-          background: "var(--card)",
-          color: "var(--text)",
-          border: "1px solid var(--border)",
-          borderRadius: 6,
-          boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-          whiteSpace: "normal",
-          wordBreak: "break-word"
-        }}
-        role="tooltip"
-      >
-        <ul style={{ margin: 0, padding: 0, listStyle: "none", maxHeight: 240, overflow: "auto" }}>
-          {hoveredEmployees.map((name, i) => (
-            <li key={`${name}-${i}`} style={{ padding: "2px 0" }}>{name}</li>
-          ))}
-        </ul>
-      </div>,
-      document.body
-    )}
+    {open && selectedOffice && selectedEmployees.length > 0
+      ? createPortal((() => {
+          try {
+            const el = document.querySelector(".modal-card") as HTMLElement | null;
+            if (!el) return null;
+            const rect = el.getBoundingClientRect();
+            const panelWidth = 300;
+            const gap = 8;
+            const left = Math.min(rect.right + gap, window.innerWidth - panelWidth - 8);
+            const top = Math.max(8, rect.top);
+            const maxHeight = Math.min(rect.height, window.innerHeight - top - 8);
+            return (
+              <div
+                style={{
+                  position: "fixed",
+                  zIndex: 1100,
+                  top,
+                  left,
+                  width: panelWidth,
+                  maxHeight,
+                  overflow: "auto",
+                  border: "1px solid var(--border)",
+                  borderRadius: 8,
+                  padding: 10,
+                  background: "var(--card)",
+                  boxShadow: "0 6px 24px rgba(0,0,0,0.12)"
+                }}
+                role="dialog"
+                aria-label={`${selectedOffice} employees`}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <strong>{selectedOffice}</strong>
+                  <button
+                    onClick={() => { setSelectedOffice(null); setSelectedEmployees([]); }}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 18,
+                  lineHeight: 1,
+                  padding: 0,
+                  color: "inherit"
+                }}
+                    aria-label="Close"
+                    title="Close"
+                  >
+                    ×
+                  </button>
+                </div>
+                <ul className="list">
+                  {selectedEmployees.map((name, i) => (
+                    <li key={`${name}-${i}`} className="list-item">
+                      {name}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          } catch {
+            return null;
+          }
+        })(), document.body)
+      : null}
     </>
   );
 }

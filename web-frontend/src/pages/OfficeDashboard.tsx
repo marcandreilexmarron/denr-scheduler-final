@@ -44,7 +44,6 @@ export default function OfficeDashboard() {
   const [events, setEvents] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [detailEvent, setDetailEvent] = useState<any | null>(null);
-  const [addOpen, setAddOpen] = useState(false);
   const [holidays, setHolidays] = useState<Array<{ month: number; day: number; name: string }>>([]);
   const [editing, setEditing] = useState<any | null>(null);
   const [isPortrait, setIsPortrait] = useState<boolean>(true);
@@ -355,6 +354,7 @@ export default function OfficeDashboard() {
             categoriesAsChips={false}
             showOfficeSelector={false}
             showCategorySelector={false}
+            blockPastDateClicks={true}
             showTitle={false}
             headerBelow={
               <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
@@ -428,7 +428,7 @@ export default function OfficeDashboard() {
                     })}
                   </select>
                 </div>
-                <div>
+                <div style={{ display: "flex", gap: 8 }}>
                   <button
                     type="button"
                     onClick={() => { setOfficeFilter(me?.officeName || ""); setCategoryFilter(""); setSelectedDate(null); }}
@@ -447,12 +447,10 @@ export default function OfficeDashboard() {
                   >
                     Clear Filters
                   </button>
-                </div>
-                {canAdd && (
-                  <div>
+                  {canAdd && (
                     <button
                       type="button"
-                      onClick={() => setAddOpen(true)}
+                      onClick={() => { window.location.assign("/add-event"); }}
                       style={{
                         padding: "10px 12px",
                         background: "#2563eb",
@@ -463,17 +461,31 @@ export default function OfficeDashboard() {
                         fontSize: 14,
                         fontWeight: 600
                       }}
-                      title="Add Event"
-                      aria-label="Add Event"
+                      title="Go to Add Event page"
+                      aria-label="Go to Add Event page"
                     >
                       Add Event
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             }
             selectedDate={selectedDate ?? undefined}
-            onDateSelect={(date, _events) => {
+            onDateSelect={(date, _events, info) => {
+              if (canAdd && date && info?.shiftKey && selectedDate && selectedDate !== date) {
+                const a = selectedDate < date ? selectedDate : date;
+                const b = selectedDate < date ? date : selectedDate;
+                try {
+                  window.location.assign(`/add-event?start=${encodeURIComponent(a)}&end=${encodeURIComponent(b)}`);
+                  return;
+                } catch {}
+              }
+              if (canAdd && date && !info?.shiftKey) {
+                try {
+                  window.location.assign(`/add-event?date=${encodeURIComponent(date)}`);
+                  return;
+                } catch {}
+              }
               setSelectedDate((prev) => (prev === date ? null : date));
             }}
             disableDateModal={true}
@@ -486,28 +498,6 @@ export default function OfficeDashboard() {
               setViewYear(y);
               setViewMonth(m);
               setSelectedDate(null);
-            }}
-          />
-          <AddEventModal
-            open={addOpen}
-            onClose={() => setAddOpen(false)}
-            defaultDate={selectedDate ?? `${viewYear}-${String(viewMonth).padStart(2, "0")}-01`}
-            categories={CATEGORY_OPTIONS}
-            availableOffices={availableOffices}
-            officesData={officesData ?? undefined}
-            onSubmit={(payload) => {
-              const t = getToken();
-              if (!t) return;
-              fetch("/api/events", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
-                body: JSON.stringify(payload)
-              })
-                .then((r) => r.json())
-                .then(() => {
-                  setAddOpen(false);
-                  reloadEvents();
-                });
             }}
           />
           <AddEventModal

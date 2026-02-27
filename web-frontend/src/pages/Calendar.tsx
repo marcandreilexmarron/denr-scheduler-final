@@ -37,9 +37,10 @@ export default function Calendar(props?: {
   categoriesAsChips?: boolean;
   showOfficeSelector?: boolean;
   showCategorySelector?: boolean;
-  onDateSelect?: (date: string, events: any[]) => void;
+  onDateSelect?: (date: string, events: any[], info?: { shiftKey?: boolean }) => void;
   disableDateModal?: boolean;
   selectedDate?: string;
+  blockPastDateClicks?: boolean;
   allowCreate?: boolean;
   canEditEvent?: (e: any, user?: any) => boolean;
   headerBelow?: React.ReactNode;
@@ -367,7 +368,7 @@ export default function Calendar(props?: {
           >
             ‹ Prev
           </button>
-          <div style={{ textAlign: "center", fontWeight: 600 }}>
+          <div style={{ textAlign: "center", fontWeight: 800, fontSize: 28, letterSpacing: 0.25 }}>
             {data?.yearMonth ?? ""}
           </div>
           <button
@@ -522,27 +523,41 @@ export default function Calendar(props?: {
           const isSelected =
             typeof d.day === "number" &&
             ((props?.selectedDate && key === props.selectedDate) || (!props?.selectedDate && selected?.date === key));
-          const baseBg = typeof d.day === "number" && d.isToday ? "#ffeeba" : d.holiday ? "#f8d7da" : "white";
+          const baseBg = d.holiday ? "#f8d7da" : "white";
+          const isNumber = typeof d.day === "number";
+          let isPast = false;
+          if (isNumber) {
+            const t = new Date();
+            const todayStart = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+            const cellDate = new Date(year, month - 1, d.day as number);
+            isPast = cellDate.getTime() < todayStart.getTime();
+          }
           return (
             <div
               key={i}
               aria-selected={isSelected ? true : undefined}
               style={{
-                border: isSelected ? `2px solid var(--primary)` : "1px solid #ddd",
+                border: isSelected ? `2px solid var(--primary)` : (d.isToday ? "2px solid #93c5fd" : "1px solid #ddd"),
                 height: compact ? 84 : 110,
                 padding: compact ? 4 : 6,
                 display: "flex",
                 flexDirection: "column",
                 overflow: "hidden",
                 background: isSelected ? "#eff6ff" : baseBg,
-                cursor: typeof d.day === "number" ? "pointer" : "default",
+                opacity: isNumber && isPast ? 0.5 : 1,
+                cursor: isNumber ? (isPast && props?.blockPastDateClicks ? "default" : "pointer") : "default",
                 transition: "border-color 120ms ease, background 120ms ease"
               }}
-              onClick={() => {
+              onClick={(ev) => {
                 if (typeof d.day !== "number") return;
+                const t = new Date();
+                const todayStart = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+                const cellDate = new Date(year, month - 1, d.day as number);
+                const isPastClick = cellDate.getTime() < todayStart.getTime();
+                if (props?.blockPastDateClicks && isPastClick) return;
                 const dayKey = `${year}-${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
                 const list = idx.get(dayKey) ?? [];
-                if (props?.onDateSelect) props.onDateSelect(dayKey, list);
+                if (props?.onDateSelect) props.onDateSelect(dayKey, list, { shiftKey: !!(ev as any).shiftKey });
                 if (!props?.disableDateModal) {
                   if (selected && selected.date === dayKey) {
                     setSelected(null);
@@ -552,7 +567,31 @@ export default function Calendar(props?: {
                 }
               }}
             >
-              <div style={{ fontWeight: 600, lineHeight: "16px", marginBottom: 2 }}>{d.day}</div>
+              <div style={{ fontWeight: 600, lineHeight: "16px", marginBottom: 2 }}>
+                {typeof d.day === "number" && d.isToday ? (
+                  <span
+                    aria-current="date"
+                    title="Today"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: 22,
+                      height: 22,
+                      padding: "0 6px",
+                      background: "#2563eb",
+                      color: "#ffffff",
+                      borderRadius: 999,
+                      fontSize: 12,
+                      lineHeight: "22px"
+                    }}
+                  >
+                    {d.day}
+                  </span>
+                ) : (
+                  <span>{d.day}</span>
+                )}
+              </div>
               {d.holiday && <div style={{ fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.holiday.name}</div>}
               {typeof d.day === "number" && (
                 <div style={{ marginTop: 6, overflow: "hidden" }}>

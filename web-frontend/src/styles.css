@@ -1,5 +1,5 @@
 :root {
-  --bg: #f7f9fc;
+  --bg: #e5e7eb;
   --card: #ffffff;
   --border: #e2e8f0;
   --text: #1f2937;
@@ -64,12 +64,21 @@ input, select {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 20px;
-  min-width: 360px;
-  max-width: 720px;
+  padding: 16px;
+  width: 560px;
+  max-width: 560px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-  max-height: 90vh;
+  height: 80vh;
+  max-height: 80vh;
   word-break: break-word;
+}
+@media (max-width: 760px) {
+  .modal-card {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    height: 80vh;
+    max-height: 80vh;
+  }
 }
 /* Ensure modal contents never exceed the modal width */
 .modal-card, .modal-card * {
@@ -83,6 +92,20 @@ input, select {
 .modal-card .list-item,
 .modal-card img {
   max-width: 100%;
+}
+.modal-card .list {
+  overflow-x: hidden;
+}
+.modal-card .list-item {
+  gap: 8px;
+}
+.modal-card .list-item > * {
+  min-width: 0;
+}
+.modal-card a,
+.modal-card .list-item span {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .modal-card form > * {
   min-width: 0;

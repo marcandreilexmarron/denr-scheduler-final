@@ -12,10 +12,26 @@ export default function Modal({
   if (!open) return null;
   return (
     <div className="modal-backdrop">
-      <div className="modal-card" style={{ display: "flex", flexDirection: "column", maxHeight: "90vh" }}>
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12, flex: "0 0 auto" }}>
-          <button onClick={onClose}>Close</button>
-        </div>
+      <div className="modal-card" style={{ display: "flex", flexDirection: "column", maxHeight: "90vh", position: "relative", overflowX: "hidden" }}>
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          title="Close"
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            fontSize: 20,
+            lineHeight: 1,
+            padding: 0,
+            color: "inherit"
+          }}
+        >
+          ×
+        </button>
         <div style={{ minHeight: 0, overflowY: "auto", flex: "1 1 auto" }}>{children}</div>
       </div>
     </div>
