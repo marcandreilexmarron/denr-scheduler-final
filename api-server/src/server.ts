@@ -1,8 +1,8 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
-import dotenv from "dotenv";
 import { authMiddleware, signToken, requireRole, requireAnyRole } from "./auth.js";
 import crypto from "crypto";
 import { DateTime } from "luxon";
@@ -19,7 +19,6 @@ import {
   getDataDir
 } from "./storage-select.js";
 
-dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -404,8 +403,13 @@ app.post("/api/events", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), asy
     payload.office = user?.officeName ?? null;
   }
   events.push(payload);
-  await writeEvents(events);
-  res.status(201).json(payload);
+  try {
+    await writeEvents(events);
+    res.status(201).json(payload);
+  } catch (err) {
+    console.error("Failed to write events:", err);
+    res.status(500).json({ error: "db_write_failed" });
+  }
 });
 
 app.put("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), async (req, res) => {

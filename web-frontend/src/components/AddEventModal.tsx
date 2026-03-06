@@ -61,9 +61,9 @@ export default function AddEventModal({
   const [employeesData, setEmployeesData] = useState<{ byOffice: Record<string, string[]> } | null>(null);
   const [holidays, setHolidays] = useState<Array<{ month: number; day: number; name: string }>>([]);
   const [state, setState] = useState<any>({
-    category: "meeting",
+    category: "",
     categoryDetail: "",
-    type: "Internal",
+    type: "",
     title: "",
     description: "",
     location: "",
@@ -81,6 +81,8 @@ export default function AddEventModal({
   const isEdit = (mode ?? "add") === "edit";
   const isRange = state.dateType === "range";
   const titleError = String(state.title || "").trim() ? null : "Title is required";
+  const categoryError = state.category ? null : "Category is required";
+  const typeError = state.type ? null : "Type is required";
   const dateRangeError = isRange && state.startDate && state.endDate && state.endDate < state.startDate ? "End date must be on or after start date" : null;
   const timeRangeError = state.startTime && state.endTime && state.endTime <= state.startTime ? "End time must be after start time" : null;
   const today = (() => {
@@ -103,7 +105,7 @@ export default function AddEventModal({
   const scheduleErrors = [pastSingleError, holidaySingleError, startPastError].filter(Boolean) as string[];
   const holidaysNote = state.dateType === "range" ? "Holidays within the range will be excluded" : "";
   const isValidSchedule = scheduleErrors.length === 0 && !dateRangeError;
-  const isValid = !titleError && isValidSchedule && !timeRangeError;
+  const isValid = !titleError && !categoryError && !typeError && isValidSchedule && !timeRangeError;
   const [employeeModalOffice, setEmployeeModalOffice] = useState<string | null>(null);
   const [employeeChoices, setEmployeeChoices] = useState<string[]>([]);
   const [employeeChecked, setEmployeeChecked] = useState<Record<string, boolean>>({});
@@ -113,7 +115,23 @@ export default function AddEventModal({
     const url = `/api/employees?v=${Date.now()}`;
     fetch(url, { cache: "no-store" })
       .then((r) => r.json())
-      .then((d) => setEmployeesData(d))
+      .then((d) => {
+        // Transform array of employees into { byOffice: { "OfficeName": ["Emp1", "Emp2"] } }
+        if (Array.isArray(d)) {
+          const byOffice: Record<string, string[]> = {};
+          d.forEach((emp: any) => {
+            const office = emp.officeName || "Other";
+            if (!byOffice[office]) byOffice[office] = [];
+            byOffice[office].push(emp.name);
+          });
+          // Sort names in each office
+          Object.keys(byOffice).forEach(k => byOffice[k].sort());
+          setEmployeesData({ byOffice });
+        } else {
+          // Assume it's already in the expected format if not an array (though previous implementation expected array from JSON file)
+          setEmployeesData(d);
+        }
+      })
       .catch(() => setEmployeesData({ byOffice: {} }));
   }, [isOpen]);
   useEffect(() => {
@@ -157,9 +175,9 @@ export default function AddEventModal({
       });
     } else {
       setState({
-        category: "meeting",
+        category: "",
         categoryDetail: "",
-        type: "Internal",
+        type: "",
         title: "",
         description: "",
         location: "",
@@ -182,10 +200,23 @@ export default function AddEventModal({
       ...(officesData ? officesData.topLevelOffices.map(o => o.name) : []),
       ...(officesData ? officesData.services.flatMap(s => s.offices.map(o => o.name)) : [])
     ]);
-    if (!known.has(officeName)) {
-      return [];
+    
+    // Normalize helper
+    const norm = (s: string) => s.trim().toLowerCase();
+    
+    // Try exact match first
+    if (employeesData?.byOffice?.[officeName]) {
+      return employeesData.byOffice[officeName];
     }
-    return employeesData?.byOffice?.[officeName] ?? [];
+    
+    // Try case-insensitive match
+    const target = norm(officeName);
+    const foundKey = Object.keys(employeesData?.byOffice || {}).find(k => norm(k) === target);
+    if (foundKey) {
+      return employeesData?.byOffice?.[foundKey] || [];
+    }
+
+    return [];
   }
   function openEmployeePicker(officeName: string) {
     const list = getEmployeesForOffice(officeName);
@@ -251,14 +282,24 @@ export default function AddEventModal({
           <div>
             <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Category</label>
             <select
-              style={{ width: "100%", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
+              style={{
+                width: "100%",
+                padding: 10,
+                border: `1px solid ${categoryError ? "#dc2626" : "var(--border)"}`,
+                borderRadius: 8,
+                background: "var(--card)",
+                fontSize: 14,
+                color: state.category === "" ? "var(--muted)" : "inherit"
+              }}
               value={state.category}
               onChange={(e) => setState({ ...state, category: e.target.value })}
             >
+              <option value="" disabled>Select Category</option>
               {categories.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
+            {categoryError && <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{categoryError}</div>}
             {(normalizeCategory(state.category) === "workshop" || normalizeCategory(state.category) === "training") && (
               <div style={{ marginTop: 6, fontSize: 12, color: "var(--muted)" }}>A report will be needed after the event.</div>
             )}
@@ -266,13 +307,23 @@ export default function AddEventModal({
           <div>
             <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Type</label>
             <select
-              style={{ width: "100%", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
+              style={{
+                width: "100%",
+                padding: 10,
+                border: `1px solid ${typeError ? "#dc2626" : "var(--border)"}`,
+                borderRadius: 8,
+                background: "var(--card)",
+                fontSize: 14,
+                color: state.type === "" ? "var(--muted)" : "inherit"
+              }}
               value={state.type}
               onChange={(e) => setState({ ...state, type: e.target.value })}
             >
+              <option value="" disabled>Select Type</option>
               <option value="Internal">Internal</option>
               <option value="External">External</option>
             </select>
+            {typeError && <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{typeError}</div>}
           </div>
         </div>
         <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>Details</div>
