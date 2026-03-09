@@ -1,6 +1,62 @@
 
+import "dotenv/config";
 import nodemailer from "nodemailer";
 import { readUsers } from "./storage-select.js";
+
+function formatDate(dateStr: string): string {
+  if (!dateStr) return "N/A";
+  try {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+
+function formatTime(timeStr: string): string {
+  if (!timeStr) return "";
+  try {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes);
+    return date.toLocaleTimeString("en-US", { hour: 'numeric', minute: '2-digit', hour12: true });
+  } catch {
+    return timeStr;
+  }
+}
+
+function buildParticipantsHTML(event: any): string {
+  const raw = Array.isArray(event.participants) ? event.participants : [];
+  if (!raw.length) return "N/A";
+  const byOffice = new Map<string, Set<string>>();
+  const officeOnly = new Set<string>();
+  for (const p of raw) {
+    const s = String(p || "").trim();
+    if (!s) continue;
+    if (s.includes(" — ")) {
+      const parts = s.split(" — ");
+      const emp = parts[0].trim();
+      const off = parts.slice(1).join(" — ").trim();
+      if (!byOffice.has(off)) byOffice.set(off, new Set<string>());
+      if (emp) byOffice.get(off)!.add(emp);
+    } else {
+      officeOnly.add(s);
+    }
+  }
+  const sections: string[] = [];
+  for (const [off, empsSet] of Array.from(byOffice.entries()).sort((a, b) => a[0].localeCompare(b[0]))) {
+    const emps = Array.from(empsSet.values()).sort((a, b) => a.localeCompare(b));
+    sections.push(`<div><strong>${off}</strong><ul>${emps.map((e) => `<li>${e}</li>`).join("")}</ul></div>`);
+  }
+  if (officeOnly.size) {
+    const offices = Array.from(officeOnly.values()).sort((a, b) => a.localeCompare(b));
+    sections.push(`<div><strong>Offices</strong><ul>${offices.map((o) => `<li>${o}</li>`).join("")}</ul></div>`);
+  }
+  return sections.join("");
+}
+console.log("SMTP User:", process.env.SMTP_USER);
+console.log("SMTP Pass:", process.env.SMTP_PASS ? "Loaded" : "Not Loaded");
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.ethereal.email",
@@ -82,12 +138,22 @@ export async function sendEventCreatedEmail(event: any) {
 
   const sender = await getSenderEmail(event);
   const subject = `New Event: ${event.title}`;
+
+  const attachments = (event.attachments || []).map((att: any) => {
+    if (att.blob) {
+      const [header, data] = att.blob.split(',');
+      return { filename: att.name, content: data, encoding: 'base64', contentType: att.type };
+    }
+    return null;
+  }).filter(Boolean);
+
   const html = `
-    <h2>New Event Created</h2>
+    <h2>New Event Scheduled</h2>
     <p><strong>Title:</strong> ${event.title}</p>
-    <p><strong>Date:</strong> ${event.dateType === 'range' ? `${event.startDate} to ${event.endDate}` : event.date}</p>
-    <p><strong>Time:</strong> ${event.startTime || 'All day'} - ${event.endTime || ''}</p>
+    <p><strong>Date:</strong> ${event.dateType === 'range' ? `${formatDate(event.startDate)} to ${formatDate(event.endDate)}` : formatDate(event.date)}</p>
+    <p><strong>Time:</strong> ${event.startTime ? `${formatTime(event.startTime)} - ${formatTime(event.endTime)}` : 'All day'}</p>
     <p><strong>Venue:</strong> ${event.location || 'N/A'}</p>
+    <p><strong>Participants:</strong><br/>${buildParticipantsHTML(event)}</p>
     <p><strong>Description:</strong><br/>${event.description || 'N/A'}</p>
     <p><strong>Created By:</strong> ${event.createdBy || 'Unknown'} (${event.createdByOffice || 'Unknown'})</p>
   `;
@@ -99,6 +165,7 @@ export async function sendEventCreatedEmail(event: any) {
       to: recipients,
       subject,
       html,
+      attachments
     });
     console.log(`Event created email sent to: ${recipients.join(", ")} (ID: ${info.messageId})`);
   } catch (err) {
@@ -138,8 +205,8 @@ export async function sendReminderEmail(event: any) {
     <h2>Event Reminder</h2>
     <p>This is a reminder that the following event is coming up in 3 days:</p>
     <p><strong>Title:</strong> ${event.title}</p>
-    <p><strong>Date:</strong> ${event.dateType === 'range' ? `${event.startDate} to ${event.endDate}` : event.date}</p>
-    <p><strong>Time:</strong> ${event.startTime || 'All day'} - ${event.endTime || ''}</p>
+    <p><strong>Date:</strong> ${event.dateType === 'range' ? `${formatDate(event.startDate)} to ${formatDate(event.endDate)}` : formatDate(event.date)}</p>
+    <p><strong>Time:</strong> ${event.startTime ? `${formatTime(event.startTime)} - ${formatTime(event.endTime)}` : 'All day'}</p>
     <p><strong>Venue:</strong> ${event.location || 'N/A'}</p>
   `;
 
