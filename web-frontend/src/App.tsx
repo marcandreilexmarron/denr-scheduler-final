@@ -50,7 +50,7 @@ function Shell() {
     }
   }, [loc.pathname]);
   return (
-    <>
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <nav style={{ display: "flex", gap: 16, padding: 12, borderBottom: "1px solid var(--border)", alignItems: "center", background: "var(--card)" }}>
         <Link to="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "inherit" }}>
           <img src="/logo.png" alt="DENR" style={{ width: 36, height: 36, objectFit: "contain" }} />
@@ -133,63 +133,65 @@ function Shell() {
           })}
         </div>
       )}
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route
-          path="/calendar"
-          element={
-            <ProtectedRoute>
-              <Calendar />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/offices"
-          element={
-            <ProtectedRoute>
-              <Offices />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute role="ADMIN">
-              <Admin />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/office-dashboard"
-          element={
-            <ProtectedRoute>
-              <OfficeDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/archived"
-          element={
-            <ProtectedRoute>
-              <ArchivedEventsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/add-event"
-          element={
-            <ProtectedRoute>
-              <AddEventPage />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
-      <footer style={{ marginTop: 16, padding: 12, textAlign: "center", color: "var(--muted)", background: "var(--card)", borderTop: "1px solid var(--border)" }}>
+      <div style={{ flex: 1 }}>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/calendar"
+            element={
+              <ProtectedRoute>
+                <Calendar />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/offices"
+            element={
+              <ProtectedRoute>
+                <Offices />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute role="ADMIN">
+                <Admin />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/office-dashboard"
+            element={
+              <ProtectedRoute>
+                <OfficeDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/archived"
+            element={
+              <ProtectedRoute>
+                <ArchivedEventsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/add-event"
+            element={
+              <ProtectedRoute>
+                <AddEventPage />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </div>
+      <footer style={{ marginTop: "auto", padding: 12, textAlign: "center", color: "var(--muted)", background: "var(--card)", borderTop: "1px solid var(--border)" }}>
         <div>© 2026 DENR Planner- Department of Environment and Natural Resources - CAR</div>
         <div>Committed to Sustainable Environmental Management</div>
       </footer>
-    </>
+    </div>
   );
 }
 
