@@ -1,4 +1,5 @@
-import knex, { Knex } from "knex";
+import knex from "knex";
+import type { Knex } from "knex";
 
 let _knex: Knex | null = null;
 
@@ -51,6 +52,7 @@ function mapEventFromDb(r: any) {
     created_at,
     category_detail,
     type,
+    reminder_sent,
     ...rest
   } = r;
   return {
@@ -67,7 +69,8 @@ function mapEventFromDb(r: any) {
     createdByOffice: created_by_office,
     createdAt: created_at,
     categoryDetail: category_detail,
-    type: type
+    type: type,
+    reminderSent: !!reminder_sent
   };
 }
 
@@ -86,6 +89,7 @@ function mapEventToDb(e: any) {
     createdAt,
     categoryDetail,
     type,
+    reminderSent,
     // Extract unknown properties to prevent inserting them into the DB
     _participantInput,
     ...rest
@@ -108,7 +112,8 @@ function mapEventToDb(e: any) {
     created_by_office: createdByOffice,
     created_at: createdAt,
     category_detail: categoryDetail || null,
-    type: type || null
+    type: type || null,
+    reminder_sent: reminderSent ? 1 : 0
   };
 }
 

@@ -5,6 +5,7 @@ export default function Admin() {
   const [users, setUsers] = useState<any[]>([]);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
   const [role, setRole] = useState<"ADMIN" | "OFFICE">("OFFICE");
   const [service, setService] = useState<string | null>(null);
   const [officeName, setOfficeName] = useState<string | null>(null);
@@ -30,7 +31,7 @@ export default function Admin() {
     fetch("/api/users", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
-      body: JSON.stringify({ username, password, role, service, officeName })
+      body: JSON.stringify({ username, password, role, service, officeName, email })
     })
       .then((r) => {
         if (!r.ok) throw new Error("create");
@@ -39,6 +40,7 @@ export default function Admin() {
       .then(() => {
         setUsername("");
         setPassword("");
+        setEmail("");
         setRole("OFFICE");
         setService(null);
         setOfficeName(null);
@@ -53,7 +55,7 @@ export default function Admin() {
     e.preventDefault();
     const t = getToken();
     if (!t || !editing) return;
-    const payload: any = { role: editing.role, service: editing.service ?? null, officeName: editing.officeName ?? null };
+    const payload: any = { role: editing.role, service: editing.service ?? null, officeName: editing.officeName ?? null, email: editing.email ?? null };
     if (editing.password) payload.password = editing.password;
     fetch(`/api/users/${editing.username}`, {
       method: "PUT",
@@ -89,6 +91,7 @@ export default function Admin() {
       <form onSubmit={createUser} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
         <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
         <select value={role} onChange={(e) => setRole(e.target.value as any)}>
           <option value="OFFICE">OFFICE</option>
           <option value="ADMIN">ADMIN</option>
@@ -115,6 +118,7 @@ export default function Admin() {
               <strong>{u.username}</strong> <span className="badge">{u.role}</span>{" "}
               {u.officeName && <span className="badge">{u.officeName}</span>}
               {u.service && <span className="badge">{u.service}</span>}
+              {u.email && <span style={{ fontSize: 12, color: "var(--muted)", marginLeft: 8 }}>{u.email}</span>}
             </div>
             <div>
               <button onClick={() => beginEdit(u)}>Edit</button>{" "}
@@ -126,6 +130,7 @@ export default function Admin() {
       {editing && (
         <form onSubmit={saveEdit} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 12 }}>
           <span>{editing.username}</span>
+          <input placeholder="Email" value={editing.email ?? ""} onChange={(e) => setEditing({ ...editing, email: e.target.value })} />
           <select value={editing.role} onChange={(e) => setEditing({ ...editing, role: e.target.value })}>
             <option value="OFFICE">OFFICE</option>
             <option value="ADMIN">ADMIN</option>

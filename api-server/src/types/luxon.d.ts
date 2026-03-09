@@ -8,6 +8,7 @@ declare module "luxon" {
     get year(): number;
     get daysInMonth(): number;
     toFormat(fmt: string): string;
+    toISODate(): string | null;
     minus(obj: any): DateTime;
     plus(obj: any): DateTime;
     readonly weekday: number;

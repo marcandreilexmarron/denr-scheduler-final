@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Modal from "./Modal";
+import { getToken } from "../auth";
 import EmployeePickerModal from "./EmployeePickerModal";
 
 function normalizeCategory(s: string) {
@@ -238,41 +239,83 @@ export default function AddEventModal({
     setEmployeeModalOffice(null);
   }
 
-  function submit(e: React.FormEvent) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  }
+
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!isValid) return;
-    let participants: string[] = Array.isArray(state.participants) ? [...state.participants] : [];
-    participants = Array.from(new Set(participants));
-    // Capture high-level participant tokens before expansion
-    const participantTokens: string[] = [];
-    if (participants.includes("Division Chiefs")) {
-      participantTokens.push("Division Chiefs");
+    if (!isValid || isSubmitting) return;
+    setIsSubmitting(true);
+
+    try {
+      const uploadedAttachments = [];
+      if (Array.isArray(state.attachments) && state.attachments.length > 0) {
+        for (const file of state.attachments) {
+          if (file instanceof File) {
+            try {
+              const base64Data = await fileToBase64(file);
+              uploadedAttachments.push({
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                blob: base64Data // Use 'blob' field instead of 'url'
+              });
+            } catch (err) {
+              console.error(`Failed to read file ${file.name}:`, err);
+            }
+          } else {
+            uploadedAttachments.push(file);
+          }
+        }
+      }
+
+      let participants: string[] = Array.isArray(state.participants) ? [...state.participants] : [];
+      participants = Array.from(new Set(participants));
+      // Capture high-level participant tokens before expansion
+      const participantTokens: string[] = [];
+      if (participants.includes("Division Chiefs")) {
+        participantTokens.push("Division Chiefs");
+      }
+      if (participants.includes("Division Chiefs") && officesData) {
+        participants = participants.filter((x) => x !== "Division Chiefs");
+        const divisionOffices = officesData.services.flatMap((svc) => svc.offices.map((o) => o.name));
+        const set = new Set<string>(participants);
+        for (const name of divisionOffices) set.add(name);
+        participants = Array.from(set);
+      }
+      const payload = {
+        category: state.category,
+        categoryDetail: normalizeCategory(state.category) === "others - specified" ? (state.categoryDetail || "") : undefined,
+        type: state.type || "Internal",
+        title: state.title,
+        description: state.description || "",
+        location: state.location,
+        dateType: isRange ? "range" as const : "single" as const,
+        date: isRange ? "" : state.date,
+        startDate: isRange ? (state.startDate || defaultDate) : "",
+        endDate: isRange ? (state.endDate || defaultDate) : "",
+        startTime: state.startTime,
+        endTime: state.endTime,
+        participants,
+        office: state.office,
+        attachments: uploadedAttachments,
+        participantTokens: participantTokens.length ? participantTokens : undefined
+      };
+      await onSubmit(payload);
+    } catch (err) {
+      console.error("Submission failed:", err);
+      alert("Failed to create event");
+    } finally {
+      setIsSubmitting(false);
     }
-    if (participants.includes("Division Chiefs") && officesData) {
-      participants = participants.filter((x) => x !== "Division Chiefs");
-      const divisionOffices = officesData.services.flatMap((svc) => svc.offices.map((o) => o.name));
-      const set = new Set<string>(participants);
-      for (const name of divisionOffices) set.add(name);
-      participants = Array.from(set);
-    }
-    const payload = {
-      category: state.category,
-      categoryDetail: normalizeCategory(state.category) === "others - specified" ? (state.categoryDetail || "") : undefined,
-      type: state.type || "Internal",
-      title: state.title,
-      description: state.description || "",
-      location: state.location,
-      dateType: isRange ? "range" as const : "single" as const,
-      date: isRange ? "" : state.date,
-      startDate: isRange ? (state.startDate || defaultDate) : "",
-      endDate: isRange ? (state.endDate || defaultDate) : "",
-      startTime: state.startTime,
-      endTime: state.endTime,
-      participants,
-      office: state.office,
-      participantTokens: participantTokens.length ? participantTokens : undefined
-    };
-    onSubmit(payload);
   }
 
   const formEl = (
@@ -634,9 +677,9 @@ export default function AddEventModal({
               fontWeight: 500,
               opacity: isValid ? 1 : 0.6
             }}
-            disabled={!isValid}
+            disabled={!isValid || isSubmitting}
           >
-            {submitLabel ?? (isEdit ? "Save" : "Create")}
+            {isSubmitting ? "Submitting..." : (submitLabel ?? (isEdit ? "Save" : "Create"))}
           </button>
           <button
             type="button"

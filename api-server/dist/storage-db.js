@@ -38,52 +38,91 @@ function toDbJson(v) {
         return v;
     return JSON.stringify(v);
 }
+// Helpers for event mapping
+function mapEventFromDb(r) {
+    const { date_type, start_date, end_date, start_time, end_time, participant_tokens, created_by, created_by_office, created_at, category_detail, type, reminder_sent, ...rest } = r;
+    return {
+        ...rest,
+        dateType: date_type,
+        startDate: start_date,
+        endDate: end_date,
+        startTime: start_time,
+        endTime: end_time,
+        participantTokens: parseJson(participant_tokens, []),
+        participants: parseJson(r.participants, []),
+        attachments: parseJson(r.attachments, []),
+        createdBy: created_by,
+        createdByOffice: created_by_office,
+        createdAt: created_at,
+        categoryDetail: category_detail,
+        type: type,
+        reminderSent: !!reminder_sent
+    };
+}
+function mapEventToDb(e) {
+    const { dateType, startDate, endDate, startTime, endTime, participantTokens, participants, attachments, createdBy, createdByOffice, createdAt, categoryDetail, type, reminderSent, 
+    // Extract unknown properties to prevent inserting them into the DB
+    _participantInput, ...rest } = e;
+    // Basic sanitization
+    const safeDate = (d) => (d === "" ? null : d);
+    return {
+        ...rest,
+        date_type: dateType,
+        start_date: safeDate(startDate),
+        end_date: safeDate(endDate),
+        start_time: startTime || null,
+        end_time: endTime || null,
+        participant_tokens: toDbJson(participantTokens),
+        participants: toDbJson(participants),
+        attachments: toDbJson(attachments),
+        created_by: createdBy,
+        created_by_office: createdByOffice,
+        created_at: createdAt,
+        category_detail: categoryDetail || null,
+        type: type || null,
+        reminder_sent: reminderSent ? 1 : 0
+    };
+}
 export async function readEvents() {
     const k = getKnex();
     try {
         const rows = await k("events").select("*");
-        return rows.map((r) => ({
-            ...r,
-            participants: parseJson(r.participants, []),
-            participantTokens: parseJson(r.participantTokens, []),
-            attachments: parseJson(r.attachments, [])
-        }));
+        return rows.map(mapEventFromDb);
     }
-    catch {
+    catch (err) {
+        console.error("Error reading events:", err);
         return [];
     }
 }
 export async function writeEvents(events) {
     const k = getKnex();
-    await k.transaction(async (trx) => {
-        await trx("events").del();
-        if (events.length > 0) {
-            const rows = events.map((e) => ({
-                ...e,
-                participants: toDbJson(e.participants),
-                participantTokens: toDbJson(e.participantTokens),
-                attachments: toDbJson(e.attachments)
-            }));
-            // Insert in chunks to avoid parameter limits
-            const chunkSize = 100;
-            for (let i = 0; i < rows.length; i += chunkSize) {
-                await trx("events").insert(rows.slice(i, i + chunkSize));
+    try {
+        await k.transaction(async (trx) => {
+            // Warning: This full-replace strategy is dangerous for concurrency.
+            // Ideally, we should switch to insert-on-conflict or per-event upsert.
+            await trx("events").del();
+            if (events.length > 0) {
+                const rows = events.map(mapEventToDb);
+                const chunkSize = 100;
+                for (let i = 0; i < rows.length; i += chunkSize) {
+                    await trx("events").insert(rows.slice(i, i + chunkSize));
+                }
             }
-        }
-    });
+        });
+    }
+    catch (err) {
+        console.error("Error writing events:", err);
+        throw err; // Propagate error so the API can return 500
+    }
 }
 export async function readArchivedEvents() {
     const k = getKnex();
     try {
         const rows = await k("events_archive").select("*");
-        return rows.map((r) => ({
-            ...r,
-            participants: parseJson(r.participants, []),
-            participantTokens: parseJson(r.participantTokens, []),
-            attachments: parseJson(r.attachments, [])
-        }));
+        return rows.map(mapEventFromDb);
     }
-    catch {
+    catch (err) {
+        console.error("Error reading archived events:", err);
         return [];
     }
 }
@@ -92,12 +131,7 @@ export async function writeArchivedEvents(events) {
     await k.transaction(async (trx) => {
         await trx("events_archive").del();
         if (events.length > 0) {
-            const rows = events.map((e) => ({
-                ...e,
-                participants: toDbJson(e.participants),
-                participantTokens: toDbJson(e.participantTokens),
-                attachments: toDbJson(e.attachments)
-            }));
+            const rows = events.map(mapEventToDb);
             const chunkSize = 100;
             for (let i = 0; i < rows.length; i += chunkSize) {
                 await trx("events_archive").insert(rows.slice(i, i + chunkSize));
@@ -108,20 +142,29 @@ export async function writeArchivedEvents(events) {
 export async function readUsers() {
     const k = getKnex();
     try {
-        return await k("users").select("*");
+        const rows = await k("office_users").select("*");
+        return rows.map((r) => {
+            const { office_name, ...rest } = r;
+            return { ...rest, officeName: office_name };
+        });
     }
-    catch {
+    catch (err) {
+        console.error("Error reading users:", err);
         return [];
     }
 }
 export async function writeUsers(users) {
     const k = getKnex();
     await k.transaction(async (trx) => {
-        await trx("users").del();
+        await trx("office_users").del();
         if (users.length > 0) {
+            const rows = users.map((u) => {
+                const { officeName, ...rest } = u;
+                return { ...rest, office_name: officeName };
+            });
             const chunkSize = 100;
-            for (let i = 0; i < users.length; i += chunkSize) {
-                await trx("users").insert(users.slice(i, i + chunkSize));
+            for (let i = 0; i < rows.length; i += chunkSize) {
+                await trx("office_users").insert(rows.slice(i, i + chunkSize));
             }
         }
     });
@@ -132,16 +175,25 @@ export async function readHolidays() {
         const rows = await k("holidays").select(["month", "day", "name"]);
         return rows;
     }
-    catch {
+    catch (err) {
+        console.error("Error reading holidays:", err);
         return [];
     }
 }
 export async function readEmployees() {
     const k = getKnex();
     try {
-        return await k("employees").select("*");
+        // Map employee_details columns to expected structure
+        // Expected: { name, officeName, ... }
+        const rows = await k("employee_details").select("*");
+        return rows.map((r) => {
+            const { division, ...rest } = r;
+            // Map 'division' from DB to 'officeName' for the app
+            return { ...rest, officeName: division };
+        });
     }
-    catch {
+    catch (err) {
+        console.error("Error reading employees:", err);
         return [];
     }
 }

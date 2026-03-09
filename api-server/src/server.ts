@@ -18,10 +18,52 @@ import {
   readEmployees,
   getDataDir
 } from "./storage-select.js";
+import { sendEventCreatedEmail, sendReminderEmail } from "./email-service.js";
+import multer from "multer";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Setup static file serving for attachments
+// Files will be stored in 'api-server/data/uploads'
+const uploadDir = path.join(getDataDir(), "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Serve uploaded files statically
+app.use("/uploads", express.static(uploadDir));
+
+// Configure Multer storage
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename: timestamp-originalName
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
+  }
+});
+
+const upload = multer({ storage: storage });
+
+// Route to handle file upload
+app.post("/api/upload", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), upload.single("file"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "No file uploaded" });
+  }
+  // Return the file info needed for the frontend
+  // The 'url' will be relative to the server root, e.g., /uploads/filename.ext
+  res.json({
+    name: req.file.originalname,
+    url: `/uploads/${req.file.filename}`,
+    type: req.file.mimetype,
+    size: req.file.size
+  });
+});
+
 
 function readJson(p: string) {
   if (!fs.existsSync(p)) {
@@ -342,20 +384,21 @@ app.get("/api/users", authMiddleware, async (_req, res) => {
     username: u.username,
     role: u.role,
     officeName: u.officeName,
-    service: u.service
+    service: u.service,
+    email: u.email
   }));
   res.json(sanitized);
 });
 
 app.post("/api/users", authMiddleware, requireRole("ADMIN"), async (req, res) => {
-  const { username, password, role, officeName, service } = req.body || {};
+  const { username, password, role, officeName, service, email } = req.body || {};
   if (!username || !password || !role) return res.status(400).json({ error: "invalid_payload" });
   const users = await readUsers();
   if (users.find((u: any) => u.username === username)) return res.status(409).json({ error: "exists" });
-  const payload = { username, password, role, officeName: officeName ?? null, service: service ?? null };
+  const payload = { username, password, role, officeName: officeName ?? null, service: service ?? null, email: email ?? null };
   users.push(payload);
   await writeUsers(users);
-  res.status(201).json({ username, role, officeName: payload.officeName, service: payload.service });
+  res.status(201).json({ username, role, officeName: payload.officeName, service: payload.service, email: payload.email });
 });
 
 app.put("/api/users/:username", authMiddleware, requireRole("ADMIN"), async (req, res) => {
@@ -368,11 +411,12 @@ app.put("/api/users/:username", authMiddleware, requireRole("ADMIN"), async (req
     role: req.body.role ?? prev.role,
     officeName: req.body.officeName ?? prev.officeName ?? null,
     service: req.body.service ?? prev.service ?? null,
-    password: req.body.password ?? prev.password
+    password: req.body.password ?? prev.password,
+    email: req.body.email ?? prev.email ?? null
   };
   users[idx] = next;
   await writeUsers(users);
-  res.json({ username: next.username, role: next.role, officeName: next.officeName, service: next.service });
+  res.json({ username: next.username, role: next.role, officeName: next.officeName, service: next.service, email: next.email });
 });
 
 app.delete("/api/users/:username", authMiddleware, requireRole("ADMIN"), async (req, res) => {
@@ -402,9 +446,19 @@ app.post("/api/events", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), asy
   if (!("office" in payload) || payload.office == null) {
     payload.office = user?.officeName ?? null;
   }
+  
+  // Ensure attachments is valid array before saving
+  if (req.body.attachments) {
+    payload.attachments = req.body.attachments;
+  } else {
+    payload.attachments = [];
+  }
+
   events.push(payload);
   try {
     await writeEvents(events);
+    // Send email notification asynchronously
+    sendEventCreatedEmail(payload).catch(err => console.error("Email error:", err));
     res.status(201).json(payload);
   } catch (err) {
     console.error("Failed to write events:", err);
@@ -448,6 +502,51 @@ app.delete("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]
   await writeEvents(next);
   res.status(204).end();
 });
+
+// Reminder Scheduler
+async function runReminderScheduler() {
+  try {
+    const events = await readEvents();
+    const now = DateTime.now();
+    // Target date is today + 3 days. e.g. If today is Monday (1st), target is Thursday (4th).
+    const targetDate = now.plus({ days: 3 }).toISODate(); 
+    
+    let mutated = false;
+    for (const ev of events) {
+      if (ev.reminderSent) continue;
+      
+      let eventDate: string | null = null;
+      if (ev.dateType === "range" && ev.startDate) {
+        eventDate = ev.startDate;
+      } else if (ev.date) {
+        eventDate = ev.date;
+      }
+      
+      if (!eventDate) continue;
+      
+      // We check if the event date matches our target date exactly.
+      // This logic runs every hour. If it matches, we send email and mark as sent.
+      if (eventDate === targetDate) {
+        console.log(`Sending 3-day reminder for event: "${ev.title}" (ID: ${ev.id})`);
+        // Send email (fire and forget inside the loop, but we await to ensure not overwhelming SMTP)
+        await sendReminderEmail(ev).catch(err => console.error("Reminder email error:", err));
+        ev.reminderSent = true;
+        mutated = true;
+      }
+    }
+    
+    if (mutated) {
+      await writeEvents(events);
+    }
+  } catch (err) {
+    console.error("Scheduler error:", err);
+  }
+}
+
+// Run scheduler every hour
+setInterval(runReminderScheduler, 60 * 60 * 1000);
+// Also run on startup after a short delay
+setTimeout(runReminderScheduler, 10000);
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, () => {

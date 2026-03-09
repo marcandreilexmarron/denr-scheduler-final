@@ -243,15 +243,25 @@ export default function EventDetailModal({
             );
           })()}
           {Array.isArray(event.attachments) && event.attachments.length > 0 && (
-            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, gridColumn: "1 / 2" }}>
-              <div style={{ marginBottom: 6, color: "var(--muted)", fontSize: 12 }}>Attachments</div>
-              <ul className="list">
-                {event.attachments.map((a: any, i: number) => {
-                  const label = typeof a === "string" ? a : a?.name || a?.url || `Attachment ${i + 1}`;
-                  const url = typeof a === "string" ? a : a?.url;
+            <div style={{ marginTop: 16 }}>
+              <strong>Attachments:</strong>
+              <ul style={{ listStyle: "none", padding: 0, marginTop: 4 }}>
+                {event.attachments.map((att: any, idx: number) => {
+                  // Determine the download URL
+                  // Use 'blob' if available, otherwise fall back to 'url'
+                  const downloadUrl = att.blob || att.url;
+                  
                   return (
-                    <li key={i} className="list-item">
-                      {url ? <a href={url} target="_blank" rel="noreferrer">{label}</a> : <span>{label}</span>}
+                    <li key={idx} style={{ marginBottom: 4 }}>
+                      <a 
+                        href={downloadUrl} 
+                        download={att.name || "attachment"}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ color: "var(--primary)", textDecoration: "underline", cursor: "pointer" }}
+                      >
+                        {att.name || "Attachment"}
+                      </a>
                     </li>
                   );
                 })}
