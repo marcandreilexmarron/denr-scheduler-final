@@ -284,6 +284,7 @@ export default function AddEventModal({
             <select
               style={{
                 width: "100%",
+                boxSizing: "border-box",
                 padding: 10,
                 border: `1px solid ${categoryError ? "#dc2626" : "var(--border)"}`,
                 borderRadius: 8,
@@ -309,6 +310,7 @@ export default function AddEventModal({
             <select
               style={{
                 width: "100%",
+                boxSizing: "border-box",
                 padding: 10,
                 border: `1px solid ${typeError ? "#dc2626" : "var(--border)"}`,
                 borderRadius: 8,
@@ -331,7 +333,7 @@ export default function AddEventModal({
           <div>
             <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Specify Category</label>
             <input
-              style={{ width: "100%", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
+              style={{ width: "100%", boxSizing: "border-box", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
               placeholder="Specify category"
               value={state.categoryDetail || ""}
               onChange={(e) => setState({ ...state, categoryDetail: e.target.value })}
@@ -341,7 +343,7 @@ export default function AddEventModal({
         <div>
           <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Event Title</label>
           <input
-            style={{ width: "100%", padding: 10, border: `1px solid ${titleError ? "#dc2626" : "var(--border)"}`, borderRadius: 8, background: "var(--card)", fontSize: 14 }}
+            style={{ width: "100%", boxSizing: "border-box", padding: 10, border: `1px solid ${titleError ? "#dc2626" : "var(--border)"}`, borderRadius: 8, background: "var(--card)", fontSize: 14 }}
             placeholder="Title"
             value={state.title}
             onChange={(e) => setState({ ...state, title: e.target.value })}
@@ -353,7 +355,7 @@ export default function AddEventModal({
           <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Description</label>
           <textarea
             rows={3}
-            style={{ width: "100%", resize: "vertical", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
+            style={{ width: "100%", boxSizing: "border-box", resize: "vertical", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
             placeholder="What is this event about?"
             value={state.description}
             onChange={(e) => setState({ ...state, description: e.target.value })}
@@ -362,7 +364,7 @@ export default function AddEventModal({
         <div>
           <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Location</label>
           <input
-            style={{ width: "100%", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
+            style={{ width: "100%", boxSizing: "border-box", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
             placeholder="Venue or meeting link"
             value={state.location}
             onChange={(e) => setState({ ...state, location: e.target.value })}
@@ -389,12 +391,12 @@ export default function AddEventModal({
             </label>
           </div>
           {state.dateType === "range" ? (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
                 <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Start Date</label>
                 <input
                   type="date"
-                  style={{ width: "100%", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
+                  style={{ width: "100%", boxSizing: "border-box", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
                   min={today}
                   value={state.startDate}
                   onChange={(e) => setState({ ...state, startDate: e.target.value })}
@@ -405,7 +407,7 @@ export default function AddEventModal({
                 <input
                   type="date"
                   min={state.startDate || undefined}
-                  style={{ width: "100%", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
+                  style={{ width: "100%", boxSizing: "border-box", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
                   value={state.endDate}
                   onChange={(e) => setState({ ...state, endDate: e.target.value })}
                 />
@@ -416,7 +418,7 @@ export default function AddEventModal({
               <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Date</label>
               <input
                 type="date"
-                style={{ width: "100%", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
+                style={{ width: "100%", boxSizing: "border-box", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
                 min={today}
                 value={state.date}
                 onChange={(e) => setState({ ...state, date: e.target.value })}
@@ -432,14 +434,14 @@ export default function AddEventModal({
             <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 4 }}>{holidaysNote}</div>
           )}
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>
             <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Start Time</label>
-            <input type="time" style={{ width: "100%", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }} value={state.startTime} onChange={(e) => setState({ ...state, startTime: e.target.value })} />
+            <input type="time" style={{ width: "100%", boxSizing: "border-box", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }} value={state.startTime} onChange={(e) => setState({ ...state, startTime: e.target.value })} />
           </div>
           <div>
             <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>End Time</label>
-            <input type="time" style={{ width: "100%", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }} value={state.endTime} onChange={(e) => setState({ ...state, endTime: e.target.value })} />
+            <input type="time" style={{ width: "100%", boxSizing: "border-box", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }} value={state.endTime} onChange={(e) => setState({ ...state, endTime: e.target.value })} />
           </div>
         </div>
         {timeRangeError && <div style={{ color: "#dc2626", fontSize: 12, marginTop: -2 }}>{timeRangeError}</div>}
@@ -450,36 +452,34 @@ export default function AddEventModal({
               <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
                 <div>
                   <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>Top-level Offices</div>
-                  <div style={{ border: "1px solid var(--border)", borderRadius: 6, padding: 6, maxHeight: 140, overflowY: "auto" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, border: "1px solid var(--border)", borderRadius: 6, padding: 8, height: 140, overflowY: "auto" }}>
                     {officesData.topLevelOffices.map((o) => {
                       const name = o.name;
                       const checked = Array.isArray(state.participants) && state.participants.includes(name);
                       return (
-                        <span key={name} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginRight: 12, marginBottom: 6 }}>
-                          <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={(ev) => {
-                                if (ev.target.checked) {
-                                  const next = Array.isArray(state.participants) ? [...state.participants, name] : [name];
-                                  setState({ ...state, participants: next });
-                                } else {
-                                  const next = (state.participants || []).filter((x: string) => x !== name);
-                                  setState({ ...state, participants: next });
-                                }
-                              }}
-                            />
-                            <span
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEmployeePicker(name); }}
-                              role="button"
-                              style={{ padding: "2px 8px", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer" }}
-                              title="Select Employees"
-                            >
-                              {name}
-                            </span>
-                          </label>
-                        </span>
+                        <label key={name} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(ev) => {
+                              if (ev.target.checked) {
+                                const next = Array.isArray(state.participants) ? [...state.participants, name] : [name];
+                                setState({ ...state, participants: next });
+                              } else {
+                                const next = (state.participants || []).filter((x: string) => x !== name);
+                                setState({ ...state, participants: next });
+                              }
+                            }}
+                          />
+                          <span
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEmployeePicker(name); }}
+                            role="button"
+                            style={{ flex: 1, padding: "2px 8px", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                            title={name}
+                          >
+                            {name}
+                          </span>
+                        </label>
                       );
                     })}
                   </div>
@@ -511,36 +511,34 @@ export default function AddEventModal({
                   {officesData.services.map((svc) => (
                     <div key={svc.name}>
                       <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>{svc.name}</div>
-                      <div style={{ border: "1px solid var(--border)", borderRadius: 6, padding: 6, maxHeight: 160, overflowY: "auto" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4, border: "1px solid var(--border)", borderRadius: 6, padding: 8, height: 160, overflowY: "auto" }}>
                         {svc.offices.map((o) => {
                           const name = o.name;
                           const checked = Array.isArray(state.participants) && state.participants.includes(name);
                           return (
-                            <span key={name} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginRight: 12, marginBottom: 6 }}>
-                              <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={(ev) => {
-                                    if (ev.target.checked) {
-                                      const next = Array.isArray(state.participants) ? [...state.participants, name] : [name];
-                                      setState({ ...state, participants: next });
-                                    } else {
-                                      const next = (state.participants || []).filter((x: string) => x !== name);
-                                      setState({ ...state, participants: next });
-                                    }
-                                  }}
-                                />
-                                <span
-                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEmployeePicker(name); }}
-                                  role="button"
-                                  style={{ padding: "2px 8px", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer" }}
-                                  title="Select Employees"
-                                >
-                                  {name}
-                                </span>
-                              </label>
-                            </span>
+                            <label key={name} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(ev) => {
+                                  if (ev.target.checked) {
+                                    const next = Array.isArray(state.participants) ? [...state.participants, name] : [name];
+                                    setState({ ...state, participants: next });
+                                  } else {
+                                    const next = (state.participants || []).filter((x: string) => x !== name);
+                                    setState({ ...state, participants: next });
+                                  }
+                                }}
+                              />
+                              <span
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEmployeePicker(name); }}
+                                role="button"
+                                style={{ flex: 1, padding: "2px 8px", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                                title={name}
+                              >
+                                {name}
+                              </span>
+                            </label>
                           );
                         })}
                       </div>

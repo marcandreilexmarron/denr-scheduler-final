@@ -208,8 +208,11 @@ export default function OfficeDashboard() {
   }
   function eventMatchesOffice(e: any, officeName: string) {
     if (!officeName) return true;
-    if (e.office && e.office === officeName) return true;
-    if (Array.isArray(e.participants) && e.participants.includes(officeName)) return true;
+    const target = officeName.toLowerCase().trim();
+    if (e.office && e.office.toLowerCase().trim() === target) return true;
+    if (Array.isArray(e.participants)) {
+      return e.participants.some((p: any) => String(p).toLowerCase().includes(target));
+    }
     return false;
   }
   function eventMatchesCategory(e: any, cat: string) {
@@ -217,11 +220,13 @@ export default function OfficeDashboard() {
     return normalizeCategory(e.category || "") === normalizeCategory(cat);
   }
   function parseDate(s: string) {
+    if (s.includes("T")) return new Date(s);
     const [y, m, d] = s.split("-").map(Number);
     return new Date(y, m - 1, d);
   }
   function formatDateLabel(s: string) {
     try {
+      if (s.includes("T")) return new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });
       const [y, m, d] = s.split("-").map(Number);
       const dt = new Date(y, m - 1, d);
       return dt.toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -231,6 +236,7 @@ export default function OfficeDashboard() {
   }
   function formatFullDate(s: string) {
     try {
+      if (s.includes("T")) return new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
       const [y, m, d] = s.split("-").map(Number);
       const dt = new Date(y, m - 1, d);
       return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -263,6 +269,9 @@ export default function OfficeDashboard() {
       const start = parseDate(e.startDate);
       const end = parseDate(e.endDate);
       const cursor = new Date(start);
+      // Safety check to prevent infinite loops if dates are invalid
+      if (isNaN(cursor.getTime()) || isNaN(end.getTime())) return false;
+      
       while (cursor <= end) {
         if (cursor.getFullYear() === y && cursor.getMonth() + 1 === m && isWorkingDay(cursor) && !isHoliday(cursor) && isFutureOrToday(cursor)) {
           return true;
@@ -272,6 +281,7 @@ export default function OfficeDashboard() {
       return false;
     } else if (e.date) {
       const d = parseDate(e.date);
+      if (isNaN(d.getTime())) return false;
       if (d.getFullYear() === y && d.getMonth() + 1 === m && isWorkingDay(d) && !isHoliday(d) && isFutureOrToday(d)) {
         return true;
       }

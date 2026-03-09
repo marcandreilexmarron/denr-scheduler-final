@@ -109,8 +109,11 @@ export default function Landing() {
   const CATEGORIES = ["workshop", "meeting", "training", "conference", "travel", "activity", "others - specified"];
   function eventMatchesOffice(e: any, officeName: string) {
     if (!officeName) return true;
-    if (e.office && e.office === officeName) return true;
-    if (Array.isArray(e.participants) && e.participants.includes(officeName)) return true;
+    const target = officeName.toLowerCase().trim();
+    if (e.office && e.office.toLowerCase().trim() === target) return true;
+    if (Array.isArray(e.participants)) {
+      return e.participants.some((p: any) => String(p).toLowerCase().includes(target));
+    }
     return false;
   }
   function eventMatchesCategory(e: any, cat: string) {

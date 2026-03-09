@@ -27,6 +27,7 @@ function categoryStyle(cat?: string) {
 }
 function formatFullDate(s: string) {
   try {
+    if (s.includes("T")) return new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
     const [y, m, d] = s.split("-").map(Number);
     const dt = new Date(y, m - 1, d);
     return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -58,8 +59,11 @@ export default function ArchivedEventsPage() {
 
   function eventOfficeMatch(e: any, office: string) {
     if (!office) return true;
-    if (e.office && e.office === office) return true;
-    if (Array.isArray(e.participants) && e.participants.includes(office)) return true;
+    const target = office.toLowerCase().trim();
+    if (e.office && e.office.toLowerCase().trim() === target) return true;
+    if (Array.isArray(e.participants)) {
+      return e.participants.some((p: any) => String(p).toLowerCase().includes(target));
+    }
     return false;
   }
   function eventCategoryMatch(e: any, cat: string) {
