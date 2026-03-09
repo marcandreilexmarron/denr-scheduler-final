@@ -2,7 +2,7 @@
 
  A simple two-part system for planning and tracking events across DENR offices:
 
- - API Server: Express + TypeScript serving JSON-backed endpoints
+- API Server: Express + TypeScript serving file-backed endpoints (optional SQL backend)
  - Web Frontend: React + Vite providing the planner UI
 
  This repository contains both parts under denr-scheduler-final.
@@ -18,7 +18,7 @@
 
  ## Tech Stack
 
- - API: Node.js, Express, TypeScript, jsonwebtoken, Luxon
+- API: Node.js, Express, TypeScript, jsonwebtoken, Luxon (optional Knex + SQL driver)
  - Frontend: React 18, Vite, React Router
 
  ## Prerequisites
@@ -75,12 +75,23 @@
  # api-server/.env
  JWT_SECRET=change-me-in-production
  PORT=3000
+
+# Optional: enable SQL backend instead of JSON files
+# DATA_BACKEND=db
+# DATABASE_CLIENT=mysql2
+# DATABASE_URL=mysql://user:pass@localhost:3306/scheduler_db
  ```
 
  Defaults if not provided:
 
  - JWT_SECRET: dev-insecure-secret
  - PORT: 3000
+
+## Database Backend (Optional)
+
+The API supports switching storage from JSON files to a SQL database by setting `DATA_BACKEND=db` and providing `DATABASE_CLIENT` / `DATABASE_URL`.
+
+See: `denr-scheduler-final/api-server/README-DB.md`
 
  ## Default Data and Credentials
 

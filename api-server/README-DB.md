@@ -14,7 +14,6 @@ This guide explains how to run the API server using a SQL database instead of th
 - Node.js 18+ (recommended)
 - API server dependencies installed:
   - `npm i` (in `api-server/`)
-  - `npm i knex` (already added)
 - Install the driver for your SQL engine:
   - Postgres: `npm i pg`
   - MySQL/MariaDB: `npm i mysql2`
@@ -30,8 +29,8 @@ Set these environment variables for the API server:
 Examples (PowerShell):
 ```
 setx DATA_BACKEND "db"
-setx DATABASE_CLIENT "pg"
-setx DATABASE_URL "postgres://user:pass@host:5432/dbname"
+setx DATABASE_CLIENT "mysql2"
+setx DATABASE_URL "mysql://user:pass@localhost:3306/scheduler_db"
 ```
 Restart your terminal after `setx` so Node sees the variables.
 
@@ -42,30 +41,32 @@ The SQL backend reads/writes these tables:
 - id TEXT/VARCHAR PRIMARY KEY  
 - title TEXT NOT NULL  
 - category TEXT  
-- dateType TEXT NOT NULL            // 'single' or 'range'  
 - date DATE NULL                    // single-date  
-- startDate DATE NULL               // range  
-- endDate DATE NULL  
-- startTime TEXT NULL               // 'HH:mm'  
-- endTime TEXT NULL  
+- date_type TEXT NOT NULL           // 'single' or 'range'  
+- start_date DATE NULL              // range  
+- end_date DATE NULL  
+- start_time TEXT NULL              // 'HH:mm'  
+- end_time TEXT NULL  
 - office TEXT NULL  
 - participants JSON/TEXT            // JSON array of strings  
-- participantTokens JSON/TEXT       // JSON array of strings  
-- createdBy TEXT NULL  
-- createdByOffice TEXT NULL  
-- createdAt TIMESTAMP/DateTime NOT NULL  
+- participant_tokens JSON/TEXT      // JSON array of strings  
+- created_by TEXT NULL  
+- created_by_office TEXT NULL  
+- created_at TIMESTAMP/DateTime NOT NULL  
 - location TEXT NULL  
 - description TEXT NULL  
 - attachments JSON/TEXT             // JSON array
+- category_detail TEXT NULL
+- type TEXT NULL
 
 ### events_archive
 Same columns as `events`. Used for past events moved out of the active list.
 
-### users
+### office_users
 - username TEXT/VARCHAR PRIMARY KEY  
 - password TEXT NOT NULL             // stored as plain here; you can hash later  
 - role TEXT NOT NULL                 // e.g., 'ADMIN', 'OFFICE'  
-- officeName TEXT NULL  
+- office_name TEXT NULL  
 - service TEXT NULL
 
 ### holidays
@@ -73,18 +74,18 @@ Same columns as `events`. Used for past events moved out of the active list.
 - day INTEGER NOT NULL  
 - name TEXT NULL
 
-### employees
-Flexible; returned as-is by the API. Suggested columns: `name`, `officeName`, `position`, etc.
+### employee_details
+Flexible; returned as-is by the API. The API maps `division` → `officeName`.
 
 ## DDL Examples
 
 ### Postgres
 ```sql
-create table if not exists users (
+create table if not exists office_users (
   username text primary key,
   password text not null,
   role text not null,
-  officeName text,
+  office_name text,
   service text
 );
 
@@ -98,33 +99,41 @@ create table if not exists events (
   id text primary key,
   title text not null,
   category text,
-  dateType text not null,
+  date_type text not null,
   date date,
-  startDate date,
-  endDate date,
-  startTime text,
-  endTime text,
+  start_date date,
+  end_date date,
+  start_time text,
+  end_time text,
   office text,
   participants jsonb,
-  participantTokens jsonb,
-  createdBy text,
-  createdByOffice text,
-  createdAt timestamptz not null,
+  participant_tokens jsonb,
+  created_by text,
+  created_by_office text,
+  created_at timestamptz not null,
   location text,
   description text,
-  attachments jsonb
+  attachments jsonb,
+  category_detail text,
+  type text
 );
 
 create table if not exists events_archive (like events including all);
+
+create table if not exists employee_details (
+  name text,
+  division text,
+  position text
+);
 ```
 
 ### MySQL/MariaDB
 ```sql
-create table if not exists users (
+create table if not exists office_users (
   username varchar(191) primary key,
   password varchar(255) not null,
   role varchar(64) not null,
-  officeName varchar(255),
+  office_name varchar(255),
   service varchar(255)
 );
 
@@ -138,24 +147,32 @@ create table if not exists events (
   id varchar(191) primary key,
   title text not null,
   category varchar(128),
-  dateType varchar(16) not null,
+  date_type varchar(16) not null,
   date date,
-  startDate date,
-  endDate date,
-  startTime varchar(5),
-  endTime varchar(5),
+  start_date date,
+  end_date date,
+  start_time varchar(5),
+  end_time varchar(5),
   office varchar(255),
   participants json,
-  participantTokens json,
-  createdBy varchar(255),
-  createdByOffice varchar(255),
-  createdAt datetime not null,
+  participant_tokens json,
+  created_by varchar(255),
+  created_by_office varchar(255),
+  created_at datetime not null,
   location varchar(512),
   description text,
-  attachments json
+  attachments json,
+  category_detail text,
+  type varchar(64)
 );
 
 create table if not exists events_archive like events;
+
+create table if not exists employee_details (
+  name varchar(255),
+  division varchar(255),
+  position varchar(255)
+);
 ```
 
 If your engine lacks native JSON, use TEXT for the JSON columns; the server will serialize/deserialize.
