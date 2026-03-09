@@ -53,6 +53,7 @@ export default function EventDetailModal({
   }, []);
   function formatFullDate(s: string) {
     try {
+      if (s.includes("T")) return new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
       const [y, m, d] = s.split("-").map(Number);
       const dt = new Date(y, m - 1, d);
       return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -86,8 +87,8 @@ export default function EventDetailModal({
     <>
     <Modal open={open} onClose={handleClose}>
       {event && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16, maxWidth: "100%", width: "100%", boxSizing: "border-box", margin: "0 auto" }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, justifyContent: "flex-start", gridColumn: "1 / 2" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%", boxSizing: "border-box" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, justifyContent: "space-between" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {event.category && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
@@ -105,8 +106,8 @@ export default function EventDetailModal({
               })()}
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 6, alignItems: "start", borderTop: "1px solid var(--border)", paddingTop: 10, gridColumn: "1 / 2" }}>
-            <div style={{ color: "var(--muted)" }}>Date & time</div>
+          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px 16px", alignItems: "baseline", borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+            <div style={{ color: "var(--muted)", fontWeight: 500, fontSize: "0.9em" }}>Date & time</div>
             <div>
               {event.dateType === "range" && event.startDate && event.endDate
                 ? `${formatFullDate(event.startDate)} ${formatTime(event.startTime)} → ${formatFullDate(event.endDate)} ${formatTime(event.endTime)}`
@@ -114,11 +115,11 @@ export default function EventDetailModal({
             </div>
             {event.location && (
               <>
-                <div style={{ color: "var(--muted)" }}>Location</div>
+                <div style={{ color: "var(--muted)", fontWeight: 500, fontSize: "0.9em" }}>Location</div>
                 <div style={{ overflowWrap: "anywhere" }}>{event.location}</div>
               </>
             )}
-            <div style={{ color: "var(--muted)" }}>From</div>
+            <div style={{ color: "var(--muted)", fontWeight: 500, fontSize: "0.9em" }}>From</div>
             <div>{event.creatingOffice || event.office || "Unknown office"}</div>
           </div>
           {event.description && (

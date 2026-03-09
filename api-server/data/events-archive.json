@@ -1,1 +1,4 @@
-[]
+[
+{"id":"2211aa33-bb44-cc55-dd66-010","category":"workshop","type":"External","title":"LGU Land Use Planning Workshop","description":"Support session with LGUs on CLUP integration.","location":"Provincial Capitol","dateType":"range","date":"","startDate":"2026-03-05","endDate":"2026-03-06","startTime":"09:00","endTime":"17:00","participants":["Pia Estrada — Office of the Regional Director","Ken Castillo — Office of the Assistant Regional Director for Management Services","Yana Vergara — Planning and Management Division","Carlos Bautista 2 — Planning and Management Division"],"office":"Office of the Regional Director","attachments":[]},
+{"id":"5e4d3c2b-1a2b-3c4d-4e5f-011","category":"activity","type":"Internal","title":"Records Inventory Day","description":"Quarterly inventory and archiving of documents.","location":"Records Section","dateType":"single","date":"2026-03-06","startDate":"","endDate":"","startTime":"08:00","endTime":"12:00","participants":["Planning and Management Division","Olive Ramos — Administrative Division","Yana Vergara — Planning and Management Division"],"office":"Administrative Division","attachments":[]}
+]

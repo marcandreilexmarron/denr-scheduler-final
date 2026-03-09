@@ -276,7 +276,7 @@ export default function AddEventModal({
   }
 
   const formEl = (
-      <form onSubmit={submit} style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12, marginBottom: 12, maxWidth: 720 }}>
+      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 12, width: "100%" }}>
         <h2 style={{ margin: "0 0 4px 0" }}>{title ?? (isEdit ? "Edit Event" : "New Event")}</h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 8 }}>
           <div>

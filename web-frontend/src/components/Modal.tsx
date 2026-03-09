@@ -12,7 +12,7 @@ export default function Modal({
   if (!open) return null;
   return (
     <div className="modal-backdrop">
-      <div className="modal-card" style={{ display: "flex", flexDirection: "column", maxHeight: "90vh", position: "relative", overflowX: "hidden" }}>
+      <div className="modal-card" style={{ display: "flex", flexDirection: "column", maxHeight: "90vh", width: "min(600px, 90vw)", position: "relative", overflowX: "hidden" }}>
         <button
           onClick={onClose}
           aria-label="Close"

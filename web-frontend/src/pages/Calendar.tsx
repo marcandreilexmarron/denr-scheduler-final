@@ -145,6 +145,7 @@ export default function Calendar(props?: {
   const monthKey = `${year}-${String(month).padStart(2, "0")}`;
 
   function parseDate(s: string) {
+    if (s.includes("T")) return new Date(s);
     const [y, m, d] = s.split("-").map(Number);
     return new Date(y, m - 1, d);
   }
