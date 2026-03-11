@@ -291,6 +291,9 @@ app.post("/api/login", async (req, res) => {
   const users = await readUsers();
   const user = users.find((u) => u.username === username && u.password === password);
   if (!user) return res.status(401).json({ error: "invalid_credentials" });
+  if (String(user.role || "").replace(/^ROLE_/, "") === "ADMIN") {
+    return res.status(403).json({ error: "admin_login_disabled" });
+  }
   const token = signToken({
     sub: user.username,
     role: user.role,
