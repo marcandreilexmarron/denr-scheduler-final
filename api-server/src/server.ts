@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
-import { authMiddleware, signToken, requireRole, requireAnyRole } from "./auth.js";
+import { authMiddleware, signToken, requireAnyRole } from "./auth.js";
 import crypto from "crypto";
 import { DateTime } from "luxon";
 import { fileURLToPath } from "url";
@@ -13,7 +13,6 @@ import {
   readArchivedEvents,
   writeArchivedEvents,
   readUsers,
-  writeUsers,
   readHolidays,
   readEmployees,
   getDataDir
@@ -50,7 +49,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // Route to handle file upload
-app.post("/api/upload", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), upload.single("file"), (req, res) => {
+app.post("/api/upload", authMiddleware, requireAnyRole(["OFFICE"]), upload.single("file"), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No file uploaded" });
   }
@@ -378,61 +377,7 @@ app.get("/api/employees", async (_req, res) => {
   res.json(await readEmployees());
 });
 
-app.get("/api/users", authMiddleware, async (_req, res) => {
-  const users = await readUsers();
-  const sanitized = users.map((u) => ({
-    username: u.username,
-    role: u.role,
-    officeName: u.officeName,
-    service: u.service,
-    email: u.email
-  }));
-  res.json(sanitized);
-});
-
-app.post("/api/users", authMiddleware, requireRole("ADMIN"), async (req, res) => {
-  const { username, password, role, officeName, service, email } = req.body || {};
-  if (!username || !password || !role) return res.status(400).json({ error: "invalid_payload" });
-  const users = await readUsers();
-  if (users.find((u: any) => u.username === username)) return res.status(409).json({ error: "exists" });
-  const payload = { username, password, role, officeName: officeName ?? null, service: service ?? null, email: email ?? null };
-  users.push(payload);
-  await writeUsers(users);
-  res.status(201).json({ username, role, officeName: payload.officeName, service: payload.service, email: payload.email });
-});
-
-app.put("/api/users/:username", authMiddleware, requireRole("ADMIN"), async (req, res) => {
-  const users = await readUsers();
-  const idx = users.findIndex((u: any) => u.username === req.params.username);
-  if (idx === -1) return res.status(404).json({ error: "not_found" });
-  const prev = users[idx];
-  const next = {
-    ...prev,
-    role: req.body.role ?? prev.role,
-    officeName: req.body.officeName ?? prev.officeName ?? null,
-    service: req.body.service ?? prev.service ?? null,
-    password: req.body.password ?? prev.password,
-    email: req.body.email ?? prev.email ?? null
-  };
-  users[idx] = next;
-  await writeUsers(users);
-  res.json({ username: next.username, role: next.role, officeName: next.officeName, service: next.service, email: next.email });
-});
-
-app.delete("/api/users/:username", authMiddleware, requireRole("ADMIN"), async (req, res) => {
-  const users = await readUsers();
-  const user = users.find((u: any) => u.username === req.params.username);
-  if (!user) return res.status(404).json({ error: "not_found" });
-  if (String(user.role || "").replace(/^ROLE_/, "") === "ADMIN") {
-    const adminCount = users.filter((u: any) => String(u.role || "").replace(/^ROLE_/, "") === "ADMIN").length;
-    if (adminCount <= 1) return res.status(400).json({ error: "last_admin" });
-  }
-  const next = users.filter((u: any) => u.username !== req.params.username);
-  await writeUsers(next);
-  res.status(204).end();
-});
-
-app.post("/api/events", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), async (req, res) => {
+app.post("/api/events", authMiddleware, requireAnyRole(["OFFICE"]), async (req, res) => {
   const events = await archivePastEvents(); // also ensures ids for current records
   const user = (req as any).user as any;
   const id = crypto.randomUUID();
@@ -466,17 +411,16 @@ app.post("/api/events", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), asy
   }
 });
 
-app.put("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), async (req, res) => {
+app.put("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE"]), async (req, res) => {
   await archivePastEvents(); // move any past items first
   const events = await readEvents();
   const user = (req as any).user as any;
   const idx = events.findIndex((e: any) => e.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: "not_found" });
   if (isEventPast(events[idx])) return res.status(409).json({ error: "event_archived_or_past" });
-  const isAdmin = String(user?.role || "").replace(/^ROLE_/, "").endsWith("ADMIN");
   const userOffice = user?.officeName || null;
   const ownerOffice = events[idx]?.office ?? events[idx]?.createdByOffice ?? null;
-  if (!isAdmin && (!ownerOffice || ownerOffice !== userOffice)) {
+  if (!ownerOffice || ownerOffice !== userOffice) {
     return res.status(403).json({ error: "forbidden" });
   }
   const updated = { ...events[idx], ...req.body, id: events[idx].id };
@@ -485,17 +429,16 @@ app.put("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), 
   res.json(updated);
 });
 
-app.delete("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), async (req, res) => {
+app.delete("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE"]), async (req, res) => {
   await archivePastEvents(); // move any past items first
   const events = await readEvents();
   const user = (req as any).user as any;
   const idx = events.findIndex((e: any) => e.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: "not_found" });
   if (isEventPast(events[idx])) return res.status(409).json({ error: "event_archived_or_past" });
-  const isAdmin = String(user?.role || "").replace(/^ROLE_/, "").endsWith("ADMIN");
   const userOffice = user?.officeName || null;
   const ownerOffice = events[idx]?.office ?? events[idx]?.createdByOffice ?? null;
-  if (!isAdmin && (!ownerOffice || ownerOffice !== userOffice)) {
+  if (!ownerOffice || ownerOffice !== userOffice) {
     return res.status(403).json({ error: "forbidden" });
   }
   const next = events.filter((e: any) => e.id !== req.params.id);

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate } from "react-router-dom";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
-import Admin from "./pages/Admin";
 import OfficeDashboard from "./pages/OfficeDashboard";
 import Calendar from "./pages/Calendar";
 import Offices from "./pages/Offices";
@@ -59,13 +58,6 @@ function Shell() {
             <span style={{ fontSize: 12, color: "#6b7280", marginTop: 2, lineHeight: 1.1 }}>Department of Environment and Natural Resources - CAR</span>
           </span>
         </Link>
-        <div style={{ display: "flex", gap: 12, marginLeft: 16 }}>
-          {user && (
-            <>
-              {user?.role?.endsWith("ADMIN") && <Link to="/admin">Admin</Link>}
-            </>
-          )}
-        </div>
         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
           <span
             aria-label="Current date and time"
@@ -101,8 +93,7 @@ function Shell() {
         <Login
           onSuccess={(u) => {
             setShowLogin(false);
-            if (String(u?.role || "").endsWith("ADMIN")) navigate("/admin");
-            else navigate("/office-dashboard");
+            navigate("/office-dashboard");
           }}
         />
       </Modal>
@@ -150,14 +141,6 @@ function Shell() {
             element={
               <ProtectedRoute>
                 <Offices />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute role="ADMIN">
-                <Admin />
               </ProtectedRoute>
             }
           />

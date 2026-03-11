@@ -321,7 +321,6 @@ export default function OfficeDashboard() {
   function canEditEvent(e: any) {
     const user = me;
     if (!user) return false;
-    if (String(user.role || "").endsWith("ADMIN")) return true;
     const myOffice = user.officeName || "";
     return !!(e && (e.office === myOffice || e.createdByOffice === myOffice));
   }
@@ -332,7 +331,7 @@ export default function OfficeDashboard() {
       .then((d) => setEvents(d));
   }
 
-  const canAdd = !!(me?.role?.endsWith?.("ADMIN") || me?.role?.endsWith?.("OFFICE"));
+  const canAdd = !!me?.role?.endsWith?.("OFFICE");
   function deleteEvent(id: string) {
     const t = getToken();
     if (!t) return;
@@ -501,8 +500,9 @@ export default function OfficeDashboard() {
             disableDateModal={true}
             allowCreate={true}
             canEditEvent={(e, user) => {
-              if (String(user?.role || "").endsWith("ADMIN")) return true;
-              return !!(e && e.createdBy && (e.createdBy === user?.sub || e.createdBy === (user as any)?.username));
+              const myOffice = (user as any)?.officeName || null;
+              const ownerOffice = e?.office ?? e?.createdByOffice ?? null;
+              return !!myOffice && ownerOffice === myOffice;
             }}
             onViewChange={(y, m) => {
               setViewYear(y);

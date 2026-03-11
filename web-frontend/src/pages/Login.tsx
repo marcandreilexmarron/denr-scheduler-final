@@ -33,8 +33,7 @@ export default function Login({ onSuccess }: { onSuccess?: (user: any) => void }
           onSuccess(user);
           return;
         }
-        if (user?.role === "ADMIN") navigate("/admin");
-        else navigate("/office-dashboard");
+        navigate("/office-dashboard");
       })
       .catch((err) => {
         if (err && typeof err === "object" && "status" in err) {

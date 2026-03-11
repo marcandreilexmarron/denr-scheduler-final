@@ -1,12 +1,5 @@
 [
   {
-    "username": "admin",
-    "password": "password",
-    "role": "ADMIN",
-    "officeName": "Administrator",
-    "service": "System"
-  },
-  {
     "username": "ord_admin",
     "password": "password",
     "role": "OFFICE",

@@ -64,7 +64,7 @@ export default function Calendar(props?: {
     }
   });
   const user = getUserFromToken();
-  const canEdit = !!(user?.role?.endsWith?.("ADMIN") || user?.role?.endsWith?.("OFFICE"));
+  const canEdit = !!user?.role?.endsWith?.("OFFICE");
   const allowCreate = props?.allowCreate !== undefined ? !!props.allowCreate : canEdit;
   function canEditEvent(e: any) {
     if (typeof props?.canEditEvent === "function") return !!props!.canEditEvent!(e, user);
