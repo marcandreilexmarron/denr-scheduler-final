@@ -612,7 +612,10 @@ export default function OfficeDashboard() {
             event={detailEvent}
             categoryStyle={categoryStyle}
             canEditEvent={(e) => canEditEvent(e)}
-            onEdit={() => alert("Open the date cell and use Edit in calendar modal")}
+            onEdit={(e) => {
+              setDetailEvent(null);
+              setEditing({ ...e });
+            }}
           />
           
         </section>

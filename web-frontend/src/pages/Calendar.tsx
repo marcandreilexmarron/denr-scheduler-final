@@ -519,7 +519,8 @@ export default function Calendar(props?: {
           gridTemplateColumns: "repeat(7, 1fr)",
           gap: 6,
           marginTop: 6,
-          padding: "0 24px 24px 24px"
+          padding: "0 24px 24px 24px",
+          userSelect: "none"
         }}
       >
         {data?.calendarDays.map((d, i) => {
@@ -540,6 +541,10 @@ export default function Calendar(props?: {
             <div
               key={i}
               aria-selected={isSelected ? true : undefined}
+              onMouseDown={(ev) => {
+                // Prevent browser text selection when shift-clicking for range
+                if (ev.shiftKey) ev.preventDefault();
+              }}
               style={{
                 border: isSelected ? `2px solid var(--primary)` : (d.isToday ? "2px solid #93c5fd" : "1px solid #ddd"),
                 height: compact ? 84 : 110,

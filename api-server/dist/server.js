@@ -8,7 +8,7 @@ import crypto from "crypto";
 import { DateTime } from "luxon";
 import { fileURLToPath } from "url";
 import { readEvents, writeEvents, readArchivedEvents, writeArchivedEvents, readUsers, readHolidays, readEmployees, getDataDir } from "./storage-select.js";
-import { sendEventCreatedEmail, sendReminderEmail } from "./email-service.js";
+import { sendReminderEmail } from "./email-service.js";
 import multer from "multer";
 const app = express();
 app.use(cors());
@@ -83,22 +83,18 @@ function parseDateTime(dateStr, timeStr) {
         return null;
     }
 }
-function startOfToday() {
-    const n = new Date();
-    return new Date(n.getFullYear(), n.getMonth(), n.getDate(), 0, 0, 0, 0);
-}
 function isEventPast(ev) {
-    // Past = event's last day is before today (ignore time-of-day)
-    const today = startOfToday().getTime();
+    // Past = event's end time is before the current moment
+    const now = new Date().getTime();
     if (ev?.dateType === "range" && ev?.startDate && ev?.endDate) {
-        const end = parseDateTime(ev.endDate, ev.endTime) || parseDateTime(ev.endDate, "17:00");
-        return (end?.getTime() ?? today) < today;
+        // If it's a range, use the endDate and endTime (default to end of day if no time specified)
+        const end = parseDateTime(ev.endDate, ev.endTime) || parseDateTime(ev.endDate, "23:59");
+        return (end?.getTime() ?? now) < now;
     }
     if (ev?.date) {
-        const end = parseDateTime(ev.date, ev.endTime || ev.startTime || "17:00");
-        // Treat a single-day event as past only if its day is strictly before today
-        const endDay = end ? new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime() : today;
-        return endDay < today;
+        // If it's a single day, use the date and endTime (default to end of day if no time specified)
+        const end = parseDateTime(ev.date, ev.endTime || ev.startTime || "23:59");
+        return (end?.getTime() ?? now) < now;
     }
     return false;
 }
@@ -330,6 +326,12 @@ app.get("/api/events", async (_req, res) => {
     const events = (await readEvents()).filter((e) => !isHolidayOnlyEvent(e, simpleHolidays));
     res.json(events);
 });
+app.get("/api/events/archive", async (_req, res) => {
+    await archivePastEvents();
+    await backfillDivisionChiefTokensArchive();
+    const events = await readArchivedEvents();
+    res.json(events);
+});
 app.get("/api/office/events", authMiddleware, async (req, res) => {
     await archivePastEvents();
     await backfillDivisionChiefTokens();
@@ -386,8 +388,8 @@ app.post("/api/events", authMiddleware, requireAnyRole(["OFFICE"]), async (req, 
     events.push(payload);
     try {
         await writeEvents(events);
-        // Send email notification asynchronously
-        sendEventCreatedEmail(payload).catch(err => console.error("Email error:", err));
+        // Send email notification asynchronously (Disabled for now)
+        // sendEventCreatedEmail(payload).catch(err => console.error("Email error:", err));
         res.status(201).json(payload);
     }
     catch (err) {
@@ -470,10 +472,10 @@ async function runReminderScheduler() {
         console.error("Scheduler error:", err);
     }
 }
-// Run scheduler every hour
-setInterval(runReminderScheduler, 60 * 60 * 1000);
-// Also run on startup after a short delay
-setTimeout(runReminderScheduler, 10000);
+// Run scheduler every hour (Disabled for now)
+// setInterval(runReminderScheduler, 60 * 60 * 1000);
+// Also run on startup after a short delay (Disabled for now)
+// setTimeout(runReminderScheduler, 10000);
 const port = Number(process.env.PORT || 3000);
 app.listen(port, () => {
     console.log(`api listening on port ${port}`);

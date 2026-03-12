@@ -25,14 +25,23 @@ function categoryStyle(cat?: string) {
   const c = CATEGORY_COLORS[key] || { bg: "#eeeeee", fg: "#333333", border: "#dddddd" };
   return { background: c.bg, color: c.fg, borderColor: c.border };
 }
-function formatFullDate(s: string) {
+function formatFullDate(s: any) {
+  if (!s) return "";
   try {
-    if (s.includes("T")) return new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-    const [y, m, d] = s.split("-").map(Number);
-    const dt = new Date(y, m - 1, d);
-    return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    let date: Date;
+    if (s instanceof Date) {
+      date = s;
+    } else if (typeof s === "string" && s.includes("T")) {
+      date = new Date(s);
+    } else if (typeof s === "string") {
+      const [y, m, d] = s.split("-").map(Number);
+      date = new Date(y, m - 1, d);
+    } else {
+      return String(s);
+    }
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   } catch {
-    return s;
+    return String(s);
   }
 }
 
@@ -46,7 +55,7 @@ export default function ArchivedEventsPage() {
 
   useEffect(() => {
     fetch("/api/offices-data").then((r) => r.json()).then((d) => setOfficesData(d));
-    fetch("/api/events").then((r) => r.json()).then((d) => setEvents(d));
+    fetch("/api/events/archive").then((r) => r.json()).then((d) => setEvents(d));
   }, []);
 
   const availableOffices = useMemo(() => {
@@ -71,8 +80,16 @@ export default function ArchivedEventsPage() {
     return normalizeCategory(e.category || "") === normalizeCategory(cat);
   }
   function effectiveDate(e: any) {
-    if (e.dateType === "range" && (e.endDate || e.startDate)) return (e.endDate || e.startDate) as string;
-    return e.date as string;
+    let val = e.dateType === "range" ? (e.endDate || e.startDate) : e.date;
+    if (!val) return "";
+    if (val instanceof Date) {
+      const y = val.getFullYear();
+      const m = String(val.getMonth() + 1).padStart(2, "0");
+      const d = String(val.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+    if (typeof val === "string" && val.includes("T")) return val.split("T")[0];
+    return String(val);
   }
   const todayKey = (() => {
     const t = new Date();
@@ -153,8 +170,23 @@ export default function ArchivedEventsPage() {
             })}
           </select>
         </div>
+        <button
+          onClick={() => { setOfficeFilter(""); setCategoryFilter(""); }}
+          style={{
+            padding: "10px 12px",
+            background: "#e2e8f0",
+            color: "#0f172a",
+            border: "1px solid #cbd5e1",
+            borderRadius: 8,
+            cursor: "pointer",
+            fontSize: 14,
+            fontWeight: 600
+          }}
+        >
+          Clear Filters
+        </button>
       </div>
-      <div className="card hover-scroll" style={{ padding: 12 }}>
+      <div className="card hover-scroll" style={{ padding: 0 }}>
         <div style={{ display: "grid", gridTemplateColumns: "160px 1fr 180px", gap: 8, fontWeight: 700, marginBottom: 8 }}>
           <div>Category</div>
           <div>Title Event</div>

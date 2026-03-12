@@ -149,6 +149,8 @@ export async function sendEventCreatedEmail(event) {
     <p><strong>Participants:</strong><br/>${buildParticipantsHTML(event)}</p>
     <p><strong>Description:</strong><br/>${event.description || 'N/A'}</p>
     <p><strong>Created By:</strong> ${event.createdBy || 'Unknown'} (${event.createdByOffice || 'Unknown'})</p>
+    <br/>
+    <p><a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" style="display: inline-block; padding: 10px 20px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold;">View Calendar</a></p>
   `;
     try {
         const info = await transporter.sendMail({
@@ -198,6 +200,8 @@ export async function sendReminderEmail(event) {
     <p><strong>Date:</strong> ${event.dateType === 'range' ? `${formatDate(event.startDate)} to ${formatDate(event.endDate)}` : formatDate(event.date)}</p>
     <p><strong>Time:</strong> ${event.startTime ? `${formatTime(event.startTime)} - ${formatTime(event.endTime)}` : 'All day'}</p>
     <p><strong>Venue:</strong> ${event.location || 'N/A'}</p>
+    <br/>
+    <p><a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" style="display: inline-block; padding: 10px 20px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold;">View Calendar</a></p>
   `;
     try {
         const info = await transporter.sendMail({

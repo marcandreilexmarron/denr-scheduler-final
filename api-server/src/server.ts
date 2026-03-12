@@ -83,10 +83,18 @@ function writeEventsFile(p: string, events: any[]) {
   fs.writeFileSync(p, content, "utf-8");
 }
 
-function parseDateTime(dateStr?: string, timeStr?: string): Date | null {
+function parseDateTime(dateStr?: any, timeStr?: string): Date | null {
   if (!dateStr) return null;
   try {
-    const [y, m, d] = dateStr.split("-").map((n: string) => Number(n));
+    let y, m, d;
+    if (dateStr instanceof Date) {
+      y = dateStr.getFullYear();
+      m = dateStr.getMonth() + 1;
+      d = dateStr.getDate();
+    } else {
+      [y, m, d] = String(dateStr).split("-").map((n: string) => Number(n));
+    }
+    
     let hh = 23, mm = 59;
     if (timeStr && /^\d{2}:\d{2}$/.test(timeStr)) {
       const [h2, m2] = timeStr.split(":").map((n: string) => Number(n));
@@ -98,22 +106,18 @@ function parseDateTime(dateStr?: string, timeStr?: string): Date | null {
     return null;
   }
 }
-function startOfToday(): Date {
-  const n = new Date();
-  return new Date(n.getFullYear(), n.getMonth(), n.getDate(), 0, 0, 0, 0);
-}
 function isEventPast(ev: any): boolean {
-  // Past = event's last day is before today (ignore time-of-day)
-  const today = startOfToday().getTime();
+  // Past = event's end time is before the current moment
+  const now = new Date().getTime();
   if (ev?.dateType === "range" && ev?.startDate && ev?.endDate) {
-    const end = parseDateTime(ev.endDate, ev.endTime) || parseDateTime(ev.endDate, "17:00");
-    return (end?.getTime() ?? today) < today;
+    // If it's a range, use the endDate and endTime (default to end of day if no time specified)
+    const end = parseDateTime(ev.endDate, ev.endTime) || parseDateTime(ev.endDate, "23:59");
+    return (end?.getTime() ?? now) < now;
   }
   if (ev?.date) {
-    const end = parseDateTime(ev.date, ev.endTime || ev.startTime || "17:00");
-    // Treat a single-day event as past only if its day is strictly before today
-    const endDay = end ? new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime() : today;
-    return endDay < today;
+    // If it's a single day, use the date and endTime (default to end of day if no time specified)
+    const end = parseDateTime(ev.date, ev.endTime || ev.startTime || "23:59");
+    return (end?.getTime() ?? now) < now;
   }
   return false;
 }
@@ -306,9 +310,10 @@ app.post("/api/login", async (req, res) => {
 function isHolidayDate(d: Date, holidays: Array<{ month: number; day: number }>) {
   return holidays.some((h) => h.month === d.getMonth() + 1 && h.day === d.getDate());
 }
-function parseYMD(s?: string): Date | null {
+function parseYMD(s?: any): Date | null {
   if (!s) return null;
   try {
+    if (s instanceof Date) return new Date(s.getFullYear(), s.getMonth(), s.getDate());
     const [y, m, d] = String(s).split("-").map((n) => Number(n));
     return new Date(y, (m || 1) - 1, d || 1);
   } catch {
@@ -345,6 +350,13 @@ app.get("/api/events", async (_req, res) => {
   const holidays = (await readHolidays()) as Array<{ month: number; day: number; name: string }>;
   const simpleHolidays = holidays.map((h) => ({ month: h.month, day: h.day }));
   const events = (await readEvents()).filter((e) => !isHolidayOnlyEvent(e, simpleHolidays));
+  res.json(events);
+});
+
+app.get("/api/events/archive", async (_req, res) => {
+  await archivePastEvents();
+  await backfillDivisionChiefTokensArchive();
+  const events = await readArchivedEvents();
   res.json(events);
 });
 
@@ -405,8 +417,8 @@ app.post("/api/events", authMiddleware, requireAnyRole(["OFFICE"]), async (req, 
   events.push(payload);
   try {
     await writeEvents(events);
-    // Send email notification asynchronously
-    sendEventCreatedEmail(payload).catch(err => console.error("Email error:", err));
+    // Send email notification asynchronously (Disabled for now)
+    // sendEventCreatedEmail(payload).catch(err => console.error("Email error:", err));
     res.status(201).json(payload);
   } catch (err) {
     console.error("Failed to write events:", err);
@@ -489,10 +501,20 @@ async function runReminderScheduler() {
   }
 }
 
-// Run scheduler every hour
-setInterval(runReminderScheduler, 60 * 60 * 1000);
-// Also run on startup after a short delay
-setTimeout(runReminderScheduler, 10000);
+// Background Archive Scheduler
+async function runArchiveScheduler() {
+  try {
+    console.log("Running background archive check...");
+    await archivePastEvents();
+  } catch (err) {
+    console.error("Archive scheduler error:", err);
+  }
+}
+
+// Run archive scheduler every 10 minutes
+setInterval(runArchiveScheduler, 10 * 60 * 1000);
+// Also run archive on startup after a short delay
+setTimeout(runArchiveScheduler, 5000);
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, () => {
