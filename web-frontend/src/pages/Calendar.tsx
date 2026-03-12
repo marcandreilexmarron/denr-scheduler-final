@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { getToken, getUserFromToken } from "../auth";
 import Modal from "../components/Modal";
 import AddEventModal from "../components/AddEventModal";
+import ConfirmModal from "../components/ConfirmModal";
 
 type CalendarDay = { day: number | string; isToday: boolean; holiday: { day: number; month: number; name: string } | null };
 type CalendarData = {
@@ -54,6 +55,7 @@ export default function Calendar(props?: {
   const [eventsOffice, setEventsOffice] = useState<any[]>([]);
   const [selected, setSelected] = useState<{ date: string; events: any[] } | null>(null);
   const [editing, setEditing] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState<any | null>(null);
   const [availableOffices, setAvailableOffices] = useState<string[]>([]);
   const [officesData, setOfficesData] = useState<{ topLevelOffices: Array<{ name: string }>; services: Array<{ name: string; offices: Array<{ name: string }> }> } | null>(null);
   const [compact, setCompact] = useState<boolean>(() => {
@@ -671,6 +673,16 @@ export default function Calendar(props?: {
                   });
               }}
             />
+            <ConfirmModal
+              open={!!deleting}
+              onClose={() => setDeleting(null)}
+              onConfirm={() => {
+                if (deleting) deleteEvent(deleting.id);
+                setDeleting(null);
+              }}
+              title="Confirm Delete"
+              message={`Are you sure you want to delete "${deleting?.title}"? This action cannot be undone.`}
+            />
             {selected.events.length === 0 ? (
               <div>No events</div>
             ) : (
@@ -700,7 +712,7 @@ export default function Calendar(props?: {
                             <>
                               {" "}
                               <button onClick={() => setEditing({ ...e })}>Edit</button>{" "}
-                              <button onClick={() => deleteEvent(e.id)}>Delete</button>
+                              <button onClick={() => setDeleting(e)}>Delete</button>
                             </>
                           )}
                         </>

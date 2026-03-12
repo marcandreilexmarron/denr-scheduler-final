@@ -3,6 +3,7 @@ import Calendar from "./Calendar";
 import Modal from "../components/Modal";
 import EventDetailModal from "../components/EventDetailModal";
 import AddEventModal from "../components/AddEventModal";
+import ConfirmModal from "../components/ConfirmModal";
 import { getUserFromToken, getToken } from "../auth";
 import {
   Building2,
@@ -46,6 +47,7 @@ export default function OfficeDashboard() {
   const [detailEvent, setDetailEvent] = useState<any | null>(null);
   const [holidays, setHolidays] = useState<Array<{ month: number; day: number; name: string }>>([]);
   const [editing, setEditing] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState<any | null>(null);
   const [isPortrait, setIsPortrait] = useState<boolean>(true);
   useEffect(() => {
     function update() {
@@ -591,7 +593,7 @@ export default function OfficeDashboard() {
                         <button
                           onClick={(ev) => {
                             ev.stopPropagation();
-                            if (confirm("Delete this event?")) deleteEvent(e.id);
+                            setDeleting(e);
                           }}
                           style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #ef4444", background: "#fee2e2", color: "#991b1b", cursor: "pointer" }}
                           title="Delete event"
@@ -617,7 +619,16 @@ export default function OfficeDashboard() {
               setEditing({ ...e });
             }}
           />
-          
+          <ConfirmModal
+            open={!!deleting}
+            onClose={() => setDeleting(null)}
+            onConfirm={() => {
+              if (deleting) deleteEvent(deleting.id);
+              setDeleting(null);
+            }}
+            title="Confirm Delete"
+            message={`Are you sure you want to delete "${deleting?.title}"? This action cannot be undone.`}
+          />
         </section>
       </div>
     </div>
