@@ -352,7 +352,7 @@ export default function OfficeDashboard() {
   // Removed inline saveEdit in favor of using AddEventModal in edit mode
 
   return (
-    <div style={{ padding: 16 }}>
+    <div style={{ padding: isPortrait ? 8 : 16 }}>
       <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "minmax(0, 4fr) minmax(0, 1fr)", gap: 16 }}>
         <main className="card hover-scroll" style={{ padding: "0 12px 12px 12px", height: "calc(100vh - 140px)" }}>
           <Calendar

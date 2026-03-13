@@ -74,6 +74,22 @@ export default function Calendar(props?: {
   }
   const [creating, setCreating] = useState<any | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [isPortrait, setIsPortrait] = useState<boolean>(true);
+
+  useEffect(() => {
+    function update() {
+      try {
+        const m = window.matchMedia && window.matchMedia("(orientation: portrait)");
+        setIsPortrait(m ? m.matches : window.innerHeight >= window.innerWidth);
+      } catch {
+        setIsPortrait(true);
+      }
+    }
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
   const [officeFilterState, setOfficeFilterState] = useState<string>("");
   const [categoryFilterState, setCategoryFilterState] = useState<string>("");
   const officeFilter = props?.officeFilter !== undefined ? props.officeFilter! : officeFilterState;
@@ -345,10 +361,10 @@ export default function Calendar(props?: {
   }
 
   return (
-    <div style={{ padding: 0 }}>
-      <div style={{ position: "sticky", top: 0, zIndex: 5, background: "var(--card)", padding: "24px 24px 8px 24px", borderBottom: "1px solid var(--border)" }}>
+    <div style={{ padding: 0, overflowX: "hidden" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 5, background: "var(--card)", padding: isPortrait ? "12px 12px 8px 12px" : "24px 24px 8px 24px", borderBottom: "1px solid var(--border)" }}>
         {(props?.showTitle ?? true) && (
-          <h1 style={{ textAlign: "center", margin: "0 0 8px 0" }}>Calendar</h1>
+          <h1 style={{ textAlign: "center", margin: "0 0 8px 0", fontSize: isPortrait ? 20 : 32 }}>Calendar</h1>
         )}
         <div
           style={{
@@ -366,15 +382,16 @@ export default function Calendar(props?: {
               color: "var(--text)",
               border: "1px solid var(--border)",
               borderRadius: 999,
-              padding: "4px 10px",
-              lineHeight: "20px",
-              cursor: "pointer"
+              padding: isPortrait ? "2px 8px" : "4px 10px",
+              lineHeight: isPortrait ? "16px" : "20px",
+              cursor: "pointer",
+              fontSize: isPortrait ? 12 : 14
             }}
             aria-label="Previous month"
           >
-            ‹ Prev
+            {isPortrait ? "‹" : "‹ Prev"}
           </button>
-          <div style={{ textAlign: "center", fontWeight: 800, fontSize: 28, letterSpacing: 0.25 }}>
+          <div style={{ textAlign: "center", fontWeight: 800, fontSize: isPortrait ? 18 : 28, letterSpacing: 0.25 }}>
             {data?.yearMonth ?? ""}
           </div>
           <button
@@ -385,13 +402,14 @@ export default function Calendar(props?: {
               color: "var(--text)",
               border: "1px solid var(--border)",
               borderRadius: 999,
-              padding: "4px 10px",
-              lineHeight: "20px",
-              cursor: "pointer"
+              padding: isPortrait ? "2px 8px" : "4px 10px",
+              lineHeight: isPortrait ? "16px" : "20px",
+              cursor: "pointer",
+              fontSize: isPortrait ? 12 : 14
             }}
             aria-label="Next month"
           >
-            Next ›
+            {isPortrait ? "›" : "Next ›"}
           </button>
         </div>
         {props?.headerBelow && (
@@ -447,8 +465,8 @@ export default function Calendar(props?: {
               marginTop: 8,
               display: "flex",
               gap: 8,
-              flexWrap: "nowrap",
-              overflowX: "auto",
+              flexWrap: isPortrait ? "wrap" : "nowrap",
+              overflowX: isPortrait ? "visible" : "auto",
               scrollbarGutter: "stable",
               alignItems: "stretch",
               width: "100%"
@@ -462,11 +480,12 @@ export default function Calendar(props?: {
                 background: categoryFilter ? "transparent" : "#e2e8f0",
                 color: categoryFilter ? "inherit" : "#0f172a",
                 border: `1px solid ${categoryFilter ? "var(--border)" : "#cbd5e1"}`,
-                flex: "1 1 0",
-                minWidth: 80,
+                flex: isPortrait ? "1 1 calc(33.33% - 8px)" : "1 1 0",
+                minWidth: isPortrait ? 60 : 80,
                 borderRadius: 999,
-                padding: "8px 12px",
-                fontWeight: 600
+                padding: isPortrait ? "6px 8px" : "8px 12px",
+                fontWeight: 600,
+                fontSize: isPortrait ? 11 : 14
               }}
             >
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>All</span>
@@ -484,14 +503,15 @@ export default function Calendar(props?: {
                     background: styles.background,
                     color: styles.color,
                     border: `1px solid ${styles.borderColor}`,
-                    flex: "1 1 0",
-                    minWidth: 80,
+                    flex: isPortrait ? "1 1 calc(33.33% - 8px)" : "1 1 0",
+                    minWidth: isPortrait ? 60 : 80,
                     borderRadius: 999,
-                    padding: "8px 12px",
+                    padding: isPortrait ? "6px 8px" : "8px 12px",
                     boxShadow: active ? `0 0 0 2px ${styles.borderColor}` : "none",
                     filter: active ? "saturate(1.25) brightness(1.05)" : "saturate(1.1)",
                     opacity: active ? 1 : 0.9,
-                    transition: "filter 120ms ease, box-shadow 120ms ease, opacity 120ms ease"
+                    transition: "filter 120ms ease, box-shadow 120ms ease, opacity 120ms ease",
+                    fontSize: isPortrait ? 11 : 14
                   }}
                 >
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{c}</span>
@@ -519,9 +539,9 @@ export default function Calendar(props?: {
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(7, 1fr)",
-          gap: 6,
+          gap: isPortrait ? 2 : 6,
           marginTop: 6,
-          padding: "0 24px 24px 24px",
+          padding: isPortrait ? "0 12px 12px 12px" : "0 24px 24px 24px",
           userSelect: "none"
         }}
       >

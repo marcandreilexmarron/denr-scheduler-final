@@ -313,7 +313,7 @@ export default function Landing() {
   }
 
   return (
-    <div style={{ padding: 16 }}>
+    <div style={{ padding: isPortrait ? 8 : 16 }}>
       <div style={{ position: "relative", display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "minmax(0, 4fr) minmax(0, 1fr)", gap: 16, alignItems: "stretch" }}>
         <aside className="card hover-scroll" style={{ padding: 12, height: "calc(100vh - 140px)", display: "none", gridColumn: "1 / 2" }}>
           <h3>Regional Office</h3>

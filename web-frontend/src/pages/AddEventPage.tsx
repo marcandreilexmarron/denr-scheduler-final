@@ -9,6 +9,22 @@ export default function AddEventPage() {
   const [officesData, setOfficesData] = useState<{ topLevelOffices: any[]; services: any[] } | null>(null);
   const [resetCounter, setResetCounter] = useState(0);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isPortrait, setIsPortrait] = useState<boolean>(true);
+
+  useEffect(() => {
+    function update() {
+      try {
+        const m = window.matchMedia && window.matchMedia("(orientation: portrait)");
+        setIsPortrait(m ? m.matches : window.innerHeight >= window.innerWidth);
+      } catch {
+        setIsPortrait(true);
+      }
+    }
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
   useEffect(() => {
     fetch("/api/offices-data")
       .then((r) => r.json())
@@ -45,8 +61,8 @@ export default function AddEventPage() {
   }
   const range = getRangeFromQuery();
   return (
-    <div style={{ padding: 16 }}>
-      <div className="card hover-scroll" style={{ padding: 12, maxWidth: 900, margin: "0 auto" }}>
+    <div style={{ padding: isPortrait ? 8 : 16 }}>
+      <div className="card hover-scroll" style={{ padding: isPortrait ? 8 : 12, maxWidth: 900, margin: "0 auto", boxSizing: "border-box" }}>
         {success && (
           <div
             role="status"

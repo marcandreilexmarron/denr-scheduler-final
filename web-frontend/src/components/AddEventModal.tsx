@@ -59,6 +59,21 @@ export default function AddEventModal({
 }) {
   const isPage = (variant ?? "modal") === "page";
   const isOpen = isPage ? true : open;
+  const [isPortrait, setIsPortrait] = useState<boolean>(true);
+  useEffect(() => {
+    function update() {
+      try {
+        const m = window.matchMedia && window.matchMedia("(orientation: portrait)");
+        setIsPortrait(m ? m.matches : window.innerHeight >= window.innerWidth);
+      } catch {
+        setIsPortrait(true);
+      }
+    }
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
   const [employeesData, setEmployeesData] = useState<{ byOffice: Record<string, string[]> } | null>(null);
   const [holidays, setHolidays] = useState<Array<{ month: number; day: number; name: string }>>([]);
   const [state, setState] = useState<any>({
@@ -319,9 +334,9 @@ export default function AddEventModal({
   }
 
   const formEl = (
-      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 12, width: "100%" }}>
+      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 12, width: "100%", overflowX: "hidden" }}>
         <h2 style={{ margin: "0 0 4px 0" }}>{title ?? (isEdit ? "Edit Event" : "New Event")}</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "1fr 180px", gap: 8 }}>
           <div>
             <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Category</label>
             <select
@@ -434,7 +449,7 @@ export default function AddEventModal({
             </label>
           </div>
           {state.dateType === "range" ? (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "1fr 1fr", gap: 12 }}>
               <div>
                 <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Start Date</label>
                 <input
@@ -477,7 +492,7 @@ export default function AddEventModal({
             <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 4 }}>{holidaysNote}</div>
           )}
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "1fr 1fr", gap: 12 }}>
           <div>
             <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Start Time</label>
             <input type="time" style={{ width: "100%", boxSizing: "border-box", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }} value={state.startTime} onChange={(e) => setState({ ...state, startTime: e.target.value })} />
@@ -550,9 +565,9 @@ export default function AddEventModal({
                     );
                   })}
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  {officesData.services.map((svc) => (
-                    <div key={svc.name}>
+                <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "1fr 1fr", gap: 10 }}>
+                    {officesData.services.map((svc) => (
+                      <div key={svc.name}>
                       <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>{svc.name}</div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 4, border: "1px solid var(--border)", borderRadius: 6, padding: 8, height: 160, overflowY: "auto" }}>
                         {svc.offices.map((o) => {
