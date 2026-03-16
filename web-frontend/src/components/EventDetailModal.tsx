@@ -19,6 +19,7 @@ export default function EventDetailModal({
 }) {
   const [selectedOffice, setSelectedOffice] = React.useState<string | null>(null);
   const [selectedEmployees, setSelectedEmployees] = React.useState<string[]>([]);
+  const [clickedRect, setClickedRect] = React.useState<DOMRect | null>(null);
   const [divisionOfficeNames, setDivisionOfficeNames] = React.useState<string[]>([]);
   const [officeServiceMap, setOfficeServiceMap] = React.useState<Record<string, string>>({});
   const [serviceOrder, setServiceOrder] = React.useState<string[]>([]);
@@ -51,6 +52,43 @@ export default function EventDetailModal({
       })
       .catch(() => {});
   }, []);
+  const [isPortrait, setIsPortrait] = React.useState(false);
+  React.useEffect(() => {
+    function update() {
+      try {
+        const m = window.matchMedia && window.matchMedia("(orientation: portrait)");
+        const isSmall = window.innerWidth < 768;
+        setIsPortrait(isSmall || (m ? m.matches : window.innerHeight >= window.innerWidth));
+      } catch {
+        setIsPortrait(true);
+      }
+    }
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  function abbreviateOffice(name: string) {
+    if (!name) return "";
+    const n = name.trim();
+    const map: Record<string, string> = {
+      "Office of the Regional Director": "ORD",
+      "Office of the Assistant Regional Director for Management Services": "ARD-MS",
+      "Office of the Assistant Regional Director for Technical Services": "ARD-TS",
+      "Surveys and Mapping Division": "SMD",
+      "Licenses, Patents and Deeds Division": "LPDD",
+      "Conservation and Development Division": "CDD",
+      "Enforcement Division": "ED",
+      "Planning and Management Division": "PMD",
+      "Legal Division": "Legal",
+      "Administrative Division": "Admin",
+      "Finance Division": "Finance"
+    };
+    if (map[n]) return map[n];
+    const entry = Object.entries(map).find(([k]) => k.toLowerCase() === n.toLowerCase());
+    return entry ? entry[1] : n;
+  }
+
   function formatFullDate(s: string) {
     try {
       if (s.includes("T")) return new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -72,15 +110,18 @@ export default function EventDetailModal({
     if (!open) {
       setSelectedOffice(null);
       setSelectedEmployees([]);
+      setClickedRect(null);
     }
   }, [open, event]);
   React.useEffect(() => {
     setSelectedOffice(null);
     setSelectedEmployees([]);
+    setClickedRect(null);
   }, [event]);
   const handleClose = React.useCallback(() => {
     setSelectedOffice(null);
     setSelectedEmployees([]);
+    setClickedRect(null);
     onClose();
   }, [onClose]);
   return (
@@ -120,7 +161,7 @@ export default function EventDetailModal({
               </>
             )}
             <div style={{ color: "var(--muted)", fontWeight: 500, fontSize: "0.9em" }}>From</div>
-            <div>{event.creatingOffice || event.office || "Unknown office"}</div>
+            <div>{isPortrait ? abbreviateOffice(event.creatingOffice || event.office || "Unknown office") : (event.creatingOffice || event.office || "Unknown office")}</div>
           </div>
           {event.description && (
             <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10 }}>
@@ -202,7 +243,8 @@ export default function EventDetailModal({
                             key={`off-${svc}-${off}`}
                             className="badge"
                             style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer" }}
-                            onClick={() => {
+                            onClick={(e) => {
+                              setClickedRect(e.currentTarget.getBoundingClientRect());
                               setSelectedOffice(off);
                               setSelectedEmployees(emps);
                             }}
@@ -274,9 +316,9 @@ export default function EventDetailModal({
                 onClick={() => onEdit(event)}
                 style={{
                   padding: "8px 10px",
-                  background: "#2563eb",
-                  color: "#ffffff",
-                  border: "1px solid #1d4ed8",
+                  background: "var(--primary)",
+                  color: "var(--primary-contrast)",
+                  border: "1px solid var(--primary)",
                   borderRadius: 8,
                   cursor: "pointer",
                   fontSize: 13,
@@ -292,17 +334,28 @@ export default function EventDetailModal({
         </div>
       )}
     </Modal>
-    {open && selectedOffice && selectedEmployees.length > 0
+    {open && selectedOffice && selectedEmployees.length > 0 && clickedRect
       ? createPortal((() => {
           try {
-            const el = document.querySelector(".modal-card") as HTMLElement | null;
-            if (!el) return null;
-            const rect = el.getBoundingClientRect();
-            const panelWidth = 300;
-            const gap = 8;
-            const left = Math.min(rect.right + gap, window.innerWidth - panelWidth - 8);
-            const top = Math.max(8, rect.top);
-            const maxHeight = Math.min(rect.height, window.innerHeight - top - 8);
+            const panelWidth = Math.min(280, window.innerWidth - 32);
+            const gap = 4;
+            let left = clickedRect.left;
+            let top = clickedRect.bottom + gap;
+            
+            if (left + panelWidth > window.innerWidth - 16) {
+              left = window.innerWidth - panelWidth - 16;
+            }
+            if (left < 16) left = 16;
+
+            let finalMaxHeight = Math.min(300, window.innerHeight - top - 16);
+            
+            // If it would be too small below, and there is more room above, flip it
+            if (finalMaxHeight < 120 && clickedRect.top > window.innerHeight - clickedRect.bottom) {
+              const aboveSpace = clickedRect.top - 16 - gap;
+              finalMaxHeight = Math.min(300, aboveSpace);
+              top = clickedRect.top - finalMaxHeight - gap;
+            }
+
             return (
               <div
                 style={{
@@ -311,21 +364,22 @@ export default function EventDetailModal({
                   top,
                   left,
                   width: panelWidth,
-                  maxHeight,
+                  maxHeight: finalMaxHeight,
                   overflow: "auto",
                   border: "1px solid var(--border)",
                   borderRadius: 8,
                   padding: 10,
                   background: "var(--card)",
-                  boxShadow: "0 6px 24px rgba(0,0,0,0.12)"
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+                  animation: "fadeIn 0.2s ease-out"
                 }}
                 role="dialog"
                 aria-label={`${selectedOffice} employees`}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <strong>{selectedOffice}</strong>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, borderBottom: "1px solid var(--border)", paddingBottom: 6 }}>
+                  <strong style={{ fontSize: 13 }}>{selectedOffice}</strong>
                   <button
-                    onClick={() => { setSelectedOffice(null); setSelectedEmployees([]); }}
+                    onClick={() => { setSelectedOffice(null); setSelectedEmployees([]); setClickedRect(null); }}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -333,7 +387,8 @@ export default function EventDetailModal({
                   fontSize: 18,
                   lineHeight: 1,
                   padding: 0,
-                  color: "inherit"
+                  color: "inherit",
+                  opacity: 0.6
                 }}
                     aria-label="Close"
                     title="Close"
@@ -341,9 +396,9 @@ export default function EventDetailModal({
                     ×
                   </button>
                 </div>
-                <ul className="list">
+                <ul className="list" style={{ margin: 0, padding: 0 }}>
                   {selectedEmployees.map((name, i) => (
-                    <li key={`${name}-${i}`} className="list-item">
+                    <li key={`${name}-${i}`} className="list-item" style={{ fontSize: 13, padding: "6px 0" }}>
                       {name}
                     </li>
                   ))}

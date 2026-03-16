@@ -12,7 +12,7 @@ export default function Modal({
   if (!open) return null;
   return (
     <div className="modal-backdrop">
-      <div className="modal-card" style={{ display: "flex", flexDirection: "column", maxHeight: "90vh", width: "min(600px, 90vw)", position: "relative", overflowX: "hidden" }}>
+      <div className="modal-card" style={{ display: "flex", flexDirection: "column", position: "relative", overflowX: "hidden" }}>
         <button
           onClick={onClose}
           aria-label="Close"
@@ -27,12 +27,13 @@ export default function Modal({
             fontSize: 20,
             lineHeight: 1,
             padding: 0,
-            color: "inherit"
+            color: "inherit",
+            zIndex: 10
           }}
         >
           ×
         </button>
-        <div style={{ minHeight: 0, overflowY: "auto", flex: "1 1 auto" }}>{children}</div>
+        <div style={{ minHeight: 0, overflowY: "auto", flex: "1 1 auto", paddingRight: 4 }}>{children}</div>
       </div>
     </div>
   );

@@ -146,6 +146,26 @@ export default function Calendar(props?: {
 
   const monthKey = `${year}-${String(month).padStart(2, "0")}`;
 
+  function abbreviateOffice(name: string) {
+    if (!name) return "";
+    const n = name.trim();
+    const map: Record<string, string> = {
+      "Office of the Regional Director": "ORD",
+      "Office of the Assistant Regional Director for Management Services": "ARD-MS",
+      "Office of the Assistant Regional Director for Technical Services": "ARD-TS",
+      "Surveys and Mapping Division": "SMD",
+      "Licenses, Patents and Deeds Division": "LPDD",
+      "Conservation and Development Division": "CDD",
+      "Enforcement Division": "ED",
+      "Planning and Management Division": "PMD",
+      "Legal Division": "Legal",
+      "Administrative Division": "Admin",
+      "Finance Division": "Finance"
+    };
+    if (map[n]) return map[n];
+    const entry = Object.entries(map).find(([k]) => k.toLowerCase() === n.toLowerCase());
+    return entry ? entry[1] : n;
+  }
   function parseDate(s: string) {
     if (s.includes("T")) return new Date(s);
     const [y, m, d] = s.split("-").map(Number);
@@ -459,9 +479,9 @@ export default function Calendar(props?: {
               onClick={() => setCategoryFilter("")}
               className="chip"
               style={{
-                background: categoryFilter ? "transparent" : "#e2e8f0",
-                color: categoryFilter ? "inherit" : "#0f172a",
-                border: `1px solid ${categoryFilter ? "var(--border)" : "#cbd5e1"}`,
+                background: categoryFilter ? "transparent" : "var(--primary)",
+                color: categoryFilter ? "inherit" : "white",
+                border: `1px solid ${categoryFilter ? "var(--border)" : "var(--primary)"}`,
                 flex: "1 1 0",
                 minWidth: 80,
                 borderRadius: 999,
@@ -590,7 +610,7 @@ export default function Calendar(props?: {
                       minWidth: 22,
                       height: 22,
                       padding: "0 6px",
-                      background: "#2563eb",
+                      background: "var(--primary)",
                       color: "#ffffff",
                       borderRadius: 999,
                       fontSize: 12,
@@ -702,7 +722,7 @@ export default function Calendar(props?: {
                       {!isEditing ? (
                         <>
                           {e.startTime}-{e.endTime} {e.title} {e.location ? `@ ${e.location}` : ""}
-                          {e.office && <span className="badge">{e.office}</span>}
+                          {e.office && <span className="badge">{compact ? abbreviateOffice(e.office) : e.office}</span>}
                           {e.category && <span className="badge" style={categoryStyle(e.category)}>{e.category}</span>}
                           {e.category === "others - specified" && e.categoryDetail && <span className="badge">{e.categoryDetail}</span>}
                           {Array.isArray(e.participants) && e.participants.length > 0 && (

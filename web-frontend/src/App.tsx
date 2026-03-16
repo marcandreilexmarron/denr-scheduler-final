@@ -13,10 +13,48 @@ import Modal from "./components/Modal";
 
 function Shell() {
   const [user, setUser] = useState<any | null>(getUserFromToken());
+  const [isPortrait, setIsPortrait] = useState(false);
   const loc = useLocation();
   const navigate = useNavigate();
   const [showLogin, setShowLogin] = useState(false);
   const [now, setNow] = useState<Date>(new Date());
+
+  function abbreviateOffice(name: string) {
+    if (!name) return "";
+    const n = name.trim();
+    const map: Record<string, string> = {
+      "Office of the Regional Director": "ORD",
+      "Office of the Assistant Regional Director for Management Services": "ARD-MS",
+      "Office of the Assistant Regional Director for Technical Services": "ARD-TS",
+      "Surveys and Mapping Division": "SMD",
+      "Licenses, Patents and Deeds Division": "LPDD",
+      "Conservation and Development Division": "CDD",
+      "Enforcement Division": "ED",
+      "Planning and Management Division": "PMD",
+      "Legal Division": "Legal",
+      "Administrative Division": "Admin",
+      "Finance Division": "Finance"
+    };
+    if (map[n]) return map[n];
+    // Case-insensitive fallback
+    const entry = Object.entries(map).find(([k]) => k.toLowerCase() === n.toLowerCase());
+    return entry ? entry[1] : n;
+  }
+
+  useEffect(() => {
+    function update() {
+      try {
+        const m = window.matchMedia && window.matchMedia("(orientation: portrait)");
+        const isSmall = window.innerWidth < 768;
+        setIsPortrait(isSmall || (m ? m.matches : window.innerHeight >= window.innerWidth));
+      } catch {
+        setIsPortrait(true);
+      }
+    }
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
   useEffect(() => {
     const unsub = onAuthChange(() => {
       const t = getToken();
@@ -50,12 +88,12 @@ function Shell() {
   }, [loc.pathname]);
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <nav style={{ display: "flex", gap: 16, padding: 12, borderBottom: "1px solid var(--border)", alignItems: "center", background: "var(--card)" }}>
-        <Link to="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "inherit" }}>
-          <img src="/logo.png" alt="DENR" style={{ width: 36, height: 36, objectFit: "contain" }} />
+      <nav style={{ display: "flex", gap: isPortrait ? 8 : 16, padding: isPortrait ? "8px 12px" : 12, borderBottom: "1px solid var(--border)", alignItems: "center", background: "var(--primary)", color: "white", flexWrap: "wrap" }}>
+        <Link to="/" style={{ display: "flex", alignItems: "center", gap: isPortrait ? 8 : 12, textDecoration: "none", color: "inherit" }}>
+          <img src="/logo.png" alt="DENR" style={{ width: isPortrait ? 28 : 36, height: isPortrait ? 28 : 36, objectFit: "contain" }} />
           <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-            <span style={{ fontWeight: 700, fontSize: 18, lineHeight: 1 }}>DENR Planner</span>
-            <span style={{ fontSize: 12, color: "#6b7280", marginTop: 2, lineHeight: 1.1 }}>Department of Environment and Natural Resources - CAR</span>
+            <span style={{ fontWeight: 700, fontSize: isPortrait ? 16 : 18, lineHeight: 1 }}>{isPortrait ? "DENR" : "DENR Planner"}</span>
+            <span style={{ fontSize: isPortrait ? 10 : 12, color: "rgba(255,255,255,0.8)", marginTop: 2, lineHeight: 1.1 }}>{isPortrait ? "DENR-CAR" : "Department of Environment and Natural Resources - CAR"}</span>
           </span>
         </Link>
         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
@@ -63,29 +101,33 @@ function Shell() {
             aria-label="Current date and time"
             title="Current date and time"
             style={{
-              fontSize: 14,
-              color: "#334155",
-              padding: "6px 10px",
-              border: "1px solid #e2e8f0",
+              fontSize: isPortrait ? 11 : 14,
+              color: "white",
+              padding: isPortrait ? "4px 6px" : "6px 10px",
+              border: "1px solid rgba(255,255,255,0.2)",
               borderRadius: 8,
-              background: "#f8fafc",
-              fontVariantNumeric: "tabular-nums"
+              background: "rgba(255,255,255,0.1)",
+              fontVariantNumeric: "tabular-nums",
+              whiteSpace: "nowrap"
             }}
           >
-            {now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })} • {now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })}
+            {isPortrait 
+              ? `${now.toLocaleDateString(undefined, { month: "short", day: "numeric" })} • ${now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true })}`
+              : `${now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })} • ${now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })}`
+            }
           </span>
         </span>
-        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 0 }}>
           {user ? (
             <>
               <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", lineHeight: 1.2 }}>
-                <span>{user.officeName ? user.officeName : user.sub}</span>
-                <span style={{ fontSize: 12, color: "#6b7280" }}>{user.service || "Top-level Offices"}</span>
+                <span style={{ fontSize: isPortrait ? 12 : 14, fontWeight: 600 }}>{user.officeName ? (isPortrait ? abbreviateOffice(user.officeName) : user.officeName) : user.sub}</span>
+                {!isPortrait && <span style={{ fontSize: 12, color: "rgba(255,255,255,0.8)" }}>{user.service || "Top-level Offices"}</span>}
               </span>
-              <button onClick={() => { clearToken(); window.location.assign("/"); }}>Logout</button>
+              <button style={{ padding: isPortrait ? "4px 8px" : "8px 16px", fontSize: isPortrait ? 12 : 14, background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", color: "white" }} onClick={() => { clearToken(); window.location.assign("/"); }}>Logout</button>
             </>
           ) : (
-            <button onClick={() => setShowLogin(true)}>Login</button>
+            <button style={{ padding: isPortrait ? "4px 8px" : "8px 16px", fontSize: isPortrait ? 12 : 14, background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", color: "white" }} onClick={() => setShowLogin(true)}>Login</button>
           )}
         </span>
       </nav>
@@ -98,11 +140,11 @@ function Shell() {
         />
       </Modal>
       {user && (
-        <div style={{ display: "flex", gap: 8, padding: "8px 12px", borderBottom: "1px solid var(--border)", background: "var(--card)" }}>
+        <div style={{ display: "flex", gap: isPortrait ? 4 : 8, padding: isPortrait ? "4px 8px" : "8px 12px", borderBottom: "1px solid var(--border)", background: "var(--card)", overflowX: "auto" }}>
           {[
-            { to: "/office-dashboard", label: "Office Dashboard" },
-            { to: "/add-event", label: "Add Event" },
-            { to: "/archived", label: "Archived" }
+            { to: "/office-dashboard", label: "Office Dashboard", short: "Dashboard" },
+            { to: "/add-event", label: "Add Event", short: "Add" },
+            { to: "/archived", label: "Archived", short: "Archived" }
           ].map((t) => {
             const active = location.pathname === t.to;
             return (
@@ -110,15 +152,17 @@ function Shell() {
                 key={t.to}
                 to={t.to}
                 style={{
-                  padding: "8px 12px",
+                  padding: isPortrait ? "6px 8px" : "8px 12px",
                   borderRadius: 8,
-                  border: active ? "2px solid #2563eb" : "1px solid var(--border)",
-                  background: active ? "#dbeafe" : "transparent",
+                  border: active ? "2px solid var(--primary)" : "1px solid var(--border)",
+                  background: active ? "rgba(10, 75, 57, 0.15)" : "transparent",
                   fontWeight: 600,
-                  color: "inherit"
+                  color: "inherit",
+                  fontSize: isPortrait ? 12 : 14,
+                  whiteSpace: "nowrap"
                 }}
               >
-                {t.label}
+                {isPortrait ? t.short : t.label}
               </Link>
             );
           })}
@@ -170,9 +214,10 @@ function Shell() {
           />
         </Routes>
       </div>
-      <footer style={{ marginTop: "auto", padding: 12, textAlign: "center", color: "var(--muted)", background: "var(--card)", borderTop: "1px solid var(--border)" }}>
-        <div>© 2026 DENR Planner- Department of Environment and Natural Resources - CAR</div>
-        <div>Committed to Sustainable Environmental Management</div>
+      <footer style={{ marginTop: "auto", padding: "24px 12px", textAlign: "center", color: "white", background: "var(--primary)", borderTop: "4px solid var(--accent)" }}>
+        <div style={{ fontWeight: 700, fontSize: 16 }}>© 2026 DENR Planner</div>
+        <div style={{ fontSize: 13, opacity: 0.9, marginTop: 4 }}>Department of Environment and Natural Resources - CAR</div>
+        <div style={{ fontSize: 12, opacity: 0.8, marginTop: 8, fontStyle: "italic" }}>"Committed to Sustainable Environmental Management"</div>
       </footer>
     </div>
   );

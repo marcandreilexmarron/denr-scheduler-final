@@ -1,38 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Calendar from "./Calendar";
-import Modal from "../components/Modal";
 import EventDetailModal from "../components/EventDetailModal";
-import {
-  Building2,
-  TreePine,
-  Layers,
-  Landmark,
-  Users,
-  Leaf,
-  Droplets,
-  Map as MapIcon,
-  Mountain,
-  ShieldCheck,
-  ClipboardList,
-  Banknote,
-  Recycle,
-  Wind,
-  Factory,
-  Ship,
-  Flame,
-  Hammer,
-  Briefcase,
-  Book,
-  Microscope,
-  Truck,
-  Globe,
-  Fish,
-  Sprout,
-  TreeDeciduous,
-  TreePalm,
-  ChevronLeft,
-  ChevronRight
-} from "lucide-react";
 
 export default function Landing() {
   const [officeFilter, setOfficeFilter] = useState<string>("");
@@ -52,7 +20,8 @@ export default function Landing() {
     function update() {
       try {
         const m = window.matchMedia && window.matchMedia("(orientation: portrait)");
-        setIsPortrait(m ? m.matches : window.innerHeight >= window.innerWidth);
+        const isSmall = window.innerWidth < 768;
+        setIsPortrait(isSmall || (m ? m.matches : window.innerHeight >= window.innerWidth));
       } catch {
         setIsPortrait(true);
       }
@@ -211,163 +180,30 @@ export default function Landing() {
       });
   }, [events, officeFilter, categoryFilter, viewYear, viewMonth, holidays]);
 
-  const officeNames: string[] = useMemo(() => {
-    if (!officesData) return [];
-    return [
-      ...officesData.topLevelOffices.map((o: any) => o.name),
-      ...officesData.services.flatMap((s: any) => s.offices.map((o: any) => o.name))
-    ];
-  }, [officesData]);
-
-  const categoryIcons = useMemo(() => {
-    return {
-      forest: [TreePine, TreeDeciduous, TreePalm, Leaf, Sprout],
-      water: [Droplets, Fish, Ship],
-      land: [MapIcon, Layers, Globe],
-      mines: [Mountain, Hammer, Microscope],
-      enforce: [ShieldCheck, Hammer],
-      plan: [ClipboardList, Book],
-      finance: [Banknote, Briefcase],
-      waste: [Recycle, Factory, Truck],
-      air: [Wind, Flame, Globe],
-      admin: [Building2, Landmark, Briefcase, Users],
-      generic: [Users, Globe, Layers]
+  function abbreviateOffice(name: string) {
+    if (!name) return "";
+    const n = name.trim();
+    const map: Record<string, string> = {
+      "Office of the Regional Director": "ORD",
+      "Office of the Assistant Regional Director for Management Services": "ARD-MS",
+      "Office of the Assistant Regional Director for Technical Services": "ARD-TS",
+      "Surveys and Mapping Division": "SMD",
+      "Licenses, Patents and Deeds Division": "LPDD",
+      "Conservation and Development Division": "CDD",
+      "Enforcement Division": "ED",
+      "Planning and Management Division": "PMD",
+      "Legal Division": "LD",
+      "Administrative Division": "AD",
+      "Finance Division": "FD"
     };
-  }, []);
-  function categorize(name: string) {
-    const n = name.toLowerCase();
-    if (/(forest|tree|pine|wood|cfr|nfp|fores)/.test(n)) return "forest";
-    if (/(water|river|lake|coast|marine|ocean|hydro)/.test(n)) return "water";
-    if (/(land\s?(use|mgmt|manage)|gis|map|cadastre|survey)/.test(n)) return "land";
-    if (/(mine|mineral|geolog|mountain)/.test(n)) return "mines";
-    if (/(enforce|law|legal|compliance|patrol|protection)/.test(n)) return "enforce";
-    if (/(plan|policy|program)/.test(n)) return "plan";
-    if (/(finance|budget|account|treasury)/.test(n)) return "finance";
-    if (/(waste|recycl|solid)/.test(n)) return "waste";
-    if (/(air|climate|emission|wind)/.test(n)) return "air";
-    if (/(admin|administration|management|office|regional)/.test(n)) return "admin";
-    if (/(service|division|bureau|department)/.test(n)) return "admin";
-    return "generic";
-  }
-  const allOfficeNames = useMemo(() => {
-    if (!officesData) return [] as string[];
-    const a = officesData.topLevelOffices.map((o: any) => o.name);
-    const b = officesData.services.flatMap((s: any) => s.offices.map((o: any) => o.name));
-    return [...a, ...b];
-  }, [officesData]);
-  const officeIconMap = useMemo(() => {
-    const map = new Map<string, any>();
-    const used = new Set<any>();
-    function hashName(n: string) {
-      let h = 0;
-      for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0;
-      return h;
-    }
-    for (const n of allOfficeNames) {
-      const cat = categorize(n);
-      const arr = (categoryIcons as any)[cat] as any[];
-      let idx = hashName(n) % arr.length;
-      let picked = arr[idx];
-      let tries = 0;
-      while (used.has(picked) && tries < arr.length) {
-        idx = (idx + 1) % arr.length;
-        picked = arr[idx];
-        tries++;
-      }
-      if (used.has(picked)) {
-        const all = Object.values(categoryIcons).flat() as any[];
-        let j = hashName(n) % all.length;
-        let p2 = all[j];
-        let t2 = 0;
-        while (used.has(p2) && t2 < all.length) {
-          j = (j + 1) % all.length;
-          p2 = all[j];
-          t2++;
-        }
-        picked = p2;
-      }
-      used.add(picked);
-      map.set(n, picked);
-    }
-    return map;
-  }, [allOfficeNames, categoryIcons]);
-
-  function renderIcon(icon?: string, name?: string) {
-    const size = 18;
-    const boxStyle = { width: 20, height: 20, minWidth: 20, minHeight: 20, display: "inline-flex", alignItems: "center", justifyContent: "center" } as const;
-    const svgStyle = { width: size, height: size } as const;
-    if (name && officeIconMap.has(name)) {
-      const Cmp = officeIconMap.get(name)!;
-      return <span style={boxStyle}><Cmp style={svgStyle} aria-hidden /></span>;
-    }
-    if (icon) {
-      const srcLike = /^(https?:|data:|\/)/.test(icon) || /\.(png|jpe?g|gif|svg)$/i.test(icon);
-      if (srcLike) {
-        return <span style={boxStyle}><img src={icon} alt="" style={{ width: size, height: size, objectFit: "contain" }} aria-hidden /></span>;
-      }
-      if (!/^[A-Za-z0-9\-\s]+$/.test(icon)) {
-        return <span style={boxStyle}><span style={{ fontSize: size, lineHeight: 1 }}>{icon}</span></span>;
-      }
-    }
-    return <span style={boxStyle}><Building2 style={svgStyle} aria-hidden /></span>;
+    if (map[n]) return map[n];
+    const entry = Object.entries(map).find(([k]) => k.toLowerCase() === n.toLowerCase());
+    return entry ? entry[1] : n;
   }
 
   return (
-    <div style={{ padding: 16 }}>
-      <div style={{ position: "relative", display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "minmax(0, 4fr) minmax(0, 1fr)", gap: 16, alignItems: "stretch" }}>
-        <aside className="card hover-scroll" style={{ padding: 12, height: "calc(100vh - 140px)", display: "none", gridColumn: "1 / 2" }}>
-          <h3>Regional Office</h3>
-          <ul className="list">
-            <li
-              className="list-item"
-              style={{ cursor: "pointer", outline: officeFilter ? "none" : "2px solid var(--primary)" }}
-              onClick={() => setOfficeFilter("")}
-            >
-              <strong>All offices</strong>
-            </li>
-          </ul>
-          <div style={{ marginTop: 8 }}>
-            <h4 style={{ margin: "8px 0" }}>Top-level Offices</h4>
-            <ul className="list">
-              {officesData?.topLevelOffices.map((o: any) => (
-                <li
-                  key={o.name}
-                  className="list-item"
-                  onClick={() => setOfficeFilter(o.name)}
-                  style={{ cursor: "pointer", outline: officeFilter === o.name ? "2px solid var(--primary)" : "none" }}
-                >
-                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    {renderIcon(o.icon, o.name)}
-                    <span>{o.name}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div style={{ marginTop: 8 }}>
-            <h4 style={{ margin: "8px 0" }}>Services</h4>
-            {officesData?.services.map((s: any) => (
-              <div key={s.name} style={{ marginBottom: 8 }}>
-                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>{s.name}</div>
-                <ul className="list">
-                  {s.offices.map((o: any) => (
-                    <li
-                      key={o.name}
-                      className="list-item"
-                      onClick={() => setOfficeFilter(o.name)}
-                      style={{ cursor: "pointer", outline: officeFilter === o.name ? "2px solid var(--primary)" : "none" }}
-                    >
-                      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        {renderIcon(o.icon, o.name)}
-                        <span>{o.name}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </aside>
+    <div style={{ padding: 16, background: "var(--bg)", minHeight: "calc(100vh - 100px)" }}>
+      <div style={{ position: "relative", display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "1fr 340px", gap: 16, alignItems: "stretch" }}>
         <main className="card hover-scroll" style={{ padding: "0 12px 12px 12px", minWidth: 0, height: "calc(100vh - 140px)" }}>
           <Calendar
             officeFilter={officeFilter}
@@ -389,6 +225,7 @@ export default function Landing() {
                     onChange={(e) => setOfficeFilter(e.target.value)}
                     style={{
                       width: "100%",
+                      boxSizing: "border-box",
                       padding: 10,
                       border: "1px solid var(--border)",
                       borderRadius: 8,
@@ -401,13 +238,13 @@ export default function Landing() {
                       <>
                         <optgroup label="Top-level Offices">
                           {officesData.topLevelOffices.map((o: { name: string }) => (
-                            <option key={o.name} value={o.name}>{o.name}</option>
+                            <option key={o.name} value={o.name}>{isPortrait ? abbreviateOffice(o.name) : o.name}</option>
                           ))}
                         </optgroup>
                         {officesData.services.map((svc: { name: string; offices: Array<{ name: string }> }) => (
                           <optgroup key={svc.name} label={svc.name}>
                             {svc.offices.map((o: { name: string }) => (
-                              <option key={o.name} value={o.name}>{o.name}</option>
+                              <option key={o.name} value={o.name}>{isPortrait ? abbreviateOffice(o.name) : o.name}</option>
                             ))}
                           </optgroup>
                         ))}

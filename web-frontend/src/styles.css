@@ -1,10 +1,11 @@
 :root {
-  --bg: #e5e7eb;
+  --bg: #CDDCE3; /* Baby Blue */
   --card: #ffffff;
-  --border: #e2e8f0;
-  --text: #1f2937;
-  --muted: #6b7280;
-  --primary: #2563eb;
+  --border: #cbd5e1;
+  --text: #14181A; /* Ebony */
+  --muted: #4b5563;
+  --primary: #0A4B39; /* Forest Green */
+  --accent: #319905; /* Green */
   --primary-contrast: #ffffff;
 }
 
@@ -68,16 +69,14 @@ input, select {
   width: 560px;
   max-width: 560px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-  height: 80vh;
-  max-height: 80vh;
+  max-height: 85vh;
   word-break: break-word;
 }
 @media (max-width: 760px) {
   .modal-card {
     width: calc(100vw - 24px);
     max-width: calc(100vw - 24px);
-    height: 80vh;
-    max-height: 80vh;
+    max-height: 85vh;
   }
 }
 /* Ensure modal contents never exceed the modal width */
@@ -126,6 +125,12 @@ input, select {
   background: var(--card);
   margin-bottom: 8px;
 }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .badge {
   display: inline-block;
   font-size: 12px;

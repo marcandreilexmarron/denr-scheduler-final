@@ -83,7 +83,7 @@ export default function Login({ onSuccess }: { onSuccess?: (user: any) => void }
             />
             {error?.field === "password" && <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{error.message}</div>}
           </div>
-          <button type="submit" style={{ width: "100%", padding: "10px 12px" }}>Login</button>
+          <button type="submit" style={{ width: "100%", padding: "10px 12px", background: "var(--primary)", color: "white", fontWeight: 600 }}>Login</button>
         </form>
       </div>
     </div>

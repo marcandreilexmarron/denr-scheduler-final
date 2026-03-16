@@ -44,9 +44,25 @@ export default function AddEventPage() {
     return {};
   }
   const range = getRangeFromQuery();
+  const [isPortrait, setIsPortrait] = useState(false);
+  useEffect(() => {
+    function update() {
+      try {
+        const m = window.matchMedia && window.matchMedia("(orientation: portrait)");
+        const isSmall = window.innerWidth < 768;
+        setIsPortrait(isSmall || (m ? m.matches : window.innerHeight >= window.innerWidth));
+      } catch {
+        setIsPortrait(true);
+      }
+    }
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
   return (
-    <div style={{ padding: 16 }}>
-      <div className="card hover-scroll" style={{ padding: 12, maxWidth: 900, margin: "0 auto" }}>
+    <div style={{ padding: isPortrait ? 8 : 16 }}>
+      <div className="card hover-scroll" style={{ padding: isPortrait ? 8 : 12, maxWidth: 900, margin: "0 auto", width: "100%", boxSizing: "border-box", borderTop: "4px solid var(--primary)" }}>
         {success && (
           <div
             role="status"
