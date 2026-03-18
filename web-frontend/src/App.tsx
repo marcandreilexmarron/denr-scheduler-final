@@ -171,7 +171,7 @@ function Shell() {
       <div style={{ flex: 1 }}>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
+
           <Route
             path="/calendar"
             element={
