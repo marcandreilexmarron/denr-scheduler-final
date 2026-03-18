@@ -11,6 +11,21 @@ import ProtectedRoute from "./ProtectedRoute";
 import { clearToken, getToken, getUserFromToken, onAuthChange } from "./auth";
 import Modal from "./components/Modal";
 
+function NotFoundRedirect() {
+  const navigate = useNavigate();
+  const user = getUserFromToken();
+
+  useEffect(() => {
+    if (user) {
+      navigate("/office-dashboard");
+    } else {
+      navigate("/");
+    }
+  }, [user, navigate]);
+
+  return null;
+}
+
 function Shell() {
   const [user, setUser] = useState<any | null>(getUserFromToken());
   const [isPortrait, setIsPortrait] = useState(false);
@@ -212,6 +227,7 @@ function Shell() {
               </ProtectedRoute>
             }
           />
+          <Route path="*" element={<NotFoundRedirect />} />
         </Routes>
       </div>
       <footer style={{ marginTop: "auto", padding: "24px 12px", textAlign: "center", color: "white", background: "var(--primary)", borderTop: "4px solid var(--accent)" }}>
