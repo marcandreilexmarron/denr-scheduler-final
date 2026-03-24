@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { api } from "../api";
 
 type Office = { name: string; icon: string };
 type Service = { name: string; offices: Office[] };
@@ -7,8 +8,7 @@ type Data = { topLevelOffices: Office[]; services: Service[] };
 export default function Offices() {
   const [data, setData] = useState<Data | null>(null);
   useEffect(() => {
-    fetch("/api/offices-data")
-      .then((r) => r.json())
+    api.get("/api/offices-data")
       .then((d) => setData(d));
   }, []);
   return (

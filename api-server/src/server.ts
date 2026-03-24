@@ -21,7 +21,11 @@ import { sendEventCreatedEmail, sendReminderEmail } from "./email-service.js";
 import multer from "multer";
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: "*", // Allow all origins for remote access
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 app.use(express.json());
 
 // Setup static file serving for attachments
@@ -523,6 +527,6 @@ setInterval(runArchiveScheduler, 10 * 60 * 1000);
 setTimeout(runArchiveScheduler, 5000);
 
 const port = Number(process.env.PORT || 3000);
-app.listen(port, () => {
-  console.log(`api listening on port ${port}`);
+app.listen(port, "0.0.0.0", () => {
+  console.log(`api listening on port ${port} (all interfaces)`);
 });

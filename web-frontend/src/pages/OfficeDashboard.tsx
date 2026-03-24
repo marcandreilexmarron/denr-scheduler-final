@@ -53,8 +53,7 @@ export default function OfficeDashboard() {
 
   useEffect(() => {
     function load() {
-      fetch("/api/events")
-        .then((r) => r.json())
+      api.get("/api/events")
         .then((d) => setEvents(d));
     }
     const onFocus = () => load();

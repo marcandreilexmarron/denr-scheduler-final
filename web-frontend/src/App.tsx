@@ -78,9 +78,7 @@ function Shell() {
         setUser(null);
         return;
       }
-      fetch("/api/me", { headers: { Authorization: `Bearer ${t}` } })
-        .then((r) => r.ok ? r.json() : null)
-        .then((d) => setUser(d ?? getUserFromToken()));
+      api.get("/api/me").then((d) => setUser(d ?? getUserFromToken()));
     });
     const t = getToken();
     if (t) {

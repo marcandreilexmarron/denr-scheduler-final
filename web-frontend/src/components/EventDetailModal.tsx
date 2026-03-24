@@ -1,6 +1,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import Modal from "./Modal";
+import { api } from "../api";
 
 export default function EventDetailModal({
   open,
@@ -24,8 +25,7 @@ export default function EventDetailModal({
   const [officeServiceMap, setOfficeServiceMap] = React.useState<Record<string, string>>({});
   const [serviceOrder, setServiceOrder] = React.useState<string[]>([]);
   React.useEffect(() => {
-    fetch("/api/offices-data")
-      .then((r) => (r.ok ? r.json() : null))
+    api.get("/api/offices-data")
       .then((d) => {
         if (!d) return;
         const names = Array.isArray(d?.services)

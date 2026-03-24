@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import AddEventModal from "../components/AddEventModal";
 import { getToken } from "../auth";
 import { useNavigate, useLocation } from "react-router-dom";
+import { api } from "../api";
 
 export default function AddEventPage() {
   const navigate = useNavigate();
@@ -10,8 +11,7 @@ export default function AddEventPage() {
   const [resetCounter, setResetCounter] = useState(0);
   const [success, setSuccess] = useState<string | null>(null);
   useEffect(() => {
-    fetch("/api/offices-data")
-      .then((r) => r.json())
+    api.get("/api/offices-data")
       .then((d) => setOfficesData(d));
   }, []);
   const availableOffices = useMemo(() => {
@@ -93,24 +93,17 @@ export default function AddEventPage() {
           availableOffices={availableOffices}
           officesData={officesData ?? undefined}
           onSubmit={(payload) => {
-            const t = getToken();
-            if (!t) return;
-            fetch("/api/events", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
-              body: JSON.stringify(payload)
-            })
-              .then((r) => r.json())
-              .then((res) => {
-                if ((res as any)?.error) {
-                  alert((res as any).error);
-                  return;
-                }
-                setSuccess("Event created successfully");
-                setResetCounter((n) => n + 1);
-                window.setTimeout(() => setSuccess(null), 3000);
+            api.post("/api/events", payload)
+              .then(() => {
+                setSuccess(`Event "${payload.title}" scheduled successfully!`);
+                setResetCounter((c) => c + 1);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                setTimeout(() => setSuccess(null), 5000);
               })
-              .catch(() => alert("Create failed"));
+              .catch((err) => {
+                console.error("Failed to create event:", err);
+                alert("Failed to create event");
+              });
           }}
         />
       </div>
