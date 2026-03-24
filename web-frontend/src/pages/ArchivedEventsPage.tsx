@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { getUserFromToken } from "../auth";
 import EventDetailModal from "../components/EventDetailModal";
+import { api } from "../api";
 
 type OfficesData = {
   topLevelOffices: Array<{ name: string }>;
@@ -91,8 +92,8 @@ export default function ArchivedEventsPage() {
   }
 
   useEffect(() => {
-    fetch("/api/offices-data").then((r) => r.json()).then((d) => setOfficesData(d));
-    fetch("/api/events/archive").then((r) => r.json()).then((d) => setEvents(d));
+    api.get("/api/offices-data").then((d) => setOfficesData(d));
+    api.get("/api/events/archive").then((d) => setEvents(d));
   }, []);
 
   const availableOffices = useMemo(() => {
@@ -137,17 +138,13 @@ export default function ArchivedEventsPage() {
   })();
   const archived = useMemo(() => {
     return events
-      .filter((e) => {
-        const ed = effectiveDate(e);
-        return ed && ed < todayKey;
-      })
       .filter((e) => eventOfficeMatch(e, officeFilter) && eventCategoryMatch(e, categoryFilter))
       .sort((a, b) => {
         const da = effectiveDate(a);
         const db = effectiveDate(b);
         return db.localeCompare(da); // newest past first
       });
-  }, [events, officeFilter, categoryFilter, todayKey]);
+  }, [events, officeFilter, categoryFilter]);
 
   return (
     <div style={{ padding: isPortrait ? 8 : 16, maxWidth: "100%", boxSizing: "border-box", overflowX: "hidden", background: "var(--bg)", minHeight: "calc(100vh - 100px)" }}>

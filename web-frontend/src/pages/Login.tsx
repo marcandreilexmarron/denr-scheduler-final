@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { saveToken, getUserFromToken } from "../auth";
+import { api, ApiError } from "../api";
 
 export default function Login({ onSuccess }: { onSuccess?: (user: any) => void }) {
   const [username, setUsername] = useState("");
@@ -9,22 +10,7 @@ export default function Login({ onSuccess }: { onSuccess?: (user: any) => void }
   const navigate = useNavigate();
   function login(e: React.FormEvent) {
     e.preventDefault();
-    fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
-    })
-      .then(async (r) => {
-        if (!r.ok) {
-          let msg = "";
-          try {
-            const j = await r.json();
-            msg = j?.message || "";
-          } catch {}
-          throw { status: r.status, message: msg };
-        }
-        return r.json();
-      })
+    api.post("/api/login", { username, password })
       .then((d) => {
         setError(null);
         saveToken(d.token);

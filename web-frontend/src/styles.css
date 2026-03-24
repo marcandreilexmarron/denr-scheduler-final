@@ -9,6 +9,9 @@
   --primary-contrast: #ffffff;
 }
 
+html, body, #root, * {
+  box-sizing: border-box;
+}
 html, body, #root {
   height: 100%;
 }

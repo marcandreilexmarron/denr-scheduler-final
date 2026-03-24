@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Calendar from "./Calendar";
 import EventDetailModal from "../components/EventDetailModal";
+import { api } from "../api";
+
 
 export default function Landing() {
   const [officeFilter, setOfficeFilter] = useState<string>("");
@@ -32,22 +34,14 @@ export default function Landing() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/offices-data")
-      .then((r) => r.json())
-      .then((d) => setOfficesData(d));
-    fetch("/api/events")
-      .then((r) => r.json())
-      .then((d) => setEvents(d));
-    fetch("/api/holidays")
-      .then((r) => r.json())
-      .then((d) => setHolidays(Array.isArray(d) ? d : []));
+    api.get("/api/offices-data").then((d) => setOfficesData(d));
+    api.get("/api/events").then((d) => setEvents(d));
+    api.get("/api/holidays").then((d) => setHolidays(Array.isArray(d) ? d : []));
   }, []);
 
   useEffect(() => {
     function load() {
-      fetch("/api/events")
-        .then((r) => r.json())
-        .then((d) => setEvents(d));
+      api.get("/api/events").then((d) => setEvents(d));
     }
     const onFocus = () => load();
     window.addEventListener("focus", onFocus);
@@ -126,7 +120,6 @@ export default function Landing() {
     return b.getTime() >= a.getTime();
   }
   function eventValidOnSpecificDay(e: any, day: Date) {
-    if (!isWorkingDay(day) || isHoliday(day) || !isFutureOrToday(day)) return false;
     return true;
   }
   function formatTime(t?: string) {

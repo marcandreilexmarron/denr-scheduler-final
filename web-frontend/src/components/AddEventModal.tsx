@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Modal from "./Modal";
-import { getToken } from "../auth";
+import { api } from "../api";
 import EmployeePickerModal from "./EmployeePickerModal";
 
 function normalizeCategory(s: string) {
@@ -128,9 +128,7 @@ export default function AddEventModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    const url = `/api/employees?v=${Date.now()}`;
-    fetch(url, { cache: "no-store" })
-      .then((r) => r.json())
+    api.get(`/api/employees?v=${Date.now()}`)
       .then((d) => {
         // Transform array of employees into { byOffice: { "OfficeName": ["Emp1", "Emp2"] } }
         if (Array.isArray(d)) {
@@ -152,8 +150,7 @@ export default function AddEventModal({
   }, [isOpen]);
   useEffect(() => {
     if (!isOpen) return;
-    fetch("/api/holidays")
-      .then((r) => r.json())
+    api.get("/api/holidays")
       .then((d) => Array.isArray(d) ? setHolidays(d) : setHolidays([]))
       .catch(() => setHolidays([]));
   }, [isOpen]);

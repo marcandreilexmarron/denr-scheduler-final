@@ -3,9 +3,12 @@ import { getToken, getUserFromToken } from "../auth";
 import Modal from "../components/Modal";
 import AddEventModal from "../components/AddEventModal";
 import ConfirmModal from "../components/ConfirmModal";
+import { api } from "../api";
 
 type CalendarDay = { day: number | string; isToday: boolean; holiday: { day: number; month: number; name: string } | null };
 type CalendarData = {
+  year: number;
+  month: number;
   yearMonth: string;
   previousMonth: number;
   previousYear: number;
@@ -87,8 +90,7 @@ export default function Calendar(props?: {
   const showCategorySelector = props?.showCategorySelector !== undefined ? !!props.showCategorySelector : true;
 
   useEffect(() => {
-    fetch(`/api/calendar?month=${month}&year=${year}`)
-      .then((r) => r.json())
+    api.get(`/api/calendar?month=${month}&year=${year}`)
       .then((d) => setData(d));
     if (props?.onViewChange) props.onViewChange(year, month);
   }, [month, year]);
@@ -106,15 +108,12 @@ export default function Calendar(props?: {
     return () => window.removeEventListener("resize", onResize);
   }, []);
   useEffect(() => {
-    fetch("/api/events").then((r) => r.json()).then((d) => setEventsAll(d));
+    api.get("/api/events").then((d) => setEventsAll(d));
     const t = getToken();
     if (t) {
-      fetch("/api/office/events", { headers: { Authorization: `Bearer ${t}` } })
-        .then((r) => r.json())
-        .then((d) => setEventsOffice(d));
+      api.get("/api/office/events").then((d) => setEventsOffice(d));
     }
-    fetch("/api/offices-data")
-      .then((r) => r.json())
+    api.get("/api/offices-data")
       .then((d) => {
         setOfficesData(d);
         const names = [
@@ -127,12 +126,10 @@ export default function Calendar(props?: {
 
   useEffect(() => {
     function refresh() {
-      fetch("/api/events").then((r) => r.json()).then((d) => setEventsAll(d));
+      api.get("/api/events").then((d) => setEventsAll(d));
       const t = getToken();
       if (t) {
-        fetch("/api/office/events", { headers: { Authorization: `Bearer ${t}` } })
-          .then((r) => r.json())
-          .then((d) => setEventsOffice(d));
+        api.get("/api/office/events").then((d) => setEventsOffice(d));
       }
     }
     const onFocus = () => refresh();
@@ -216,131 +213,55 @@ export default function Calendar(props?: {
     return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
   }
 
-  const eventsIndex = useMemo(() => {
-    const map = new Map<string, any[]>();
-    const src = eventsAll.filter((e) => eventMatchesOffice(e, officeFilter) && eventMatchesCategory(e, categoryFilter));
-    const holidayDays = new Set<number>((data?.calendarDays || []).filter((d) => d.holiday).map((d: any) => d.day).filter((n: any) => typeof n === "number"));
-    function isWorkingDay(d: Date) {
-      const wd = d.getDay();
-      return wd >= 1 && wd <= 5;
-    }
-    function isHoliday(d: Date) {
-      if (!data) return false;
-      if (d.getFullYear() !== year || d.getMonth() + 1 !== month) return false;
-      return holidayDays.has(d.getDate());
-    }
-    function isFutureOrToday(d: Date) {
-      const now = new Date();
-      const a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      return b.getTime() >= a.getTime();
-    }
-    for (const e of src) {
-      if (e.dateType === "range" && e.startDate && e.endDate) {
-        const start = parseDate(e.startDate);
-        const end = parseDate(e.endDate);
-        const cursor = new Date(start);
-        while (cursor <= end) {
-          if (isWorkingDay(cursor) && !isHoliday(cursor) && isFutureOrToday(cursor)) {
-            const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
-            if (!map.has(key)) map.set(key, []);
-            map.get(key)!.push(e);
-          }
-          cursor.setDate(cursor.getDate() + 1);
-        }
-      } else if (e.date) {
-        const d = parseDate(e.date);
-        if (isWorkingDay(d) && !isHoliday(d) && isFutureOrToday(d)) {
-          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-          if (!map.has(key)) map.set(key, []);
-          map.get(key)!.push(e);
-        }
-      }
-    }
-    return map;
-  }, [eventsAll, officeFilter, categoryFilter, data, month, year]);
-
-  const officeEventsIndex = useMemo(() => {
-    const map = new Map<string, any[]>();
-    const src = eventsOffice.filter((e) => eventMatchesOffice(e, officeFilter) && eventMatchesCategory(e, categoryFilter));
-    const holidayDays = new Set<number>((data?.calendarDays || []).filter((d) => d.holiday).map((d: any) => d.day).filter((n: any) => typeof n === "number"));
-    function isWorkingDay(d: Date) {
-      const wd = d.getDay();
-      return wd >= 1 && wd <= 5;
-    }
-    function isHoliday(d: Date) {
-      if (!data) return false;
-      if (d.getFullYear() !== year || d.getMonth() + 1 !== month) return false;
-      return holidayDays.has(d.getDate());
-    }
-    function isFutureOrToday(d: Date) {
-      const now = new Date();
-      const a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      return b.getTime() >= a.getTime();
-    }
-    for (const e of src) {
-      if (e.dateType === "range" && e.startDate && e.endDate) {
-        const start = parseDate(e.startDate);
-        const end = parseDate(e.endDate);
-        const cursor = new Date(start);
-        while (cursor <= end) {
-          if (isWorkingDay(cursor) && !isHoliday(cursor) && isFutureOrToday(cursor)) {
-            const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
-            if (!map.has(key)) map.set(key, []);
-            map.get(key)!.push(e);
-          }
-          cursor.setDate(cursor.getDate() + 1);
-        }
-      } else if (e.date) {
-        const d = parseDate(e.date);
-        if (isWorkingDay(d) && !isHoliday(d) && isFutureOrToday(d)) {
-          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-          if (!map.has(key)) map.set(key, []);
-          map.get(key)!.push(e);
-        }
-      }
-    }
-    return map;
-  }, [eventsOffice, officeFilter, categoryFilter, data, month, year]);
-
   const [scope, setScope] = useState<"all" | "office">("all");
-  const idx = scope === "all" ? eventsIndex : officeEventsIndex;
   const listSource = scope === "all" ? eventsAll : eventsOffice;
 
+  const idx = useMemo(() => {
+    const map = new Map<string, any[]>();
+    const src = listSource.filter((e) => eventMatchesOffice(e, officeFilter) && eventMatchesCategory(e, categoryFilter));
+    
+    for (const e of src) {
+      if (e.dateType === "range" && e.startDate && e.endDate) {
+        const start = parseDate(e.startDate);
+        const end = parseDate(e.endDate);
+        const cursor = new Date(start);
+        while (cursor <= end) {
+          const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
+          if (!map.has(key)) map.set(key, []);
+          map.get(key)!.push(e);
+          cursor.setDate(cursor.getDate() + 1);
+        }
+      } else if (e.date) {
+        const d = parseDate(e.date);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(e);
+      }
+    }
+    return map;
+  }, [listSource, officeFilter, categoryFilter]);
+
   function reloadEvents() {
-    fetch("/api/events").then((r) => r.json()).then((d) => setEventsAll(d));
+    api.get("/api/events").then((d) => setEventsAll(d));
     const t = getToken();
     if (t) {
-      fetch("/api/office/events", { headers: { Authorization: `Bearer ${t}` } })
-        .then((r) => r.json())
-        .then((d) => setEventsOffice(d));
+      api.get("/api/office/events").then((d) => setEventsOffice(d));
     }
   }
   function deleteEvent(id: string) {
-    const t = getToken();
-    if (!t) return;
-    fetch(`/api/events/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${t}` } })
-      .then((r) => {
-        if (r.status === 204) {
-          reloadEvents();
-          if (selected) {
-            const list = (idx.get(selected.date) ?? []).filter((e) => e.id !== id);
-            setSelected({ date: selected.date, events: list });
-          }
+    api.delete(`/api/events/${id}`)
+      .then(() => {
+        reloadEvents();
+        if (selected) {
+          const list = (idx.get(selected.date) ?? []).filter((e) => e.id !== id);
+          setSelected({ date: selected.date, events: list });
         }
       });
   }
   function saveEdit(e: React.FormEvent) {
     e.preventDefault();
-    const t = getToken();
-    if (!t || !editing) return;
-    fetch(`/api/events/${editing.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
-      body: JSON.stringify(editing)
-    })
-      .then((r) => r.json())
+    if (!editing) return;
+    api.put(`/api/events/${editing.id}`, editing)
       .then(() => {
         setEditing(null);
         reloadEvents();
@@ -546,7 +467,9 @@ export default function Calendar(props?: {
         }}
       >
         {data?.calendarDays.map((d, i) => {
-          const key = typeof d.day === "number" ? `${year}-${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}` : "";
+          const dy = data.year;
+          const dm = data.month;
+          const key = typeof d.day === "number" ? `${dy}-${String(dm).padStart(2, "0")}-${String(d.day).padStart(2, "0")}` : "";
           const isSelected =
             typeof d.day === "number" &&
             ((props?.selectedDate && key === props.selectedDate) || (!props?.selectedDate && selected?.date === key));
@@ -556,7 +479,7 @@ export default function Calendar(props?: {
           if (isNumber) {
             const t = new Date();
             const todayStart = new Date(t.getFullYear(), t.getMonth(), t.getDate());
-            const cellDate = new Date(year, month - 1, d.day as number);
+            const cellDate = new Date(dy, dm - 1, d.day as number);
             isPast = cellDate.getTime() < todayStart.getTime();
           }
           return (
@@ -583,10 +506,10 @@ export default function Calendar(props?: {
                 if (typeof d.day !== "number") return;
                 const t = new Date();
                 const todayStart = new Date(t.getFullYear(), t.getMonth(), t.getDate());
-                const cellDate = new Date(year, month - 1, d.day as number);
+                const cellDate = new Date(dy, dm - 1, d.day as number);
                 const isPastClick = cellDate.getTime() < todayStart.getTime();
                 if (props?.blockPastDateClicks && isPastClick) return;
-                const dayKey = `${year}-${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
+                const dayKey = `${dy}-${String(dm).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
                 const list = idx.get(dayKey) ?? [];
                 if (props?.onDateSelect) props.onDateSelect(dayKey, list, { shiftKey: !!(ev as any).shiftKey });
                 if (!props?.disableDateModal) {
@@ -626,7 +549,7 @@ export default function Calendar(props?: {
               {d.holiday && <div style={{ fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.holiday.name}</div>}
               {typeof d.day === "number" && (
                 <div style={{ marginTop: 6, overflow: "hidden" }}>
-                  {(idx.get(`${year}-${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`) ?? [])
+                  {(idx.get(`${dy}-${String(dm).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`) ?? [])
                     .slice(0, 2)
                     .map((e, j) => {
                       const s = categoryStyle(e.category);

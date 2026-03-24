@@ -276,9 +276,15 @@ app.get("/api/calendar", async (req, res) => {
     const holiday = monthHolidays.find((h) => h.day === d) ?? null;
     calendarDays.push({ day: d, isToday: d === today, holiday });
   }
+  // Fill the grid to the end of the week
+  while (calendarDays.length % 7 !== 0) {
+    calendarDays.push({ day: "", isToday: false, holiday: null });
+  }
   const prev = ym.minus({ months: 1 });
   const next = ym.plus({ months: 1 });
   res.json({
+    year: ym.year,
+    month: ym.month,
     yearMonth: ym.toFormat("MMMM yyyy"),
     previousMonth: prev.month,
     previousYear: prev.year,

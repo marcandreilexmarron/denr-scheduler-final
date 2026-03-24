@@ -10,6 +10,7 @@ import ArchivedEventsPage from "./pages/ArchivedEventsPage";
 import ProtectedRoute from "./ProtectedRoute";
 import { clearToken, getToken, getUserFromToken, onAuthChange } from "./auth";
 import Modal from "./components/Modal";
+import { api } from "./api";
 
 function NotFoundRedirect() {
   const navigate = useNavigate();
@@ -83,9 +84,7 @@ function Shell() {
     });
     const t = getToken();
     if (t) {
-      fetch("/api/me", { headers: { Authorization: `Bearer ${t}` } })
-        .then((r) => r.ok ? r.json() : null)
-        .then((d) => setUser(d ?? getUserFromToken()));
+      api.get("/api/me").then((d) => setUser(d ?? getUserFromToken()));
     }
     return () => { unsub(); };
   }, []);
@@ -96,9 +95,7 @@ function Shell() {
   useEffect(() => {
     const t = getToken();
     if (t && !user) {
-      fetch("/api/me", { headers: { Authorization: `Bearer ${t}` } })
-        .then((r) => r.ok ? r.json() : null)
-        .then((d) => setUser(d ?? getUserFromToken()));
+      api.get("/api/me").then((d) => setUser(d ?? getUserFromToken()));
     }
   }, [loc.pathname]);
   return (

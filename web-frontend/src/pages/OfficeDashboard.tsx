@@ -5,6 +5,7 @@ import EventDetailModal from "../components/EventDetailModal";
 import AddEventModal from "../components/AddEventModal";
 import ConfirmModal from "../components/ConfirmModal";
 import { getUserFromToken, getToken } from "../auth";
+import { api } from "../api";
 
 export default function OfficeDashboard() {
   const me = getUserFromToken();
@@ -36,15 +37,9 @@ export default function OfficeDashboard() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/offices-data")
-      .then((r) => r.json())
-      .then((d) => setOfficesData(d));
-    fetch("/api/events")
-      .then((r) => r.json())
-      .then((d) => setEvents(d));
-    fetch("/api/holidays")
-      .then((r) => r.json())
-      .then((d) => setHolidays(Array.isArray(d) ? d : []));
+    api.get("/api/offices-data").then((d) => setOfficesData(d));
+    api.get("/api/events").then((d) => setEvents(d));
+    api.get("/api/holidays").then((d) => setHolidays(Array.isArray(d) ? d : []));
   }, []);
 
   const CATEGORY_OPTIONS = ["workshop", "meeting", "training", "conference", "travel", "activity", "others - specified"];
@@ -193,7 +188,6 @@ export default function OfficeDashboard() {
     return false;
   }
   function eventValidOnSpecificDay(e: any, day: Date) {
-    if (!isWorkingDay(day) || isHoliday(day) || !isFutureOrToday(day)) return false;
     return true;
   }
   const monthEvents = useMemo(() => {
@@ -236,16 +230,12 @@ export default function OfficeDashboard() {
 
   const canAdd = !!me?.role?.endsWith?.("OFFICE");
   function deleteEvent(id: string) {
-    const t = getToken();
-    if (!t) return;
-    fetch(`/api/events/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${t}` } })
-      .then((r) => {
-        if (r.status === 204) {
-          reloadEvents();
+    api.delete(`/api/events/${id}`)
+      .then((res) => {
+        if (res.error) {
+          alert(res.error);
         } else {
-          return r.json().then((j) => {
-            alert(j?.error || "Delete failed");
-          }).catch(() => alert("Delete failed"));
+          reloadEvents();
         }
       })
       .catch(() => alert("Delete failed"));
@@ -429,15 +419,9 @@ export default function OfficeDashboard() {
             submitLabel="Save"
             title="Edit Event"
             onSubmit={(payload) => {
-              const t = getToken();
-              if (!t || !editing) return;
+              if (!editing) return;
               const body = { ...editing, ...payload };
-              fetch(`/api/events/${editing.id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
-                body: JSON.stringify(body)
-              })
-                .then((r) => r.json())
+              api.put(`/api/events/${editing.id}`, body)
                 .then((res) => {
                   if ((res as any)?.error) {
                     alert((res as any).error);
