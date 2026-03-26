@@ -7,6 +7,99 @@
   --primary: #0A4B39; /* Forest Green */
   --accent: #319905; /* Green */
   --primary-contrast: #ffffff;
+  --nav-bg: var(--primary);
+  --footer-bg: var(--primary);
+  --error-color: #dc2626;
+  --error-bg: #fee2e2;
+  --error-border: #fecaca;
+  --success-color: #166534;
+  --success-bg: #dcfce7;
+  --secondary-bg: #f1f5f9;
+  --secondary-color: #0f172a;
+  --secondary-border: #cbd5e1;
+  --blue-color: #1d4ed8;
+  --blue-bg: #dbeafe;
+  --blue-border: #93c5fd;
+
+  --cat-workshop-bg: #eef7ff;
+  --cat-workshop-fg: #0b5ed7;
+  --cat-workshop-bd: #b6d4fe;
+  
+  --cat-meeting-bg: #e8f5e9;
+  --cat-meeting-fg: #1b5e20;
+  --cat-meeting-bd: #c8e6c9;
+  
+  --cat-training-bg: #fff8e1;
+  --cat-training-fg: #8d6e63;
+  --cat-training-bd: #ffecb3;
+  
+  --cat-conference-bg: #f3e5f5;
+  --cat-conference-fg: #4a148c;
+  --cat-conference-bd: #e1bee7;
+  
+  --cat-travel-bg: #e0f7fa;
+  --cat-travel-fg: #006064;
+  --cat-travel-bd: #b2ebf2;
+  
+  --cat-activity-bg: #fce4ec;
+  --cat-activity-fg: #880e4f;
+  --cat-activity-bd: #f8bbd0;
+  
+  --cat-others-bg: #e5e7eb;
+  --cat-others-fg: #374151;
+  --cat-others-bd: #d1d5db;
+}
+
+:root[data-theme='dark'] {
+  --bg: #111827; /* Dark Gray / Black */
+  --card: #1f2937; /* Slightly lighter gray for cards */
+  --border: #374151; /* Dark border */
+  --text: #f9fafb; /* Off-white text */
+  --muted: #9ca3af; /* Muted gray text */
+  --primary: #0A4B39; /* Keep forest green for consistency, or adjust if needed */
+  --accent: #4ade80; /* Lighter green for accent */
+  --primary-contrast: #ffffff;
+  --nav-bg: #062f25;
+  --footer-bg: #062f25;
+  --error-color: #fca5a5;
+  --error-bg: #7f1d1d;
+  --error-border: #991b1b;
+  --success-color: #86efac;
+  --success-bg: #14532d;
+  --secondary-bg: #374151;
+  --secondary-color: #f9fafb;
+  --secondary-border: #4b5563;
+  --blue-color: #93c5fd;
+  --blue-bg: #1e3a8a;
+  --blue-border: #1e40af;
+
+  --cat-workshop-bg: #1e293b;
+  --cat-workshop-fg: #60a5fa;
+  --cat-workshop-bd: #334155;
+  
+  --cat-meeting-bg: #1c2b23;
+  --cat-meeting-fg: #4ade80;
+  --cat-meeting-bd: #2d4236;
+  
+  --cat-training-bg: #2d261b;
+  --cat-training-fg: #fbbf24;
+  --cat-training-bd: #423826;
+  
+  --cat-conference-bg: #251e30;
+  --cat-conference-fg: #c084fc;
+  --cat-conference-bd: #372c47;
+  
+  --cat-travel-bg: #1c2a30;
+  --cat-travel-fg: #22d3ee;
+  --cat-travel-bd: #2b3d45;
+  
+  --cat-activity-bg: #2b1d24;
+  --cat-activity-fg: #f472b6;
+  --cat-activity-bd: #402b36;
+  
+  --cat-others-bg: #1f2937;
+  --cat-others-fg: #d1d5db;
+  --cat-others-bd: #374151;
 }
 
 html, body, #root, * {
@@ -42,10 +135,12 @@ button {
 button:hover {
   filter: brightness(0.95);
 }
-input, select {
+input, select, textarea {
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 6px 8px;
+  background-color: var(--card);
+  color: var(--text);
 }
 
 .card {
@@ -67,6 +162,7 @@ input, select {
 }
 .modal-card {
   background: var(--card);
+  color: var(--text);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px;
@@ -140,8 +236,8 @@ input, select {
   font-size: 12px;
   padding: 2px 6px;
   border-radius: 999px;
-  background: #e0e7ff;
-  color: #1e3a8a;
+  background: var(--blue-bg);
+  color: var(--blue-color);
   margin-left: 6px;
 }
 

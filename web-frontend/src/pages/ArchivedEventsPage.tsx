@@ -10,21 +10,21 @@ type OfficesData = {
 
 const CATEGORIES = ["workshop", "meeting", "training", "conference", "travel", "activity", "others - specified"];
 const CATEGORY_COLORS: Record<string, { bg: string; fg: string; border: string }> = {
-  workshop: { bg: "#eef7ff", fg: "#0b5ed7", border: "#b6d4fe" },
-  meeting: { bg: "#e8f5e9", fg: "#1b5e20", border: "#c8e6c9" },
-  training: { bg: "#fff8e1", fg: "#8d6e63", border: "#ffecb3" },
-  conference: { bg: "#f3e5f5", fg: "#4a148c", border: "#e1bee7" },
-  travel: { bg: "#e0f7fa", fg: "#006064", border: "#b2ebf2" },
-  activity: { bg: "#fce4ec", fg: "#880e4f", border: "#f8bbd0" },
-  "others - specified": { bg: "#f5f5f5", fg: "#424242", border: "#e0e0e0" }
+  workshop: { bg: "var(--cat-workshop-bg)", fg: "var(--cat-workshop-fg)", border: "var(--cat-workshop-bd)" },
+  meeting: { bg: "var(--cat-meeting-bg)", fg: "var(--cat-meeting-fg)", border: "var(--cat-meeting-bd)" },
+  training: { bg: "var(--cat-training-bg)", fg: "var(--cat-training-fg)", border: "var(--cat-training-bd)" },
+  conference: { bg: "var(--cat-conference-bg)", fg: "var(--cat-conference-fg)", border: "var(--cat-conference-bd)" },
+  travel: { bg: "var(--cat-travel-bg)", fg: "var(--cat-travel-fg)", border: "var(--cat-travel-bd)" },
+  activity: { bg: "var(--cat-activity-bg)", fg: "var(--cat-activity-fg)", border: "var(--cat-activity-bd)" },
+  "others - specified": { bg: "var(--cat-others-bg)", fg: "var(--cat-others-fg)", border: "var(--cat-others-bd)" }
 };
 function normalizeCategory(s: string) {
   return String(s || "").trim().toLowerCase();
 }
 function categoryStyle(cat?: string) {
   const key = normalizeCategory(cat || "");
-  const c = CATEGORY_COLORS[key] || { bg: "#eeeeee", fg: "#333333", border: "#dddddd" };
-  return { background: c.bg, color: c.fg, borderColor: c.border };
+  const c = CATEGORY_COLORS[key] || { bg: "var(--cat-others-bg)", fg: "var(--cat-others-fg)", border: "var(--cat-others-bd)" };
+  return { backgroundColor: c.bg, color: c.fg, borderColor: c.border };
 }
 function formatFullDate(s: any) {
   if (!s) return "";
@@ -150,8 +150,16 @@ export default function ArchivedEventsPage() {
     <div style={{ padding: isPortrait ? 8 : 16, maxWidth: "100%", boxSizing: "border-box", overflowX: "hidden", background: "var(--bg)", minHeight: "calc(100vh - 100px)" }}>
       <div className="card hover-scroll" style={{ padding: 0, maxWidth: "100%", overflowX: "hidden" }}>
         <div style={{ padding: "12px 24px", borderBottom: "1px solid var(--border)", background: "var(--card)", borderTop: "4px solid var(--primary)" }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap", maxWidth: "100%" }}>
-            <div style={{ flex: isPortrait ? "1 1 100%" : "0 1 300px", minWidth: 200, maxWidth: "100%" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isPortrait ? "1fr" : "2fr 1fr 140px",
+              alignItems: "end",
+              gap: 8,
+              maxWidth: "100%"
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
               <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Select Office</label>
               <select
                 value={officeFilter}
@@ -163,7 +171,8 @@ export default function ArchivedEventsPage() {
                   padding: 10,
                   border: "1px solid var(--border)",
                   borderRadius: 8,
-                  background: "var(--card)",
+                  backgroundColor: "var(--card)",
+                  color: "var(--text)",
                   fontSize: 14
                 }}
               >
@@ -186,7 +195,7 @@ export default function ArchivedEventsPage() {
                 )}
               </select>
             </div>
-            <div style={{ flex: isPortrait ? "1 1 100%" : "0 0 260px", maxWidth: "100%" }}>
+            <div style={{ minWidth: 0 }}>
               <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Category</label>
               <select
                 value={categoryFilter}
@@ -198,7 +207,7 @@ export default function ArchivedEventsPage() {
                   padding: 10,
                   border: `2px solid ${categoryFilter ? categoryStyle(categoryFilter).borderColor : "var(--border)"}`,
                   borderRadius: 10,
-                  background: categoryFilter ? categoryStyle(categoryFilter).background : "var(--card)",
+                  background: categoryFilter ? categoryStyle(categoryFilter).backgroundColor : "var(--card)",
                   color: categoryFilter ? categoryStyle(categoryFilter).color : "inherit",
                   fontSize: 14,
                   fontWeight: 700,
@@ -210,14 +219,14 @@ export default function ArchivedEventsPage() {
                 {CATEGORIES.map((c) => {
                   const styles = categoryStyle(c);
                   return (
-                    <option key={c} value={c} style={{ background: styles.background, color: styles.color, fontWeight: 700 }}>
+                    <option key={c} value={c} style={{ background: styles.backgroundColor, color: styles.color, fontWeight: 700 }}>
                       {c}
                     </option>
                   );
                 })}
               </select>
             </div>
-            <div style={{ display: "flex", gap: 8, maxWidth: "100%", flex: isPortrait ? "1 1 100%" : "0 0 auto" }}>
+            <div style={{ display: "flex", gap: 8, maxWidth: "100%", justifyContent: isPortrait ? "start" : "end" }}>
               <button
                 type="button"
                 onClick={() => { setOfficeFilter(""); setCategoryFilter(""); }}
@@ -230,8 +239,9 @@ export default function ArchivedEventsPage() {
                   cursor: "pointer",
                   fontSize: 14,
                   fontWeight: 600,
-                  width: isPortrait ? "100%" : "auto",
-                  boxSizing: "border-box"
+                  width: 140,
+                  boxSizing: "border-box",
+                  flex: "0 0 auto"
                 }}
                 title="Clear filters"
                 aria-label="Clear filters"

@@ -56,18 +56,18 @@ export default function Landing() {
     return String(s || "").trim().toLowerCase();
   }
   const CATEGORY_COLORS: Record<string, { bg: string; fg: string; border: string }> = {
-    workshop: { bg: "#eef7ff", fg: "#0b5ed7", border: "#b6d4fe" },
-    meeting: { bg: "#e8f5e9", fg: "#1b5e20", border: "#c8e6c9" },
-    training: { bg: "#fff8e1", fg: "#8d6e63", border: "#ffecb3" },
-    conference: { bg: "#f3e5f5", fg: "#4a148c", border: "#e1bee7" },
-    travel: { bg: "#e0f7fa", fg: "#006064", border: "#b2ebf2" },
-    activity: { bg: "#fce4ec", fg: "#880e4f", border: "#f8bbd0" },
-    "others - specified": { bg: "#f5f5f5", fg: "#424242", border: "#e0e0e0" }
+    workshop: { bg: "var(--cat-workshop-bg)", fg: "var(--cat-workshop-fg)", border: "var(--cat-workshop-bd)" },
+    meeting: { bg: "var(--cat-meeting-bg)", fg: "var(--cat-meeting-fg)", border: "var(--cat-meeting-bd)" },
+    training: { bg: "var(--cat-training-bg)", fg: "var(--cat-training-fg)", border: "var(--cat-training-bd)" },
+    conference: { bg: "var(--cat-conference-bg)", fg: "var(--cat-conference-fg)", border: "var(--cat-conference-bd)" },
+    travel: { bg: "var(--cat-travel-bg)", fg: "var(--cat-travel-fg)", border: "var(--cat-travel-bd)" },
+    activity: { bg: "var(--cat-activity-bg)", fg: "var(--cat-activity-fg)", border: "var(--cat-activity-bd)" },
+    "others - specified": { bg: "var(--cat-others-bg)", fg: "var(--cat-others-fg)", border: "var(--cat-others-bd)" }
   };
   function categoryStyle(cat?: string) {
     const key = normalizeCategory(cat || "");
-    const c = CATEGORY_COLORS[key] || { bg: "#eeeeee", fg: "#333333", border: "#dddddd" };
-    return { background: c.bg, color: c.fg, borderColor: c.border };
+    const c = CATEGORY_COLORS[key] || { bg: "var(--cat-others-bg)", fg: "var(--cat-others-fg)", border: "var(--cat-others-bd)" };
+    return { backgroundColor: c.bg, color: c.fg, borderColor: c.border };
   }
   const CATEGORIES = ["workshop", "meeting", "training", "conference", "travel", "activity", "others - specified"];
   function eventMatchesOffice(e: any, officeName: string) {
@@ -222,7 +222,8 @@ export default function Landing() {
                       padding: 10,
                       border: "1px solid var(--border)",
                       borderRadius: 8,
-                      background: "var(--card)",
+                      backgroundColor: "var(--card)",
+                      color: "var(--text)",
                       fontSize: 14
                     }}
                   >
@@ -255,7 +256,7 @@ export default function Landing() {
                       padding: 10,
                       border: `2px solid ${categoryFilter ? categoryStyle(categoryFilter).borderColor : "var(--border)"}`,
                       borderRadius: 10,
-                      background: categoryFilter ? categoryStyle(categoryFilter).background : "var(--card)",
+                      background: categoryFilter ? categoryStyle(categoryFilter).backgroundColor : "var(--card)",
                       color: categoryFilter ? categoryStyle(categoryFilter).color : "inherit",
                       fontSize: 14,
                       fontWeight: 700,
@@ -271,7 +272,7 @@ export default function Landing() {
                           key={c}
                           value={c}
                           style={{
-                            background: styles.background,
+                            background: styles.backgroundColor,
                             color: styles.color,
                             fontWeight: 700
                           }}
@@ -288,9 +289,9 @@ export default function Landing() {
                     onClick={() => { setOfficeFilter(""); setCategoryFilter(""); setSelectedDate(null); }}
                     style={{
                       padding: "10px 12px",
-                      background: "#e2e8f0",
-                      color: "#0f172a",
-                      border: "1px solid #cbd5e1",
+                      background: "var(--secondary-bg)",
+                      color: "var(--secondary-color)",
+                      border: "1px solid var(--secondary-border)",
                       borderRadius: 8,
                       cursor: "pointer",
                       fontSize: 14,
@@ -335,7 +336,7 @@ export default function Landing() {
                   onClick={() => setDetailEvent(e)}
                   style={{
                     cursor: "pointer",
-                    background: categoryStyle(e.category).background,
+                    backgroundColor: categoryStyle(e.category).backgroundColor,
                     color: categoryStyle(e.category).color,
                     borderLeft: `4px solid ${categoryStyle(e.category).borderColor}`
                   }}

@@ -45,14 +45,15 @@ export default function LoginModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} style={{ width: 340, maxWidth: "calc(100vw - 32px)" }}>
+    <Modal open={open} onClose={onClose} style={{ width: 480, maxWidth: "calc(100vw - 32px)" }}>
       <div style={{ padding: "8px 0" }}>
         <div style={{ textAlign: "center", marginBottom: 16 }}>
           <img src="/logo.png" alt="" aria-hidden style={{ width: 96, height: 96, objectFit: "contain", opacity: 0.95 }} />
-          <h2 style={{ margin: "12px 0 4px 0", lineHeight: 1.2, fontSize: 24 }}>Log in</h2>
+          <h2 style={{ margin: "12px 0 4px 0", lineHeight: 1.2, fontSize: 24 }}>Login</h2>
+          <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 2 }}>Login to schedule an event.</div>
         </div>
         {error && (
-          <div style={{ marginBottom: 10, padding: "8px 10px", border: "1px solid #fecaca", background: "#fee2e2", color: "#7f1d1d", borderRadius: 8, fontSize: 13 }}>
+          <div style={{ marginBottom: 10, padding: "8px 10px", border: "1px solid var(--error-border)", background: "var(--error-bg)", color: "var(--error-color)", borderRadius: 8, fontSize: 13 }}>
             {error.message}
           </div>
         )}
@@ -64,10 +65,10 @@ export default function LoginModal({
               placeholder="Enter your username"
               value={username}
               onChange={(e) => { setUsername(e.target.value); if (error) setError(null); }}
-              style={{ width: "100%", padding: "10px 12px", fontSize: 14, borderColor: error?.field === "username" ? "#dc2626" : undefined }}
+              style={{ width: "100%", padding: "10px 12px", fontSize: 14, borderColor: error?.field === "username" ? "var(--error-color)" : undefined }}
               autoFocus
             />
-            {error?.field === "username" && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 4 }}>{error.message}</div>}
+            {error?.field === "username" && <div style={{ color: "var(--error-color)", fontSize: 11, marginTop: 4 }}>{error.message}</div>}
           </div>
           <div>
             <label htmlFor="password" style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>Password</label>
@@ -77,9 +78,9 @@ export default function LoginModal({
               type="password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); if (error) setError(null); }}
-              style={{ width: "100%", padding: "10px 12px", fontSize: 14, borderColor: error?.field === "password" ? "#dc2626" : undefined }}
+              style={{ width: "100%", padding: "10px 12px", fontSize: 14, borderColor: error?.field === "password" ? "var(--error-color)" : undefined }}
             />
-            {error?.field === "password" && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 4 }}>{error.message}</div>}
+            {error?.field === "password" && <div style={{ color: "var(--error-color)", fontSize: 11, marginTop: 4 }}>{error.message}</div>}
           </div>
           <button type="submit" style={{ width: "100%", padding: "10px 12px", background: "var(--primary)", color: "white", fontWeight: 600, fontSize: 15 }}>Login</button>
         </form>

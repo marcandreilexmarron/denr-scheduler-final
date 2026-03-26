@@ -346,7 +346,12 @@ export default function AddEventModal({
 
   const formEl = (
       <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 8, width: "100%" }}>
-        <h2 style={{ margin: "0 0 2px 0", fontSize: 18 }}>{title ?? (isEdit ? "Edit Event" : "New Event")}</h2>
+        <h2 style={{ margin: "0 0 0 0", fontSize: 18 }}>{title ?? (isEdit ? "Edit Event" : "New Event")}</h2>
+        {isPage && !isEdit && (
+          <div style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 6px 0" }}>
+            Fill the details to schedule an event.
+          </div>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "1fr 180px", gap: 8 }}>
           <div>
             <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Category</label>
@@ -356,7 +361,7 @@ export default function AddEventModal({
                 boxSizing: "border-box",
                 padding: 8,
                 paddingRight: 32,
-                border: `1px solid ${categoryError ? "#dc2626" : "var(--border)"}`,
+                border: `1px solid ${categoryError ? "var(--error-color)" : "var(--border)"}`,
                 borderRadius: 8,
                 background: "var(--card)",
                 backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
@@ -375,7 +380,7 @@ export default function AddEventModal({
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
-            {categoryError && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 2 }}>{categoryError}</div>}
+            {categoryError && <div style={{ color: "var(--error-color)", fontSize: 11, marginTop: 2 }}>{categoryError}</div>}
             {(normalizeCategory(state.category) === "workshop" || normalizeCategory(state.category) === "training") && (
               <div style={{ marginTop: 4, fontSize: 11, color: "var(--muted)" }}>A report will be needed after the event.</div>
             )}
@@ -388,7 +393,7 @@ export default function AddEventModal({
                 boxSizing: "border-box",
                 padding: 8,
                 paddingRight: 32,
-                border: `1px solid ${typeError ? "#dc2626" : "var(--border)"}`,
+                border: `1px solid ${typeError ? "var(--error-color)" : "var(--border)"}`,
                 borderRadius: 8,
                 background: "var(--card)",
                 backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
@@ -406,7 +411,7 @@ export default function AddEventModal({
               <option value="Internal">Internal</option>
               <option value="External">External</option>
             </select>
-            {typeError && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 2 }}>{typeError}</div>}
+            {typeError && <div style={{ color: "var(--error-color)", fontSize: 11, marginTop: 2 }}>{typeError}</div>}
           </div>
         </div>
         <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Details</div>
@@ -424,13 +429,13 @@ export default function AddEventModal({
         <div>
           <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Event Title</label>
           <input
-            style={{ width: "100%", boxSizing: "border-box", padding: 8, border: `1px solid ${titleError ? "#dc2626" : "var(--border)"}`, borderRadius: 8, background: "var(--card)", fontSize: 13 }}
+            style={{ width: "100%", boxSizing: "border-box", padding: 8, border: `1px solid ${titleError ? "var(--error-color)" : "var(--border)"}`, borderRadius: 8, background: "var(--card)", fontSize: 13 }}
             placeholder="Title"
             value={state.title}
             onChange={(e) => setState({ ...state, title: e.target.value })}
             autoFocus
           />
-          {titleError && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 2 }}>{titleError}</div>}
+          {titleError && <div style={{ color: "var(--error-color)", fontSize: 11, marginTop: 2 }}>{titleError}</div>}
         </div>
         <div>
           <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Description</label>
@@ -507,7 +512,7 @@ export default function AddEventModal({
             </div>
           )}
           {(dateRangeError || scheduleErrors.length > 0) && (
-            <div style={{ color: "#dc2626", fontSize: 11, marginTop: 4 }}>
+            <div style={{ color: "var(--error-color)", fontSize: 11, marginTop: 4 }}>
               {dateRangeError || scheduleErrors.join(". ")}
             </div>
           )}
@@ -525,7 +530,7 @@ export default function AddEventModal({
             <input type="time" style={{ width: "100%", boxSizing: "border-box", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }} value={state.endTime} onChange={(e) => setState({ ...state, endTime: e.target.value })} />
           </div>
         </div>
-        {timeRangeError && <div style={{ color: "#dc2626", fontSize: 11, marginTop: -2 }}>{timeRangeError}</div>}
+        {timeRangeError && <div style={{ color: "var(--error-color)", fontSize: 11, marginTop: -2 }}>{timeRangeError}</div>}
         <div>
           <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>Participants</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 6 }}>
@@ -666,7 +671,15 @@ export default function AddEventModal({
                 {state.participants.map((p: string, idx: number) => (
                   <span key={`${p}-${idx}`} className="badge" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, padding: "2px 6px" }}>
                     {p}
-                    <button type="button" onClick={() => setState({ ...state, participants: state.participants.filter((x: string) => x !== p) })} aria-label={`Remove ${p}`} title={`Remove ${p}`} style={{ fontSize: 14 }}>×</button>
+                    <button
+                      type="button"
+                      onClick={() => setState({ ...state, participants: state.participants.filter((x: string) => x !== p) })}
+                      aria-label={`Remove ${p}`}
+                      title={`Remove ${p}`}
+                      style={{ fontSize: 14, background: "transparent", border: "none", color: "inherit", padding: 0, lineHeight: 1, cursor: "pointer" }}
+                    >
+                      ×
+                    </button>
                   </span>
                 ))}
               </div>
@@ -721,7 +734,7 @@ export default function AddEventModal({
           </button>
           <button
             type="button"
-            style={{ padding: "8px 10px", background: "#f1f5f9", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: 8, cursor: "pointer", fontSize: 13 }}
+            style={{ padding: "8px 10px", background: "var(--secondary-bg)", color: "var(--secondary-color)", border: "1px solid var(--secondary-border)", borderRadius: 8, cursor: "pointer", fontSize: 13 }}
             onClick={onClose}
           >
             Cancel

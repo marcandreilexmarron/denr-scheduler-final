@@ -70,9 +70,9 @@ export default function AddEventPage() {
             style={{
               marginBottom: 12,
               padding: "8px 10px",
-              border: "1px solid #86efac",
-              background: "#dcfce7",
-              color: "#166534",
+              border: "1px solid var(--success-color)",
+              background: "var(--success-bg)",
+              color: "var(--success-color)",
               borderRadius: 8,
               fontWeight: 600
             }}

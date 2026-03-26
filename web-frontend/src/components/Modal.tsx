@@ -35,7 +35,7 @@ export default function Modal({
         >
           ×
         </button>
-        <div style={{ minHeight: 0, overflowY: "auto", flex: "1 1 auto", paddingRight: 4 }}>{children}</div>
+        <div style={{ minHeight: 0, overflowY: "auto", flex: "1 1 auto", padding: "0 8px" }}>{children}</div>
       </div>
     </div>
   );

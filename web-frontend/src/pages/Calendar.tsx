@@ -21,13 +21,13 @@ type CalendarData = {
 
 const CATEGORY_OPTIONS = ["workshop", "meeting", "training", "conference", "travel", "activity", "others - specified"];
 const CATEGORY_COLORS: Record<string, { bg: string; fg: string; border: string }> = {
-  workshop: { bg: "#eef7ff", fg: "#0b5ed7", border: "#b6d4fe" },
-  meeting: { bg: "#e8f5e9", fg: "#1b5e20", border: "#c8e6c9" },
-  training: { bg: "#fff8e1", fg: "#8d6e63", border: "#ffecb3" },
-  conference: { bg: "#f3e5f5", fg: "#4a148c", border: "#e1bee7" },
-  travel: { bg: "#e0f7fa", fg: "#006064", border: "#b2ebf2" },
-  activity: { bg: "#fce4ec", fg: "#880e4f", border: "#f8bbd0" },
-  "others - specified": { bg: "#f5f5f5", fg: "#424242", border: "#e0e0e0" }
+  workshop: { bg: "var(--cat-workshop-bg)", fg: "var(--cat-workshop-fg)", border: "var(--cat-workshop-bd)" },
+  meeting: { bg: "var(--cat-meeting-bg)", fg: "var(--cat-meeting-fg)", border: "var(--cat-meeting-bd)" },
+  training: { bg: "var(--cat-training-bg)", fg: "var(--cat-training-fg)", border: "var(--cat-training-bd)" },
+  conference: { bg: "var(--cat-conference-bg)", fg: "var(--cat-conference-fg)", border: "var(--cat-conference-bd)" },
+  travel: { bg: "var(--cat-travel-bg)", fg: "var(--cat-travel-fg)", border: "var(--cat-travel-bd)" },
+  activity: { bg: "var(--cat-activity-bg)", fg: "var(--cat-activity-fg)", border: "var(--cat-activity-bd)" },
+  "others - specified": { bg: "var(--cat-others-bg)", fg: "var(--cat-others-fg)", border: "var(--cat-others-bd)" }
 };
 
 export default function Calendar(props?: {
@@ -50,6 +50,14 @@ export default function Calendar(props?: {
   headerBelow?: React.ReactNode;
   showTitle?: boolean;
 }) {
+  function normalizeCategory(s: string) {
+    return String(s || "").trim().toLowerCase();
+  }
+  function categoryStyle(cat?: string) {
+    const key = normalizeCategory(cat || "");
+    const c = CATEGORY_COLORS[key] || { bg: "var(--cat-others-bg)", fg: "var(--cat-others-fg)", border: "var(--cat-others-bd)" };
+    return { backgroundColor: c.bg, color: c.fg, borderColor: c.border };
+  }
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
@@ -183,14 +191,6 @@ export default function Calendar(props?: {
       return e.participants.some((p: any) => String(p).toLowerCase().includes(target));
     }
     return false;
-  }
-  function normalizeCategory(s: string) {
-    return String(s || "").trim().toLowerCase();
-  }
-  function categoryStyle(cat?: string) {
-    const key = normalizeCategory(cat || "");
-    const c = CATEGORY_COLORS[key] || { bg: "#eeeeee", fg: "#333333", border: "#dddddd" };
-    return { background: c.bg, color: c.fg, borderColor: c.border };
   }
   function eventMatchesCategory(e: any, cat: string) {
     if (!cat) return true;
@@ -366,7 +366,7 @@ export default function Calendar(props?: {
             </>
           )}
           {showOfficeSelector && (
-            <select value={officeFilter} onChange={(e) => setOfficeFilter(e.target.value)}>
+            <select value={officeFilter} onChange={(e) => setOfficeFilter(e.target.value)} style={{ background: "var(--card)", color: "var(--text)" }}>
               <option value="">All Offices</option>
               {availableOffices.map((o) => (
                 <option key={o} value={o}>{o}</option>
@@ -374,7 +374,7 @@ export default function Calendar(props?: {
             </select>
           )}
           {!categoriesAsChips && showCategorySelector && (
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ background: "var(--card)", color: "var(--text)" }}>
               <option value="">All Categories</option>
               {categories.map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -422,7 +422,7 @@ export default function Calendar(props?: {
                   onClick={() => setCategoryFilter(c)}
                   className="chip"
                   style={{
-                    background: styles.background,
+                    background: styles.backgroundColor,
                     color: styles.color,
                     border: `1px solid ${styles.borderColor}`,
                     flex: "1 1 0",
@@ -473,7 +473,7 @@ export default function Calendar(props?: {
           const isSelected =
             typeof d.day === "number" &&
             ((props?.selectedDate && key === props.selectedDate) || (!props?.selectedDate && selected?.date === key));
-          const baseBg = d.holiday ? "#f8d7da" : "white";
+          const baseBg = d.holiday ? "var(--error-bg)" : "var(--card)";
           const isNumber = typeof d.day === "number";
           let isPast = false;
           if (isNumber) {
@@ -491,16 +491,16 @@ export default function Calendar(props?: {
                 if (ev.shiftKey) ev.preventDefault();
               }}
               style={{
-                border: isSelected ? `2px solid var(--primary)` : (d.isToday ? "2px solid #93c5fd" : "1px solid #ddd"),
+                border: isSelected ? `2px solid var(--primary)` : (d.isToday ? "2px solid var(--blue-border)" : "1px solid var(--border)"),
                 height: compact ? 84 : 110,
                 padding: compact ? 4 : 6,
                 display: "flex",
                 flexDirection: "column",
                 overflow: "hidden",
-                background: isSelected ? "#eff6ff" : baseBg,
+                backgroundColor: isSelected ? "var(--blue-bg)" : baseBg,
                 opacity: isNumber && isPast ? 0.5 : 1,
                 cursor: isNumber ? (isPast && props?.blockPastDateClicks ? "default" : "pointer") : "default",
-                transition: "border-color 120ms ease, background 120ms ease"
+                transition: "border-color 120ms ease, background-color 120ms ease"
               }}
               onClick={(ev) => {
                 if (typeof d.day !== "number") return;
@@ -534,7 +534,7 @@ export default function Calendar(props?: {
                       height: 22,
                       padding: "0 6px",
                       background: "var(--primary)",
-                      color: "#ffffff",
+                      color: "var(--primary-contrast)",
                       borderRadius: 999,
                       fontSize: 12,
                       lineHeight: "22px"
@@ -565,7 +565,7 @@ export default function Calendar(props?: {
                             alignItems: "center",
                             gap: 6,
                             lineHeight: compact ? "14px" : "16px",
-                            background: s.background,
+                            backgroundColor: s.backgroundColor,
                             color: s.color,
                             border: `1px solid ${s.borderColor}`,
                             borderRadius: 4,
@@ -637,7 +637,7 @@ export default function Calendar(props?: {
                       key={i}
                       className="list-item"
                       style={{
-                        background: categoryStyle(e.category).background,
+                        backgroundColor: categoryStyle(e.category).backgroundColor,
                         color: categoryStyle(e.category).color,
                         borderLeft: `4px solid ${categoryStyle(e.category).borderColor}`
                       }}
@@ -661,11 +661,11 @@ export default function Calendar(props?: {
                         </>
                       ) : (
                         <form onSubmit={saveEdit} style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6, alignItems: "center", width: "100%" }}>
-                          <input value={editing.title} onChange={(ev) => setEditing({ ...editing, title: ev.target.value })} />
-                          <input type="time" value={editing.startTime} onChange={(ev) => setEditing({ ...editing, startTime: ev.target.value })} />
-                          <input type="time" value={editing.endTime} onChange={(ev) => setEditing({ ...editing, endTime: ev.target.value })} />
-                          <input placeholder="Location" value={editing.location || ""} onChange={(ev) => setEditing({ ...editing, location: ev.target.value })} />
-                          <select value={editing.category || ""} onChange={(ev) => setEditing({ ...editing, category: ev.target.value })}>
+                          <input value={editing.title} onChange={(ev) => setEditing({ ...editing, title: ev.target.value })} style={{ backgroundColor: "var(--card)", color: "var(--text)" }} />
+                          <input type="time" value={editing.startTime} onChange={(ev) => setEditing({ ...editing, startTime: ev.target.value })} style={{ backgroundColor: "var(--card)", color: "var(--text)" }} />
+                          <input type="time" value={editing.endTime} onChange={(ev) => setEditing({ ...editing, endTime: ev.target.value })} style={{ backgroundColor: "var(--card)", color: "var(--text)" }} />
+                          <input placeholder="Location" value={editing.location || ""} onChange={(ev) => setEditing({ ...editing, location: ev.target.value })} style={{ backgroundColor: "var(--card)", color: "var(--text)" }} />
+                          <select value={editing.category || ""} onChange={(ev) => setEditing({ ...editing, category: ev.target.value })} style={{ backgroundColor: "var(--card)", color: "var(--text)" }}>
                             {categories.map((c) => (
                               <option key={c} value={c}>{c}</option>
                             ))}
@@ -673,7 +673,7 @@ export default function Calendar(props?: {
                           {normalizeCategory(editing.category || "") === "others - specified" && (
                             <input placeholder="Specify category" value={editing.categoryDetail || ""} onChange={(ev) => setEditing({ ...editing, categoryDetail: ev.target.value })} />
                           )}
-                          <select value={editing.office ?? ""} onChange={(ev) => setEditing({ ...editing, office: ev.target.value || null })}>
+                          <select value={editing.office ?? ""} onChange={(ev) => setEditing({ ...editing, office: ev.target.value || null })} style={{ backgroundColor: "var(--card)", color: "var(--text)" }}>
                             <option value="">No specific office</option>
                             {availableOffices.map((o) => (
                               <option key={o} value={o}>{o}</option>

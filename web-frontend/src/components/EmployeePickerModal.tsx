@@ -21,7 +21,8 @@ export default function EmployeePickerModal({
   return (
     <Modal open={open} onClose={onClose}>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <h3 style={{ margin: 0, fontSize: 16 }}>Select employees — {officeName || ""}</h3>
+        <h3 style={{ margin: 0, fontSize: 16 }}>{officeName || "Office/Division"}</h3>
+        <div style={{ color: "var(--muted)", fontSize: 13, marginTop: -4 }}>Pick employees to include in the event.</div>
         <div className="hover-scroll" style={{ maxHeight: "min(40vh, 240px)", border: "1px solid var(--border)", borderRadius: 8, padding: 6 }}>
           {choices.map((n) => (
             <label key={n} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0", fontSize: 13 }}>

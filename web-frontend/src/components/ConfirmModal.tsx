@@ -24,12 +24,13 @@ export default function ConfirmModal({
             onClick={onClose}
             style={{
               padding: "6px 12px",
-              background: "#f1f5f9",
-              color: "#0f172a",
-              border: "1px solid #cbd5e1",
+              background: "var(--secondary-bg)",
+              color: "var(--secondary-color)",
+              border: "1px solid var(--secondary-border)",
               borderRadius: 8,
               cursor: "pointer",
-              fontSize: 13
+              fontWeight: 500,
+              fontSize: 14
             }}
           >
             Cancel
@@ -41,13 +42,13 @@ export default function ConfirmModal({
             }}
             style={{
               padding: "6px 12px",
-              background: "#dc2626",
-              color: "#ffffff",
-              border: "1px solid #b91c1c",
+              background: "var(--error-color)",
+              color: "var(--primary-contrast)",
+              border: "1px solid var(--error-color)",
               borderRadius: 8,
               cursor: "pointer",
-              fontSize: 13,
-              fontWeight: 600
+              fontWeight: 500,
+              fontSize: 14
             }}
           >
             Confirm

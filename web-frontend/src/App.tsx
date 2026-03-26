@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate } from "react-router-dom";
+import { Moon, Sun } from "lucide-react";
 import Landing from "./pages/Landing";
 import OfficeDashboard from "./pages/OfficeDashboard";
 import Calendar from "./pages/Calendar";
@@ -33,6 +34,14 @@ function Shell() {
   const navigate = useNavigate();
   const [showLogin, setShowLogin] = useState(false);
   const [now, setNow] = useState<Date>(new Date());
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    return (localStorage.getItem("theme") as "light" | "dark") || "light";
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
 
   function abbreviateOffice(name: string) {
     if (!name) return "";
@@ -97,7 +106,7 @@ function Shell() {
   }, [loc.pathname]);
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <nav style={{ display: "flex", gap: isPortrait ? 8 : 16, padding: isPortrait ? "8px 12px" : 12, borderBottom: "1px solid var(--border)", alignItems: "center", background: "var(--primary)", color: "white", flexWrap: "wrap" }}>
+      <nav style={{ display: "flex", gap: isPortrait ? 8 : 16, padding: isPortrait ? "8px 12px" : 12, borderBottom: "1px solid var(--border)", alignItems: "center", background: "var(--nav-bg)", color: "white", flexWrap: "wrap" }}>
         <Link to="/" style={{ display: "flex", alignItems: "center", gap: isPortrait ? 8 : 12, textDecoration: "none", color: "inherit" }}>
           <img src="/logo.png" alt="DENR" style={{ width: isPortrait ? 28 : 36, height: isPortrait ? 28 : 36, objectFit: "contain" }} />
           <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
@@ -125,6 +134,25 @@ function Shell() {
               : `${now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })} • ${now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })}`
             }
           </span>
+          <button
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+            aria-label="Toggle theme"
+            title="Toggle theme"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              background: "rgba(255,255,255,0.1)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              color: "white",
+              padding: 0
+            }}
+          >
+            {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
+          </button>
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 0 }}>
           {user ? (
@@ -185,7 +213,7 @@ function Shell() {
             path="/calendar"
             element={
               <ProtectedRoute>
-                <Calendar />
+                <Calendar/>
               </ProtectedRoute>
             }
           />
@@ -224,11 +252,6 @@ function Shell() {
           <Route path="*" element={<NotFoundRedirect />} />
         </Routes>
       </div>
-      <footer style={{ marginTop: "auto", padding: "24px 12px", textAlign: "center", color: "white", background: "var(--primary)", borderTop: "4px solid var(--accent)" }}>
-        <div style={{ fontWeight: 700, fontSize: 16 }}>© 2026 DENR Planner</div>
-        <div style={{ fontSize: 13, opacity: 0.9, marginTop: 4 }}>Department of Environment and Natural Resources - CAR</div>
-        <div style={{ fontSize: 12, opacity: 0.8, marginTop: 8, fontStyle: "italic" }}>"Committed to Sustainable Environmental Management"</div>
-      </footer>
     </div>
   );
 }

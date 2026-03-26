@@ -125,32 +125,22 @@ export default function EventDetailModal({
     onClose();
   }, [onClose]);
 
-  const modalBg = React.useMemo(() => {
-    if (!event?.category) return "rgba(255, 255, 255, 0.7)";
-    const style = categoryStyle(event.category);
-    const bg = style.background as string;
-    if (bg && bg.startsWith("#")) {
-      const r = parseInt(bg.slice(1, 3), 16);
-      const g = parseInt(bg.slice(3, 5), 16);
-      const b = parseInt(bg.slice(5, 7), 16);
-      return `rgba(${r}, ${g}, ${b}, 0.65)`;
-    }
-    return bg || "rgba(255, 255, 255, 0.7)";
-  }, [event?.category, categoryStyle]);
+  const modalBg = "var(--card)";
+  const modalColor = "var(--text)";
 
-  const subBorder = "1px solid rgba(0, 0, 0, 0.08)";
+  const subBorder = "1px solid var(--border)";
 
   return (
     <>
-    <Modal open={open} onClose={handleClose} style={{ background: modalBg, backdropFilter: "blur(14px)", border: `1px solid rgba(0,0,0,0.1)` }}>
+    <Modal open={open} onClose={handleClose} style={{ background: modalBg, color: modalColor, backdropFilter: "blur(14px)", border: `1px solid rgba(0,0,0,0.1)` }}>
       {event && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12, width: "100%", boxSizing: "border-box" }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 8, justifyContent: "space-between" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {event.category && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                  <span className="badge" style={{ ...categoryStyle(event.category), background: "rgba(255,255,255,0.25)", border: "1px solid rgba(0,0,0,0.05)", fontSize: 13, padding: "4px 10px", backdropFilter: "blur(4px)" }}>{event.category}</span>
-                  {event.category === "others - specified" && event.categoryDetail && <span className="badge" style={{ background: "rgba(255,255,255,0.25)", border: "1px solid rgba(0,0,0,0.05)", fontSize: 13, padding: "4px 10px", backdropFilter: "blur(4px)" }}>{event.categoryDetail}</span>}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <span style={{ ...categoryStyle(event.category), background: undefined, backgroundColor: categoryStyle(event.category)?.backgroundColor || "rgba(255,255,255,0.25)", border: `1px solid ${categoryStyle(event.category)?.borderColor || "rgba(0,0,0,0.05)"}`, fontSize: 13, padding: "4px 10px", borderRadius: 999, backdropFilter: "blur(4px)" }}>{event.category}</span>
+                  {event.category === "others - specified" && event.categoryDetail && <span style={{ backgroundColor: "rgba(255,255,255,0.25)", color: "inherit", border: "1px solid rgba(0,0,0,0.05)", fontSize: 13, padding: "4px 10px", borderRadius: 999, backdropFilter: "blur(4px)" }}>{event.categoryDetail}</span>}
                 </div>
               )}
               <h2 style={{ margin: 0, fontSize: 22, opacity: 0.9 }}>{event.title}</h2>
@@ -259,7 +249,7 @@ export default function EventDetailModal({
                           <span
                             key={`off-${svc}-${off}`}
                             className="badge"
-                            style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer", fontSize: 13, padding: "4px 10px", background: "rgba(255,255,255,0.25)", border: "1px solid rgba(0,0,0,0.05)", backdropFilter: "blur(4px)" }}
+                            style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer", fontSize: 13, padding: "4px 10px", background: "rgba(255,255,255,0.25)", color: "inherit", border: "1px solid rgba(0,0,0,0.05)", backdropFilter: "blur(4px)" }}
                             onClick={(e) => {
                               setClickedRect(e.currentTarget.getBoundingClientRect());
                               setSelectedOffice(off);
@@ -286,13 +276,13 @@ export default function EventDetailModal({
                           </span>
                         ))}
                         {g.singles.map((p, idx) => (
-                          <span key={`sg-${svc}-${idx}`} className="badge" style={{ fontSize: 13, padding: "4px 10px", background: "rgba(255,255,255,0.25)", border: "1px solid rgba(0,0,0,0.05)", backdropFilter: "blur(4px)" }}>{p}</span>
+                          <span key={`sg-${svc}-${idx}`} className="badge" style={{ fontSize: 13, padding: "4px 10px", background: "rgba(255,255,255,0.25)", color: "inherit", border: "1px solid rgba(0,0,0,0.05)", backdropFilter: "blur(4px)" }}>{p}</span>
                         ))}
                         {g.officeOnly.map((p, idx) => (
-                          <span key={`oo-${svc}-${idx}`} className="badge" style={{ fontSize: 13, padding: "4px 10px", background: "rgba(255,255,255,0.25)", border: "1px solid rgba(0,0,0,0.05)", backdropFilter: "blur(4px)" }}>{p}</span>
+                          <span key={`oo-${svc}-${idx}`} className="badge" style={{ fontSize: 13, padding: "4px 10px", background: "rgba(255,255,255,0.25)", color: "inherit", border: "1px solid rgba(0,0,0,0.05)", backdropFilter: "blur(4px)" }}>{p}</span>
                         ))}
                         {g.others.map((p, idx) => (
-                          <span key={`ot-${svc}-${idx}`} className="badge" style={{ fontSize: 13, padding: "4px 10px", background: "rgba(255,255,255,0.25)", border: "1px solid rgba(0,0,0,0.05)", backdropFilter: "blur(4px)" }}>{p}</span>
+                          <span key={`ot-${svc}-${idx}`} className="badge" style={{ fontSize: 13, padding: "4px 10px", background: "rgba(255,255,255,0.25)", color: "inherit", border: "1px solid rgba(0,0,0,0.05)", backdropFilter: "blur(4px)" }}>{p}</span>
                         ))}
                       </div>
                     </div>
@@ -314,7 +304,7 @@ export default function EventDetailModal({
                         download={att.name || "attachment"}
                         target="_blank" 
                         rel="noopener noreferrer"
-                        style={{ color: "var(--primary)", textDecoration: "underline", cursor: "pointer", fontSize: 14, opacity: 0.9 }}
+                        style={{ color: "var(--blue-color)", textDecoration: "underline", cursor: "pointer", fontSize: 14, opacity: 0.9 }}
                       >
                         {att.name || "Attachment"}
                       </a>
@@ -411,10 +401,38 @@ export default function EventDetailModal({
                     ×
                   </button>
                 </div>
-                <ul className="list" style={{ margin: 0, padding: 0 }}>
+                <ul
+                  className="list"
+                  style={{
+                    margin: 0,
+                    padding: 0,
+                    listStyle: "none",
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 6
+                  }}
+                >
                   {selectedEmployees.map((name, i) => (
-                    <li key={`${name}-${i}`} className="list-item" style={{ fontSize: 13, padding: "6px 0" }}>
-                      {name}
+                    <li
+                      key={`${name}-${i}`}
+                      style={{ margin: 0, padding: 0, border: "none", background: "transparent" }}
+                    >
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                          background: "var(--secondary-bg)",
+                          color: "var(--secondary-color)",
+                          fontSize: 12,
+                          lineHeight: "16px",
+                          whiteSpace: "nowrap"
+                        }}
+                        title={name}
+                      >
+                        {name}
+                      </span>
                     </li>
                   ))}
                 </ul>
