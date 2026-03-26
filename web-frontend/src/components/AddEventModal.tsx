@@ -345,20 +345,26 @@ export default function AddEventModal({
   }
 
   const formEl = (
-      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 12, width: "100%" }}>
-        <h2 style={{ margin: "0 0 4px 0" }}>{title ?? (isEdit ? "Edit Event" : "New Event")}</h2>
+      <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 8, width: "100%" }}>
+        <h2 style={{ margin: "0 0 2px 0", fontSize: 18 }}>{title ?? (isEdit ? "Edit Event" : "New Event")}</h2>
         <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "1fr 180px", gap: 8 }}>
           <div>
-            <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Category</label>
+            <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Category</label>
             <select
               style={{
                 width: "100%",
                 boxSizing: "border-box",
-                padding: 10,
+                padding: 8,
+                paddingRight: 32,
                 border: `1px solid ${categoryError ? "#dc2626" : "var(--border)"}`,
                 borderRadius: 8,
                 background: "var(--card)",
-                fontSize: 14,
+                backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "right 10px center",
+                backgroundSize: "1.2em",
+                appearance: "none",
+                fontSize: 13,
                 color: state.category === "" ? "var(--muted)" : "inherit"
               }}
               value={state.category}
@@ -369,22 +375,28 @@ export default function AddEventModal({
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
-            {categoryError && <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{categoryError}</div>}
+            {categoryError && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 2 }}>{categoryError}</div>}
             {(normalizeCategory(state.category) === "workshop" || normalizeCategory(state.category) === "training") && (
-              <div style={{ marginTop: 6, fontSize: 12, color: "var(--muted)" }}>A report will be needed after the event.</div>
+              <div style={{ marginTop: 4, fontSize: 11, color: "var(--muted)" }}>A report will be needed after the event.</div>
             )}
           </div>
           <div>
-            <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Type</label>
+            <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Type</label>
             <select
               style={{
                 width: "100%",
                 boxSizing: "border-box",
-                padding: 10,
+                padding: 8,
+                paddingRight: 32,
                 border: `1px solid ${typeError ? "#dc2626" : "var(--border)"}`,
                 borderRadius: 8,
                 background: "var(--card)",
-                fontSize: 14,
+                backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "right 10px center",
+                backgroundSize: "1.2em",
+                appearance: "none",
+                fontSize: 13,
                 color: state.type === "" ? "var(--muted)" : "inherit"
               }}
               value={state.type}
@@ -394,15 +406,15 @@ export default function AddEventModal({
               <option value="Internal">Internal</option>
               <option value="External">External</option>
             </select>
-            {typeError && <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{typeError}</div>}
+            {typeError && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 2 }}>{typeError}</div>}
           </div>
         </div>
-        <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>Details</div>
+        <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Details</div>
         {normalizeCategory(state.category) === "others - specified" && (
           <div>
-            <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Specify Category</label>
+            <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Specify Category</label>
             <input
-              style={{ width: "100%", boxSizing: "border-box", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
+              style={{ width: "100%", boxSizing: "border-box", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }}
               placeholder="Specify category"
               value={state.categoryDetail || ""}
               onChange={(e) => setState({ ...state, categoryDetail: e.target.value })}
@@ -410,39 +422,39 @@ export default function AddEventModal({
           </div>
         )}
         <div>
-          <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Event Title</label>
+          <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Event Title</label>
           <input
-            style={{ width: "100%", boxSizing: "border-box", padding: 10, border: `1px solid ${titleError ? "#dc2626" : "var(--border)"}`, borderRadius: 8, background: "var(--card)", fontSize: 14 }}
+            style={{ width: "100%", boxSizing: "border-box", padding: 8, border: `1px solid ${titleError ? "#dc2626" : "var(--border)"}`, borderRadius: 8, background: "var(--card)", fontSize: 13 }}
             placeholder="Title"
             value={state.title}
             onChange={(e) => setState({ ...state, title: e.target.value })}
             autoFocus
           />
-          {titleError && <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{titleError}</div>}
+          {titleError && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 2 }}>{titleError}</div>}
         </div>
         <div>
-          <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Description</label>
+          <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Description</label>
           <textarea
-            rows={3}
-            style={{ width: "100%", boxSizing: "border-box", resize: "vertical", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
+            rows={2}
+            style={{ width: "100%", boxSizing: "border-box", resize: "vertical", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }}
             placeholder="What is this event about?"
             value={state.description}
             onChange={(e) => setState({ ...state, description: e.target.value })}
           />
         </div>
         <div>
-          <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Location</label>
+          <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Location</label>
           <input
-            style={{ width: "100%", boxSizing: "border-box", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
+            style={{ width: "100%", boxSizing: "border-box", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }}
             placeholder="Venue or meeting link"
             value={state.location}
             onChange={(e) => setState({ ...state, location: e.target.value })}
           />
         </div>
         <div>
-          <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>Schedule</div>
-          <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 6 }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>Schedule</div>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 4 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13 }}>
               <input
                 type="radio"
                 checked={state.dateType !== "range"}
@@ -450,7 +462,7 @@ export default function AddEventModal({
               />
               <span>Single Date</span>
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13 }}>
               <input
                 type="radio"
                 checked={state.dateType === "range"}
@@ -460,23 +472,23 @@ export default function AddEventModal({
             </label>
           </div>
           {state.dateType === "range" ? (
-            <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "1fr 1fr", gap: 10 }}>
               <div>
-                <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Start Date</label>
+                <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Start Date</label>
                 <input
                   type="date"
-                  style={{ width: "100%", boxSizing: "border-box", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
+                  style={{ width: "100%", boxSizing: "border-box", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }}
                   min={today}
                   value={state.startDate}
                   onChange={(e) => setState({ ...state, startDate: e.target.value })}
                 />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>End Date</label>
+                <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>End Date</label>
                 <input
                   type="date"
                   min={state.startDate || undefined}
-                  style={{ width: "100%", boxSizing: "border-box", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
+                  style={{ width: "100%", boxSizing: "border-box", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }}
                   value={state.endDate}
                   onChange={(e) => setState({ ...state, endDate: e.target.value })}
                 />
@@ -484,10 +496,10 @@ export default function AddEventModal({
             </div>
           ) : (
             <div>
-              <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Date</label>
+              <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Date</label>
               <input
                 type="date"
-                style={{ width: "100%", boxSizing: "border-box", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }}
+                style={{ width: "100%", boxSizing: "border-box", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }}
                 min={today}
                 value={state.date}
                 onChange={(e) => setState({ ...state, date: e.target.value })}
@@ -495,38 +507,38 @@ export default function AddEventModal({
             </div>
           )}
           {(dateRangeError || scheduleErrors.length > 0) && (
-            <div style={{ color: "#dc2626", fontSize: 12, marginTop: 6 }}>
+            <div style={{ color: "#dc2626", fontSize: 11, marginTop: 4 }}>
               {dateRangeError || scheduleErrors.join(". ")}
             </div>
           )}
           {isValidSchedule && holidaysNote && (
-            <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 4 }}>{holidaysNote}</div>
+            <div style={{ color: "var(--muted)", fontSize: 11, marginTop: 2 }}>{holidaysNote}</div>
           )}
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "1fr 1fr", gap: 10 }}>
           <div>
-            <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Start Time</label>
-            <input type="time" style={{ width: "100%", boxSizing: "border-box", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }} value={state.startTime} onChange={(e) => setState({ ...state, startTime: e.target.value })} />
+            <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Start Time</label>
+            <input type="time" style={{ width: "100%", boxSizing: "border-box", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }} value={state.startTime} onChange={(e) => setState({ ...state, startTime: e.target.value })} />
           </div>
           <div>
-            <label style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>End Time</label>
-            <input type="time" style={{ width: "100%", boxSizing: "border-box", padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 14 }} value={state.endTime} onChange={(e) => setState({ ...state, endTime: e.target.value })} />
+            <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>End Time</label>
+            <input type="time" style={{ width: "100%", boxSizing: "border-box", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }} value={state.endTime} onChange={(e) => setState({ ...state, endTime: e.target.value })} />
           </div>
         </div>
-        {timeRangeError && <div style={{ color: "#dc2626", fontSize: 12, marginTop: -2 }}>{timeRangeError}</div>}
+        {timeRangeError && <div style={{ color: "#dc2626", fontSize: 11, marginTop: -2 }}>{timeRangeError}</div>}
         <div>
-          <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>Participants</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
+          <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>Participants</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 6 }}>
             {officesData ? (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
                 <div>
-                  <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Top-level Offices</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4, border: "1px solid var(--border)", borderRadius: 6, padding: 6, maxHeight: 120, overflowY: "auto" }}>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Top-level Offices</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3, border: "1px solid var(--border)", borderRadius: 6, padding: 4, maxHeight: 100, overflowY: "auto" }}>
                     {officesData.topLevelOffices.map((o) => {
                       const name = o.name;
                       const checked = Array.isArray(state.participants) && state.participants.includes(name);
                       return (
-                        <label key={name} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+                        <label key={name} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%" }}>
                           <input
                             type="checkbox"
                             checked={checked}
@@ -543,7 +555,7 @@ export default function AddEventModal({
                           <span
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEmployeePicker(name); }}
                             role="button"
-                            style={{ flex: 1, padding: "2px 8px", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", whiteSpace: "normal", wordBreak: "break-word", fontSize: 13 }}
+                            style={{ flex: 1, padding: "1px 6px", border: "1px solid var(--border)", borderRadius: 4, cursor: "pointer", whiteSpace: "normal", wordBreak: "break-word", fontSize: 12 }}
                             title={name}
                           >
                             {name}
@@ -553,11 +565,11 @@ export default function AddEventModal({
                     })}
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {["Division Chiefs", "Committee"].map((g) => {
                     const checked = Array.isArray(state.participants) && state.participants.includes(g);
                     return (
-                      <label key={g} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <label key={g} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12 }}>
                         <input
                           type="checkbox"
                           checked={checked}
@@ -576,16 +588,16 @@ export default function AddEventModal({
                     );
                   })}
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "1fr 1fr", gap: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "1fr 1fr", gap: 8 }}>
                   {officesData.services.map((svc) => (
                     <div key={svc.name}>
-                      <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>{svc.name}</div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 4, border: "1px solid var(--border)", borderRadius: 6, padding: 6, maxHeight: 120, overflowY: "auto" }}>
+                      <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>{svc.name}</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 3, border: "1px solid var(--border)", borderRadius: 6, padding: 4, maxHeight: 100, overflowY: "auto" }}>
                         {svc.offices.map((o) => {
                           const name = o.name;
                           const checked = Array.isArray(state.participants) && state.participants.includes(name);
                           return (
-                            <label key={name} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+                            <label key={name} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%" }}>
                               <input
                                 type="checkbox"
                                 checked={checked}
@@ -602,7 +614,7 @@ export default function AddEventModal({
                               <span
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEmployeePicker(name); }}
                                 role="button"
-                                style={{ flex: 1, padding: "2px 8px", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", whiteSpace: "normal", wordBreak: "break-word", fontSize: 13 }}
+                                style={{ flex: 1, padding: "1px 6px", border: "1px solid var(--border)", borderRadius: 4, cursor: "pointer", whiteSpace: "normal", wordBreak: "break-word", fontSize: 12 }}
                                 title={name}
                               >
                                 {name}
@@ -616,12 +628,12 @@ export default function AddEventModal({
                 </div>
               </div>
             ) : (
-              <div style={{ border: "1px solid var(--border)", borderRadius: 6, padding: 6, maxHeight: 140, overflowY: "auto" }}>
+              <div style={{ border: "1px solid var(--border)", borderRadius: 6, padding: 4, maxHeight: 120, overflowY: "auto" }}>
                 {availableOffices.map((o) => {
                   const checked = Array.isArray(state.participants) && state.participants.includes(o);
                   return (
-                    <span key={o} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginRight: 12, marginBottom: 6 }}>
-                      <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span key={o} style={{ display: "inline-flex", alignItems: "center", gap: 4, marginRight: 10, marginBottom: 4 }}>
+                      <label style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12 }}>
                         <input
                           type="checkbox"
                           checked={checked}
@@ -638,7 +650,7 @@ export default function AddEventModal({
                         <span
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEmployeePicker(o); }}
                           role="button"
-                          style={{ padding: "2px 8px", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer" }}
+                          style={{ padding: "1px 6px", border: "1px solid var(--border)", borderRadius: 4, cursor: "pointer" }}
                           title="Select Employees"
                         >
                           {o}
@@ -650,11 +662,11 @@ export default function AddEventModal({
               </div>
             )}
             {Array.isArray(state.participants) && state.participants.length > 0 && (
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {state.participants.map((p: string, idx: number) => (
-                  <span key={`${p}-${idx}`} className="badge" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <span key={`${p}-${idx}`} className="badge" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, padding: "2px 6px" }}>
                     {p}
-                    <button type="button" onClick={() => setState({ ...state, participants: state.participants.filter((x: string) => x !== p) })} aria-label={`Remove ${p}`} title={`Remove ${p}`}>×</button>
+                    <button type="button" onClick={() => setState({ ...state, participants: state.participants.filter((x: string) => x !== p) })} aria-label={`Remove ${p}`} title={`Remove ${p}`} style={{ fontSize: 14 }}>×</button>
                   </span>
                 ))}
               </div>
@@ -671,35 +683,35 @@ export default function AddEventModal({
           onClose={() => setEmployeeModalOffice(null)}
         />
         <div>
-          <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>Attachments</div>
+          <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>Attachments</div>
           <input
             type="file"
             multiple
-            style={{ width: "100%" }}
+            style={{ width: "100%", fontSize: 12 }}
             onChange={(e) => {
               const files = e.target.files ? Array.from(e.target.files) : [];
               setState({ ...state, attachments: files });
             }}
           />
           {Array.isArray(state.attachments) && state.attachments.length > 0 && (
-            <ul className="list" style={{ marginTop: 6 }}>
+            <ul className="list" style={{ marginTop: 4 }}>
               {state.attachments.map((f: any, idx: number) => (
-                <li key={idx} className="list-item">{f.name || String(f)}</li>
+                <li key={idx} className="list-item" style={{ fontSize: 12, padding: "4px 8px" }}>{f.name || String(f)}</li>
               ))}
             </ul>
           )}
         </div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
           <button
             type="submit"
             style={{
-              padding: "10px 12px",
+              padding: "8px 10px",
               background: "var(--primary)",
               color: "var(--primary-contrast)",
               border: "1px solid var(--primary)",
               borderRadius: 8,
               cursor: "pointer",
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: 500,
               opacity: isValid ? 1 : 0.6
             }}
@@ -709,7 +721,7 @@ export default function AddEventModal({
           </button>
           <button
             type="button"
-            style={{ padding: "10px 12px", background: "#f1f5f9", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: 8, cursor: "pointer", fontSize: 14 }}
+            style={{ padding: "8px 10px", background: "#f1f5f9", color: "#0f172a", border: "1px solid #cbd5e1", borderRadius: 8, cursor: "pointer", fontSize: 13 }}
             onClick={onClose}
           >
             Cancel

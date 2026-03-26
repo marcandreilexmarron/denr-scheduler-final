@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate } from "react-router-dom";
 import Landing from "./pages/Landing";
-import Login from "./pages/Login";
 import OfficeDashboard from "./pages/OfficeDashboard";
 import Calendar from "./pages/Calendar";
 import Offices from "./pages/Offices";
@@ -9,7 +8,7 @@ import AddEventPage from "./pages/AddEventPage";
 import ArchivedEventsPage from "./pages/ArchivedEventsPage";
 import ProtectedRoute from "./ProtectedRoute";
 import { clearToken, getToken, getUserFromToken, onAuthChange } from "./auth";
-import Modal from "./components/Modal";
+import LoginModal from "./components/LoginModal";
 import { api } from "./api";
 
 function NotFoundRedirect() {
@@ -141,14 +140,14 @@ function Shell() {
           )}
         </span>
       </nav>
-      <Modal open={showLogin} onClose={() => setShowLogin(false)}>
-        <Login
-          onSuccess={(u) => {
-            setShowLogin(false);
-            navigate("/office-dashboard");
-          }}
-        />
-      </Modal>
+      <LoginModal
+        open={showLogin}
+        onClose={() => setShowLogin(false)}
+        onSuccess={(u) => {
+          setUser(u);
+          navigate("/office-dashboard");
+        }}
+      />
       {user && (
         <div style={{ display: "flex", gap: isPortrait ? 4 : 8, padding: isPortrait ? "4px 8px" : "8px 12px", borderBottom: "1px solid var(--border)", background: "var(--card)", overflowX: "auto" }}>
           {[

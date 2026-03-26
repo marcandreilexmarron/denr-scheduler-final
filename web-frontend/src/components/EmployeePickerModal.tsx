@@ -20,11 +20,11 @@ export default function EmployeePickerModal({
 }) {
   return (
     <Modal open={open} onClose={onClose}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <h3 style={{ margin: 0 }}>Select employees — {officeName || ""}</h3>
-        <div className="hover-scroll" style={{ maxHeight: "min(40vh, 280px)", border: "1px solid var(--border)", borderRadius: 8, padding: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <h3 style={{ margin: 0, fontSize: 16 }}>Select employees — {officeName || ""}</h3>
+        <div className="hover-scroll" style={{ maxHeight: "min(40vh, 240px)", border: "1px solid var(--border)", borderRadius: 8, padding: 6 }}>
           {choices.map((n) => (
-            <label key={n} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+            <label key={n} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0", fontSize: 13 }}>
               <input
                 type="checkbox"
                 checked={!!checked[n]}
@@ -33,11 +33,11 @@ export default function EmployeePickerModal({
               <span style={{ flex: 1 }}>{n}</span>
             </label>
           ))}
-          {choices.length === 0 && <div style={{ color: "var(--muted)" }}>No employees available</div>}
+          {choices.length === 0 && <div style={{ color: "var(--muted)", fontSize: 13 }}>No employees available</div>}
         </div>
-        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-          <button type="button" onClick={onConfirm}>Add Selected</button>
-          <button type="button" style={{ background: "transparent", border: "1px solid var(--border)", color: "inherit" }} onClick={onClose}>Cancel</button>
+        <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+          <button type="button" onClick={onConfirm} style={{ padding: "6px 12px", fontSize: 13 }}>Add Selected</button>
+          <button type="button" style={{ background: "transparent", border: "1px solid var(--border)", color: "inherit", padding: "6px 12px", fontSize: 13 }} onClick={onClose}>Cancel</button>
         </div>
       </div>
     </Modal>

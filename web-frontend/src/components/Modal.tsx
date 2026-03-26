@@ -3,16 +3,18 @@ import React from "react";
 export default function Modal({
   open,
   onClose,
-  children
+  children,
+  style
 }: {
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
+  style?: React.CSSProperties;
 }) {
   if (!open) return null;
   return (
     <div className="modal-backdrop">
-      <div className="modal-card" style={{ display: "flex", flexDirection: "column", position: "relative", overflowX: "hidden" }}>
+      <div className="modal-card" style={{ display: "flex", flexDirection: "column", position: "relative", overflowX: "hidden", ...style }}>
         <button
           onClick={onClose}
           aria-label="Close"

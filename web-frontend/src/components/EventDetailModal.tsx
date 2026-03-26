@@ -124,52 +124,69 @@ export default function EventDetailModal({
     setClickedRect(null);
     onClose();
   }, [onClose]);
+
+  const modalBg = React.useMemo(() => {
+    if (!event?.category) return "rgba(255, 255, 255, 0.7)";
+    const style = categoryStyle(event.category);
+    const bg = style.background as string;
+    if (bg && bg.startsWith("#")) {
+      const r = parseInt(bg.slice(1, 3), 16);
+      const g = parseInt(bg.slice(3, 5), 16);
+      const b = parseInt(bg.slice(5, 7), 16);
+      return `rgba(${r}, ${g}, ${b}, 0.65)`;
+    }
+    return bg || "rgba(255, 255, 255, 0.7)";
+  }, [event?.category, categoryStyle]);
+
+  const subBorder = "1px solid rgba(0, 0, 0, 0.08)";
+
   return (
     <>
-    <Modal open={open} onClose={handleClose}>
+    <Modal open={open} onClose={handleClose} style={{ background: modalBg, backdropFilter: "blur(14px)", border: `1px solid rgba(0,0,0,0.1)` }}>
       {event && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%", boxSizing: "border-box" }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, justifyContent: "space-between" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, width: "100%", boxSizing: "border-box" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8, justifyContent: "space-between" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {event.category && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                  <span className="badge" style={categoryStyle(event.category)}>{event.category}</span>
-                  {event.category === "others - specified" && event.categoryDetail && <span className="badge">{event.categoryDetail}</span>}
+                  <span className="badge" style={{ ...categoryStyle(event.category), background: "rgba(255,255,255,0.25)", border: "1px solid rgba(0,0,0,0.05)", fontSize: 13, padding: "4px 10px", backdropFilter: "blur(4px)" }}>{event.category}</span>
+                  {event.category === "others - specified" && event.categoryDetail && <span className="badge" style={{ background: "rgba(255,255,255,0.25)", border: "1px solid rgba(0,0,0,0.05)", fontSize: 13, padding: "4px 10px", backdropFilter: "blur(4px)" }}>{event.categoryDetail}</span>}
                 </div>
               )}
-              <h2 style={{ margin: 0 }}>{event.title}</h2>
+              <h2 style={{ margin: 0, fontSize: 22, opacity: 0.9 }}>{event.title}</h2>
               {(() => {
                 const cat = String(event.category || "").trim().toLowerCase();
                 if (cat === "workshop" || cat === "training") {
-                  return <div style={{ fontSize: 12, color: "var(--muted)" }}>A report will be needed after the event.</div>;
+                  return <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 2, opacity: 0.8 }}>A report will be needed after the event.</div>;
                 }
                 return null;
               })()}
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px 16px", alignItems: "baseline", borderTop: "1px solid var(--border)", paddingTop: 12 }}>
-            <div style={{ color: "var(--muted)", fontWeight: 500, fontSize: "0.9em" }}>Date & time</div>
-            <div>
+          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "10px 16px", alignItems: "baseline", borderTop: subBorder, paddingTop: 14 }}>
+            <div style={{ color: "var(--muted)", fontWeight: 500, fontSize: "0.95em", opacity: 0.7 }}>Date & time</div>
+            <div style={{ fontSize: 15, opacity: 0.9 }}>
               {event.dateType === "range" && event.startDate && event.endDate
                 ? `${formatFullDate(event.startDate)} ${formatTime(event.startTime)} → ${formatFullDate(event.endDate)} ${formatTime(event.endTime)}`
                 : `${formatFullDate(event.date)} ${formatTime(event.startTime)}${event.endTime ? `–${formatTime(event.endTime)}` : ""}`}
             </div>
             {event.location && (
               <>
-                <div style={{ color: "var(--muted)", fontWeight: 500, fontSize: "0.9em" }}>Location</div>
-                <div style={{ overflowWrap: "anywhere" }}>{event.location}</div>
+                <div style={{ color: "var(--muted)", fontWeight: 500, fontSize: "0.95em", opacity: 0.7 }}>Location</div>
+                <div style={{ overflowWrap: "anywhere", fontSize: 15, opacity: 0.9 }}>{event.location}</div>
               </>
             )}
-            <div style={{ color: "var(--muted)", fontWeight: 500, fontSize: "0.9em" }}>From</div>
-            <div>{isPortrait ? abbreviateOffice(event.creatingOffice || event.office || "Unknown office") : (event.creatingOffice || event.office || "Unknown office")}</div>
+            <div style={{ color: "var(--muted)", fontWeight: 500, fontSize: "0.95em", opacity: 0.7 }}>From</div>
+            <div style={{ fontSize: 15, opacity: 0.9 }}>{isPortrait ? abbreviateOffice(event.creatingOffice || event.office || "Unknown office") : (event.creatingOffice || event.office || "Unknown office")}</div>
           </div>
           {event.description && (
-            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10 }}>
-              <div style={{ marginBottom: 6, color: "var(--muted)", fontSize: 12 }}>Description</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{event.description}</div>
+            <div style={{ borderTop: subBorder, paddingTop: 12 }}>
+              <div style={{ marginBottom: 6, color: "var(--muted)", fontSize: 13, opacity: 0.7 }}>Description</div>
+              <div style={{ whiteSpace: "pre-wrap", fontSize: 15, lineHeight: 1.5, opacity: 0.9 }}>{event.description}</div>
             </div>
           )}
           {Array.isArray(event.participants) && event.participants.length > 0 && (() => {
+            // ... (rest of the logic remains the same, but using subBorder and transparent badges)
             const raw: string[] = event.participants;
             const byOffice = new Map<string, string[]>();
             const others: string[] = [];
@@ -219,13 +236,13 @@ export default function EventDetailModal({
               groups["Other"].others.push(...unknown);
             }
             return (
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10 }}>
-                <div style={{ marginBottom: 6, color: "var(--muted)", fontSize: 12 }}>Participants</div>
+              <div style={{ borderTop: subBorder, paddingTop: 12 }}>
+                <div style={{ marginBottom: 6, color: "var(--muted)", fontSize: 13, opacity: 0.7 }}>Participants</div>
                 {hasAllDivisionOffices && (
                   <div style={{ marginBottom: 6 }}>
                     <span
                       className="badge"
-                      style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
+                      style={{ position: "relative", display: "inline-flex", alignItems: "center", fontSize: 13, padding: "4px 10px", background: "rgba(255,255,255,0.25)", border: "1px solid rgba(0,0,0,0.05)", backdropFilter: "blur(4px)" }}
                     >
                       Division Chiefs
                     </span>
@@ -235,14 +252,14 @@ export default function EventDetailModal({
                   const g = groups[svc];
                   if (!g || (g.collapsed.length === 0 && g.singles.length === 0 && g.officeOnly.length === 0 && g.others.length === 0)) return null;
                   return (
-                    <div key={`svc-${svc}`} style={{ marginBottom: 8 }}>
-                      <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 4 }}>{svc}</div>
+                    <div key={`svc-${svc}`} style={{ marginBottom: 10 }}>
+                      <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 4, fontWeight: 500, opacity: 0.7 }}>{svc}</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", maxWidth: "100%" }}>
                         {g.collapsed.map(([off, emps]) => (
                           <span
                             key={`off-${svc}-${off}`}
                             className="badge"
-                            style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer" }}
+                            style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer", fontSize: 13, padding: "4px 10px", background: "rgba(255,255,255,0.25)", border: "1px solid rgba(0,0,0,0.05)", backdropFilter: "blur(4px)" }}
                             onClick={(e) => {
                               setClickedRect(e.currentTarget.getBoundingClientRect());
                               setSelectedOffice(off);
@@ -254,13 +271,13 @@ export default function EventDetailModal({
                               aria-hidden
                               style={{
                                 marginLeft: 6,
-                                fontSize: 10,
+                                fontSize: 11,
                                 opacity: 0.85,
                                 padding: "0 6px",
-                                border: "1px solid var(--border)",
+                                border: "1px solid rgba(0,0,0,0.1)",
                                 borderRadius: 999,
                                 lineHeight: "16px",
-                                background: "var(--card)",
+                                background: "rgba(255,255,255,0.3)",
                                 color: "inherit"
                               }}
                             >
@@ -269,13 +286,13 @@ export default function EventDetailModal({
                           </span>
                         ))}
                         {g.singles.map((p, idx) => (
-                          <span key={`sg-${svc}-${idx}`} className="badge">{p}</span>
+                          <span key={`sg-${svc}-${idx}`} className="badge" style={{ fontSize: 13, padding: "4px 10px", background: "rgba(255,255,255,0.25)", border: "1px solid rgba(0,0,0,0.05)", backdropFilter: "blur(4px)" }}>{p}</span>
                         ))}
                         {g.officeOnly.map((p, idx) => (
-                          <span key={`oo-${svc}-${idx}`} className="badge">{p}</span>
+                          <span key={`oo-${svc}-${idx}`} className="badge" style={{ fontSize: 13, padding: "4px 10px", background: "rgba(255,255,255,0.25)", border: "1px solid rgba(0,0,0,0.05)", backdropFilter: "blur(4px)" }}>{p}</span>
                         ))}
                         {g.others.map((p, idx) => (
-                          <span key={`ot-${svc}-${idx}`} className="badge">{p}</span>
+                          <span key={`ot-${svc}-${idx}`} className="badge" style={{ fontSize: 13, padding: "4px 10px", background: "rgba(255,255,255,0.25)", border: "1px solid rgba(0,0,0,0.05)", backdropFilter: "blur(4px)" }}>{p}</span>
                         ))}
                       </div>
                     </div>
@@ -285,14 +302,11 @@ export default function EventDetailModal({
             );
           })()}
           {Array.isArray(event.attachments) && event.attachments.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <strong>Attachments:</strong>
+            <div style={{ marginTop: 12, borderTop: subBorder, paddingTop: 12 }}>
+              <strong style={{ fontSize: 14, opacity: 0.8 }}>Attachments:</strong>
               <ul style={{ listStyle: "none", padding: 0, marginTop: 4 }}>
                 {event.attachments.map((att: any, idx: number) => {
-                  // Determine the download URL
-                  // Use 'blob' if available, otherwise fall back to 'url'
                   const downloadUrl = att.blob || att.url;
-                  
                   return (
                     <li key={idx} style={{ marginBottom: 4 }}>
                       <a 
@@ -300,7 +314,7 @@ export default function EventDetailModal({
                         download={att.name || "attachment"}
                         target="_blank" 
                         rel="noopener noreferrer"
-                        style={{ color: "var(--primary)", textDecoration: "underline", cursor: "pointer" }}
+                        style={{ color: "var(--primary)", textDecoration: "underline", cursor: "pointer", fontSize: 14, opacity: 0.9 }}
                       >
                         {att.name || "Attachment"}
                       </a>
@@ -311,18 +325,19 @@ export default function EventDetailModal({
             </div>
           )}
           {canEditEvent && canEditEvent(event) && onEdit && (
-            <div style={{ display: "flex", justifyContent: "flex-end", borderTop: "1px solid var(--border)", paddingTop: 10, gridColumn: "1 / 2" }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", borderTop: subBorder, paddingTop: 12, gridColumn: "1 / 2" }}>
               <button
                 onClick={() => onEdit(event)}
                 style={{
-                  padding: "8px 10px",
+                  padding: "8px 14px",
                   background: "var(--primary)",
                   color: "var(--primary-contrast)",
-                  border: "1px solid var(--primary)",
+                  border: "none",
                   borderRadius: 8,
                   cursor: "pointer",
-                  fontSize: 13,
-                  fontWeight: 600
+                  fontSize: 14,
+                  fontWeight: 600,
+                  opacity: 0.85
                 }}
                 title="Edit event"
                 aria-label="Edit event"

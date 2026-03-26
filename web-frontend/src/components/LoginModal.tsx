@@ -1,13 +1,23 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { saveToken, getUserFromToken } from "../auth";
-import { api, ApiError } from "../api";
+import { api } from "../api";
+import Modal from "./Modal";
 
-export default function Login({ onSuccess }: { onSuccess?: (user: any) => void }) {
+export default function LoginModal({
+  open,
+  onClose,
+  onSuccess
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSuccess?: (user: any) => void;
+}) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<{ field?: "username" | "password"; message: string } | null>(null);
   const navigate = useNavigate();
+
   function login(e: React.FormEvent) {
     e.preventDefault();
     api.post("/api/login", { username, password })
@@ -17,9 +27,10 @@ export default function Login({ onSuccess }: { onSuccess?: (user: any) => void }
         const user = getUserFromToken();
         if (onSuccess) {
           onSuccess(user);
-          return;
+        } else {
+          navigate("/office-dashboard");
         }
-        navigate("/office-dashboard");
+        onClose();
       })
       .catch((err) => {
         if (err && typeof err === "object" && "status" in err) {
@@ -32,46 +43,47 @@ export default function Login({ onSuccess }: { onSuccess?: (user: any) => void }
         }
       });
   }
+
   return (
-    <div style={{ padding: 0, minWidth: 320 }}>
-      <div style={{ maxWidth: 420, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 12 }}>
-          <img src="/logo.png" alt="" aria-hidden style={{ width: 56, height: 56, objectFit: "contain", opacity: 0.95 }} />
-          <h2 style={{ margin: "8px 0 4px 0", lineHeight: 1.2 }}>Log in</h2>
+    <Modal open={open} onClose={onClose} style={{ width: 340, maxWidth: "calc(100vw - 32px)" }}>
+      <div style={{ padding: "8px 0" }}>
+        <div style={{ textAlign: "center", marginBottom: 16 }}>
+          <img src="/logo.png" alt="" aria-hidden style={{ width: 96, height: 96, objectFit: "contain", opacity: 0.95 }} />
+          <h2 style={{ margin: "12px 0 4px 0", lineHeight: 1.2, fontSize: 24 }}>Log in</h2>
         </div>
         {error && (
-          <div style={{ marginBottom: 10, padding: "8px 10px", border: "1px solid #fecaca", background: "#fee2e2", color: "#7f1d1d", borderRadius: 8, fontSize: 14 }}>
+          <div style={{ marginBottom: 10, padding: "8px 10px", border: "1px solid #fecaca", background: "#fee2e2", color: "#7f1d1d", borderRadius: 8, fontSize: 13 }}>
             {error.message}
           </div>
         )}
         <form onSubmit={login} style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
           <div>
-            <label htmlFor="username" style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Username</label>
+            <label htmlFor="username" style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>Username</label>
             <input
               id="username"
               placeholder="Enter your username"
               value={username}
               onChange={(e) => { setUsername(e.target.value); if (error) setError(null); }}
-              style={{ width: "100%", borderColor: error?.field === "username" ? "#dc2626" : undefined }}
+              style={{ width: "100%", padding: "10px 12px", fontSize: 14, borderColor: error?.field === "username" ? "#dc2626" : undefined }}
               autoFocus
             />
-            {error?.field === "username" && <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{error.message}</div>}
+            {error?.field === "username" && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 4 }}>{error.message}</div>}
           </div>
           <div>
-            <label htmlFor="password" style={{ display: "block", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Password</label>
+            <label htmlFor="password" style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>Password</label>
             <input
               id="password"
               placeholder="Enter your password"
               type="password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); if (error) setError(null); }}
-              style={{ width: "100%", borderColor: error?.field === "password" ? "#dc2626" : undefined }}
+              style={{ width: "100%", padding: "10px 12px", fontSize: 14, borderColor: error?.field === "password" ? "#dc2626" : undefined }}
             />
-            {error?.field === "password" && <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{error.message}</div>}
+            {error?.field === "password" && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 4 }}>{error.message}</div>}
           </div>
-          <button type="submit" style={{ width: "100%", padding: "10px 12px", background: "var(--primary)", color: "white", fontWeight: 600 }}>Login</button>
+          <button type="submit" style={{ width: "100%", padding: "10px 12px", background: "var(--primary)", color: "white", fontWeight: 600, fontSize: 15 }}>Login</button>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }
