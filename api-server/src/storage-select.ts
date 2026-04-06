@@ -1,6 +1,6 @@
 import * as fsStore from "./storage.js";
 import * as dbStore from "./storage-db.js";
-const backend = (process.env.DATA_BACKEND || "fs").toLowerCase();
+const backend = (process.env.DATA_BACKEND || "db").toLowerCase();
 
 export function getDataDir(): string {
   if (backend === "db") return "";
