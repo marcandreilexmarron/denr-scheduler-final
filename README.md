@@ -1,178 +1,104 @@
- # DENR Scheduler / Planner
+# 🛠️ DENR Scheduler / Planner - Technical Documentation
 
- A simple two-part system for planning and tracking events across DENR offices:
+This repository contains the full-stack codebase for the DENR Scheduler / Planner, a robust event management system designed for the Department of Environment and Natural Resources - CAR.
 
-- API Server: Express + TypeScript serving file-backed endpoints (optional SQL backend)
- - Web Frontend: React + Vite providing the planner UI
+## 🏗️ Architecture Overview
 
- This repository contains both parts under denr-scheduler-final.
+The application follows a modern decoupled architecture:
+1.  **API Server**: A Node.js/Express backend that handles data persistence, authentication, and background scheduling tasks.
+2.  **Web Frontend**: A React single-page application (SPA) built with Vite, featuring a responsive and highly interactive UI.
 
- ## Features
+---
 
- - User authentication with JWT (ADMIN and OFFICE roles)
- - Office- and service-based views and filtering
- - Calendar with single-day and multi-day events
- - Event categories with color coding
- - Admin user management (create, update role/office/service, delete)
- - Holidays overlay
+## 🛠️ Tech Stack
 
- ## Tech Stack
+### Backend (api-server)
+- **Runtime**: Node.js 18+
+- **Language**: TypeScript
+- **Framework**: Express.js
+- **Authentication**: JWT (JSON Web Tokens) with a custom middleware layer.
+- **Database Access**: Knex.js (SQL query builder).
+- **Date/Time**: Luxon for robust time zone and ISO handling.
+- **File Uploads**: Multer for handling event attachments.
+- **Email**: NodeMailer-based service for notifications and reminders. (CURRENTLY DISABLED)
 
-- API: Node.js, Express, TypeScript, jsonwebtoken, Luxon (optional Knex + SQL driver)
- - Frontend: React 18, Vite, React Router
+### Frontend (web-frontend)
+- **Framework**: React 18
+- **Build Tool**: Vite
+- **Routing**: React Router 6
+- **State Management**: React Hooks (useState, useMemo, useEffect).
+- **Styling**: Standard CSS with a custom variable-based theming system.
+- **Icons**: Lucide React.
 
- ## Prerequisites
+---
 
- - Node.js 18+ and npm
+## � API Documentation
 
- ## Project Structure
+### Authentication
+- `POST /api/login`: Authenticates a user and returns a JWT.
+- `GET /api/me`: Returns the currently authenticated user's profile.
 
- ```text
- denr-scheduler-final/
- ├─ api-server/                 # Express + TypeScript API
- │  ├─ src/
- │  │  ├─ server.ts             # API endpoints and boot code
- │  │  └─ auth.ts               # JWT utilities and middleware
- │  ├─ data/                    # JSON storage (users, events, holidays)
- │  ├─ package.json
- │  └─ tsconfig.json
- └─ web-frontend/               # React + Vite SPA
-    ├─ src/
-    ├─ index.html
-    ├─ vite.config.ts           # Proxy /api → http://localhost:3000
-    └─ package.json
- ```
+### Events
+- `GET /api/events`: Fetches all upcoming events. Automatically triggers the archiving of past events.
+- `GET /api/events/archive`: Fetches all archived (past) events.
+- `GET /api/office/events`: Fetches events relevant to the logged-in office (created by them or participating).
+- `POST /api/events`: Creates a new event.
+- `PUT /api/events/:id`: Updates an existing event (restricted to the owner office).
+- `DELETE /api/events/:id`: Deletes an event (restricted to the owner office).
 
- ## Quick Start (Development)
+### Utilities & Data
+- `GET /api/health`: Health check endpoint.
+- `GET /api/offices-data`: Returns the static hierarchy of DENR offices and services.
+- `GET /api/holidays`: Fetches the list of official holidays.
+- `GET /api/employees`: Returns a list of employees for participant selection.
+- `POST /api/upload`: Handles file uploads for event attachments.
 
- Open two terminals, one per package.
+---
 
- 1) API Server
+## �️ Database Schema (SQL)
 
- ```bash
- cd denr-scheduler-final/api-server
- npm install
- # optional: create .env and set JWT_SECRET and/or PORT
- npm run dev
- # → listens on http://localhost:3000
- ```
+The system is optimized for SQL storage using the following table structures:
 
- 2) Web Frontend
+- **`events`**: Stores upcoming activities.
+- **`events_archive`**: Stores past activities moved by the auto-archiver.
+- **`office_users`**: Stores user credentials, roles, and office assignments.
+- **`holidays`**: Stores non-working days.
+- **`employee_details`**: Stores employee names and their respective divisions.
 
- ```bash
- cd denr-scheduler-final/web-frontend
- npm install
- npm run dev
- # → visit http://localhost:5173
- # Vite dev proxy forwards /api to http://localhost:3000
- ```
+*Note: Large text fields like `participants` and `attachments` are stored as JSON strings in the database.*
 
- ## Environment Variables (API)
+---
 
- Create api-server/.env as needed:
+## ⚙️ Configuration & Deployment
 
- ```ini
- # api-server/.env
- JWT_SECRET=change-me-in-production
- PORT=3000
+### Environment Variables
+Create an `.env` file in the `api-server` directory:
+```ini
+JWT_SECRET=your_secure_random_secret
+PORT=3000
+FRONTEND_URL=https://your-app-url.com
 
-# Optional: enable SQL backend instead of JSON files
-# DATA_BACKEND=db
-# DATABASE_CLIENT=mysql2
-# DATABASE_URL=mysql://user:pass@localhost:3306/scheduler_db
- ```
+# Database Configuration (MySQL/PostgreSQL)
+DATABASE_CLIENT=mysql2
+DATABASE_URL=mysql://user:pass@host:3306/db_name
 
- Defaults if not provided:
+# Optional: Switch to local JSON storage for development
+# DATA_BACKEND=fs
+```
 
- - JWT_SECRET: dev-insecure-secret
- - PORT: 3000
+### Production Build
+1.  **Backend**: Run `npm run build` in `api-server` to compile TypeScript to JavaScript.
+2.  **Frontend**: Run `npm run build` in `web-frontend` to generate the optimized production assets in the `dist/` folder.
 
-## Database Backend (Optional)
+---
 
-The API supports switching storage from JSON files to a SQL database by setting `DATA_BACKEND=db` and providing `DATABASE_CLIENT` / `DATABASE_URL`.
+## 🤖 Background Tasks
+The server runs several automated processes:
+- **Auto-Archiver**: Runs every 10 minutes to move past events from the active list to the archive.
+- **Reminder System**: Scans events hourly and sends email reminders 3 days before an activity starts. (CURRENTLY DISABLED)
 
-See: `denr-scheduler-final/api-server/README-DB.md`
+---
+**Looking for usage instructions?**  
+Check out the [USER_GUIDE.md](./USER_GUIDE.md) for a functional walkthrough.
 
- ## Default Data and Credentials
-
- The API uses JSON files under api-server/data for storage.
-
- - Users: api-server/data/users.json
- - Events: api-server/data/events.json
- - Holidays: api-server/data/holidays.json
-
- Sample credentials are provided for initial access. For example:
-
- - ADMIN
-   - username: admin
-   - password: password
- - OFFICE (examples)
-   - username: ord_admin, password: password
-   - username: smd_admin, password: password
-
- Use the Admin page to create or manage users and assign services/offices.
-
- ## Available Scripts
-
- In api-server:
-
- - npm run dev – start API in watch mode
- - npm run build – compile to dist/
- - npm start – run compiled server (after build)
-
- In web-frontend:
-
- - npm run dev – start Vite dev server
- - npm run build – build static assets to dist/
- - npm run preview – preview the built app locally
-
- ## Production Build
-
- 1) Build both packages
-
- ```bash
- cd denr-scheduler-final/api-server
- npm install && npm run build
-
- cd ../web-frontend
- npm install && npm run build
- ```
-
- 2) Run API
-
- ```bash
- cd denr-scheduler-final/api-server
- NODE_ENV=production PORT=3000 JWT_SECRET=<strong-secret> npm start
- ```
-
- 3) Serve Frontend
-
- - Deploy web-frontend/dist via any static HTTP server or object storage + CDN
- - Configure a reverse proxy to route /api to the API server (default http://localhost:3000)
-
- ## API Overview
-
- - GET /api/health – health check
- - POST /api/login – returns { token } for valid credentials
- - GET /api/me – current user info (requires Authorization: Bearer <token>)
- - GET /api/offices-data – services and offices list
- - GET /api/calendar[?month=&year=] – calendar data and holidays for a month
- - GET /api/events – list all events
- - GET /api/office/events – events relevant to the logged-in user’s office/service (auth)
- - GET /api/holidays – list holidays
- - Users (auth: ADMIN):
-   - GET /api/users
-   - POST /api/users
-   - PUT /api/users/:username
-   - DELETE /api/users/:username
- - Events (auth: ADMIN or OFFICE):
-   - POST /api/events
-   - PUT /api/events/:id
-   - DELETE /api/events/:id
-
- ## Notes
-
- - The development setup relies on Vite’s proxy to avoid CORS issues.
- - Replace the default JWT_SECRET for any non-local environment.
- - JSON files are edited by the API at runtime; commit curated seed data only.
-
+© 2026 DENR Planner - *Committed to Sustainable Environmental Management.*
