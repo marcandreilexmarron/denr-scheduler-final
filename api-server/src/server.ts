@@ -403,36 +403,36 @@ app.get("/api/employees", async (_req, res) => {
 });
 
 app.post("/api/events", authMiddleware, requireAnyRole(["OFFICE"]), async (req, res) => {
-  const events = await archivePastEvents(); // also ensures ids for current records
-  const user = (req as any).user as any;
-  const id = crypto.randomUUID();
-  const payload = {
-    id,
-    ...req.body,
-    createdBy: user?.sub || user?.username || null,
-    createdByOffice: user?.officeName || null,
-    createdAt: new Date().toISOString()
-  };
-  if (!("office" in payload) || payload.office == null) {
-    payload.office = user?.officeName ?? null;
-  }
-  
-  // Ensure attachments is valid array before saving
-  if (req.body.attachments) {
-    payload.attachments = req.body.attachments;
-  } else {
-    payload.attachments = [];
-  }
-
-  events.push(payload);
+  console.log("POST /api/events - Payload:", JSON.stringify(req.body, null, 2));
   try {
+    const events = await readEvents(); // Get current events directly
+    const user = (req as any).user as any;
+    const id = crypto.randomUUID();
+    const payload = {
+      id,
+      ...req.body,
+      createdBy: user?.sub || user?.username || null,
+      createdByOffice: user?.officeName || null,
+      createdAt: new Date().toISOString()
+    };
+    if (!("office" in payload) || payload.office == null) {
+      payload.office = user?.officeName ?? null;
+    }
+    
+    // Ensure attachments is valid array before saving
+    if (req.body.attachments) {
+      payload.attachments = req.body.attachments;
+    } else {
+      payload.attachments = [];
+    }
+
+    events.push(payload);
     await writeEvents(events);
-    // Send email notification asynchronously (Disabled for now)
-    // sendEventCreatedEmail(payload).catch(err => console.error("Email error:", err));
+    console.log("Event created successfully:", id);
     res.status(201).json(payload);
   } catch (err) {
-    console.error("Failed to write events:", err);
-    res.status(500).json({ error: "db_write_failed" });
+    console.error("Failed to create event:", err);
+    res.status(500).json({ error: "db_write_failed", message: err instanceof Error ? err.message : String(err) });
   }
 });
 

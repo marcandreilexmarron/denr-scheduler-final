@@ -9,7 +9,6 @@ export default function AddEventPage() {
   const location = useLocation();
   const [officesData, setOfficesData] = useState<{ topLevelOffices: any[]; services: any[] } | null>(null);
   const [resetCounter, setResetCounter] = useState(0);
-  const [success, setSuccess] = useState<string | null>(null);
   useEffect(() => {
     api.get("/api/offices-data")
       .then((d) => setOfficesData(d));
@@ -63,23 +62,6 @@ export default function AddEventPage() {
   return (
     <div style={{ padding: isPortrait ? 8 : 16 }}>
       <div className="card hover-scroll" style={{ padding: isPortrait ? 8 : 12, maxWidth: 900, margin: "0 auto", width: "100%", boxSizing: "border-box", borderTop: "4px solid var(--primary)" }}>
-        {success && (
-          <div
-            role="status"
-            aria-live="polite"
-            style={{
-              marginBottom: 12,
-              padding: "8px 10px",
-              border: "1px solid var(--success-color)",
-              background: "var(--success-bg)",
-              color: "var(--success-color)",
-              borderRadius: 8,
-              fontWeight: 600
-            }}
-          >
-            {success}
-          </div>
-        )}
         <AddEventModal
           key={resetCounter}
           variant="page"
@@ -95,10 +77,7 @@ export default function AddEventPage() {
           onSubmit={(payload) => {
             api.post("/api/events", payload)
               .then(() => {
-                setSuccess(`Event "${payload.title}" scheduled successfully!`);
-                setResetCounter((c) => c + 1);
-                window.scrollTo({ top: 0, behavior: "smooth" });
-                setTimeout(() => setSuccess(null), 5000);
+                navigate("/office-dashboard", { state: { successMessage: `Event "${payload.title}" created successfully!` } });
               })
               .catch((err) => {
                 console.error("Failed to create event:", err);

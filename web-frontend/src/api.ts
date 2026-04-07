@@ -35,6 +35,7 @@ export const api = {
       const errorData = await response.json().catch(() => ({ message: response.statusText }));
       throw new ApiError(errorData.message || "Api error", response.status);
     }
+    if (response.status === 204) return null;
     return response.json();
   },
   post: async (path: string, body: any) => {
@@ -51,6 +52,7 @@ export const api = {
       const errorData = await response.json().catch(() => ({ message: response.statusText }));
       throw new ApiError(errorData.message || "Api error", response.status);
     }
+    if (response.status === 204) return null;
     return response.json();
   },
   put: async (path: string, body: any) => {
@@ -67,6 +69,7 @@ export const api = {
       const errorData = await response.json().catch(() => ({ message: response.statusText }));
       throw new ApiError(errorData.message || "Api error", response.status);
     }
+    if (response.status === 204) return null;
     return response.json();
   },
   delete: async (path: string) => {
@@ -81,6 +84,7 @@ export const api = {
       const errorData = await response.json().catch(() => ({ message: response.statusText }));
       throw new ApiError(errorData.message || "Api error", response.status);
     }
+    if (response.status === 204) return null;
     return response.json();
   },
 };

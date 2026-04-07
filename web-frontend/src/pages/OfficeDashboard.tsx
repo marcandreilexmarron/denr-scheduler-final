@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import Calendar from "./Calendar";
 import Modal from "../components/Modal";
 import EventDetailModal from "../components/EventDetailModal";
@@ -9,6 +10,8 @@ import { api } from "../api";
 
 export default function OfficeDashboard() {
   const me = getUserFromToken();
+  const location = useLocation();
+  const [success, setSuccess] = useState<string | null>(null);
   const [officeFilter, setOfficeFilter] = useState<string>(me?.officeName || "");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [viewYear, setViewYear] = useState<number>(new Date().getFullYear());
@@ -21,6 +24,17 @@ export default function OfficeDashboard() {
   const [editing, setEditing] = useState<any | null>(null);
   const [deleting, setDeleting] = useState<any | null>(null);
   const [isPortrait, setIsPortrait] = useState<boolean>(true);
+
+  useEffect(() => {
+    if (location.state?.successMessage) {
+      setSuccess(location.state.successMessage);
+      // Replace the history state to clear the message so it doesn't reappear on reload
+      window.history.replaceState({}, document.title);
+      const timer = setTimeout(() => setSuccess(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [location.state]);
+
   useEffect(() => {
     function update() {
       try {
@@ -222,27 +236,52 @@ export default function OfficeDashboard() {
   }
 
   function reloadEvents() {
-    fetch("/api/events")
-      .then((r) => r.json())
+    api.get("/api/events")
       .then((d) => setEvents(d));
   }
 
   const canAdd = !!me?.role?.endsWith?.("OFFICE");
   function deleteEvent(id: string) {
+    const eventToDelete = events.find(e => e.id === id);
+    setEvents(prev => prev.filter(e => e.id !== id));
+    
     api.delete(`/api/events/${id}`)
-      .then((res) => {
-        if (res.error) {
-          alert(res.error);
-        } else {
-          reloadEvents();
-        }
+      .then(() => {
+        setSuccess(`Event "${eventToDelete?.title || 'Event'}" deleted successfully!`);
+        setTimeout(() => setSuccess(null), 5000);
+        reloadEvents();
       })
-      .catch(() => alert("Delete failed"));
+      .catch((err) => {
+        reloadEvents();
+        console.error("Delete failed:", err);
+        alert("Delete failed");
+      });
   }
   // Removed inline saveEdit in favor of using AddEventModal in edit mode
 
   return (
     <div style={{ padding: 16, background: "var(--bg)", minHeight: "calc(100vh - 100px)" }}>
+      {success && (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: "10px 15px",
+            background: "var(--success-bg)",
+            color: "var(--success-color)",
+            border: "1px solid var(--success-border)",
+            borderRadius: 10,
+            fontWeight: 700,
+            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            animation: "fadeIn 0.3s ease"
+          }}
+        >
+          <span style={{ fontSize: 18 }}>✓</span>
+          {success}
+        </div>
+      )}
       <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "1fr 340px", gap: 16 }}>
         <main className="card hover-scroll" style={{ padding: "0 12px 12px 12px", minWidth: 0, height: "calc(100vh - 140px)" }}>
           <Calendar
