@@ -96,7 +96,21 @@ function Shell() {
   }, []);
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(id);
+    
+    // Heartbeat check for token validity every 5 minutes
+    const authId = window.setInterval(() => {
+      const t = getToken();
+      if (t) {
+        api.get("/api/me").catch(() => {
+          // api helper handles 401 redirect
+        });
+      }
+    }, 5 * 60 * 1000);
+
+    return () => {
+      window.clearInterval(id);
+      window.clearInterval(authId);
+    };
   }, []);
   useEffect(() => {
     const t = getToken();

@@ -31,10 +31,16 @@ export const api = {
         Authorization: `Bearer ${localStorage.getItem("token")}`,
       },
     });
+    if (response.status === 401) {
+      localStorage.removeItem("token");
+      window.location.assign("/");
+      throw new ApiError("Unauthorized", 401);
+    }
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: response.statusText }));
       throw new ApiError(errorData.message || "Api error", response.status);
     }
+    if (response.status === 204) return null;
     return response.json();
   },
   post: async (path: string, body: any) => {
@@ -47,10 +53,16 @@ export const api = {
       },
       body: JSON.stringify(body),
     });
+    if (response.status === 401) {
+      localStorage.removeItem("token");
+      window.location.assign("/");
+      throw new ApiError("Unauthorized", 401);
+    }
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: response.statusText }));
       throw new ApiError(errorData.message || "Api error", response.status);
     }
+    if (response.status === 204) return null;
     return response.json();
   },
   put: async (path: string, body: any) => {
@@ -63,10 +75,16 @@ export const api = {
       },
       body: JSON.stringify(body),
     });
+    if (response.status === 401) {
+      localStorage.removeItem("token");
+      window.location.assign("/");
+      throw new ApiError("Unauthorized", 401);
+    }
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: response.statusText }));
       throw new ApiError(errorData.message || "Api error", response.status);
     }
+    if (response.status === 204) return null;
     return response.json();
   },
   delete: async (path: string) => {
@@ -77,10 +95,16 @@ export const api = {
         Authorization: `Bearer ${localStorage.getItem("token")}`,
       },
     });
+    if (response.status === 401) {
+      localStorage.removeItem("token");
+      window.location.assign("/");
+      throw new ApiError("Unauthorized", 401);
+    }
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: response.statusText }));
       throw new ApiError(errorData.message || "Api error", response.status);
     }
+    if (response.status === 204) return null;
     return response.json();
   },
 };

@@ -19,6 +19,7 @@ export default function OfficeDashboard() {
   const [detailEvent, setDetailEvent] = useState<any | null>(null);
   const [holidays, setHolidays] = useState<Array<{ month: number; day: number; name: string }>>([]);
   const [editing, setEditing] = useState<any | null>(null);
+  const [refreshCounter, setRefreshCounter] = useState(0);
   const [deleting, setDeleting] = useState<any | null>(null);
   const [isPortrait, setIsPortrait] = useState<boolean>(true);
   useEffect(() => {
@@ -222,16 +223,17 @@ export default function OfficeDashboard() {
   }
 
   function reloadEvents() {
-    fetch("/api/events")
-      .then((r) => r.json())
-      .then((d) => setEvents(d));
+    api.get("/api/events").then((d) => {
+      setEvents(d);
+      setRefreshCounter((c) => c + 1);
+    });
   }
 
   const canAdd = !!me?.role?.endsWith?.("OFFICE");
   function deleteEvent(id: string) {
     api.delete(`/api/events/${id}`)
       .then((res) => {
-        if (res.error) {
+        if (res && res.error) {
           alert(res.error);
         } else {
           reloadEvents();
@@ -407,6 +409,7 @@ export default function OfficeDashboard() {
               setViewMonth(m);
               setSelectedDate(null);
             }}
+            refreshCounter={refreshCounter}
           />
           <AddEventModal
             open={!!editing}
@@ -428,7 +431,7 @@ export default function OfficeDashboard() {
               const body = { ...editing, ...payload };
               api.put(`/api/events/${editing.id}`, body)
                 .then((res) => {
-                  if ((res as any)?.error) {
+                  if (res && (res as any).error) {
                     alert((res as any).error);
                     return;
                   }

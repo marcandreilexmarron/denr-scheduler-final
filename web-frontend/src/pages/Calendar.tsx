@@ -49,6 +49,7 @@ export default function Calendar(props?: {
   canEditEvent?: (e: any, user?: any) => boolean;
   headerBelow?: React.ReactNode;
   showTitle?: boolean;
+  refreshCounter?: number;
 }) {
   function normalizeCategory(s: string) {
     return String(s || "").trim().toLowerCase();
@@ -240,6 +241,10 @@ export default function Calendar(props?: {
     }
     return map;
   }, [listSource, officeFilter, categoryFilter]);
+
+  useEffect(() => {
+    reloadEvents();
+  }, [props?.refreshCounter]);
 
   function reloadEvents() {
     api.get("/api/events").then((d) => setEventsAll(d));
