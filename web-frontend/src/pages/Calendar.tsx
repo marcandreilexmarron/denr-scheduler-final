@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getToken, getUserFromToken } from "../auth";
 import Modal from "../components/Modal";
 import AddEventModal from "../components/AddEventModal";
@@ -51,6 +52,7 @@ export default function Calendar(props?: {
   showTitle?: boolean;
   refreshCounter?: number;
 }) {
+  const navigate = useNavigate();
   function normalizeCategory(s: string) {
     return String(s || "").trim().toLowerCase();
   }
@@ -254,6 +256,9 @@ export default function Calendar(props?: {
     }
   }
   function deleteEvent(id: string) {
+    setEventsAll(prev => prev.filter(e => e.id !== id));
+    setEventsOffice(prev => prev.filter(e => e.id !== id));
+    
     api.delete(`/api/events/${id}`)
       .then(() => {
         reloadEvents();
@@ -261,6 +266,11 @@ export default function Calendar(props?: {
           const list = (idx.get(selected.date) ?? []).filter((e) => e.id !== id);
           setSelected({ date: selected.date, events: list });
         }
+      })
+      .catch((err) => {
+        reloadEvents();
+        console.error("Delete failed:", err);
+        alert("Delete failed");
       });
   }
   function saveEdit(e: React.FormEvent) {
@@ -605,19 +615,14 @@ export default function Calendar(props?: {
               availableOffices={availableOffices}
               officesData={officesData ?? undefined}
               onSubmit={(payload) => {
-                const t = getToken();
-                if (!t) return;
-                fetch("/api/events", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
-                  body: JSON.stringify(payload)
-                })
-                  .then((r) => r.json())
+                api.post("/api/events", payload)
                   .then(() => {
                     setAddOpen(false);
-                    reloadEvents();
-                    const list = idx.get(selected.date) ?? [];
-                    setSelected({ date: selected.date, events: list });
+                    navigate("/office-dashboard", { state: { successMessage: `Event "${payload.title}" created successfully!` } });
+                  })
+                  .catch((err) => {
+                    console.error("Failed to create event:", err);
+                    alert("Failed to create event");
                   });
               }}
             />
