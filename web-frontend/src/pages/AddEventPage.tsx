@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AddEventModal from "../components/AddEventModal";
-import { getToken } from "../auth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { api } from "../api";
 
@@ -8,7 +7,7 @@ export default function AddEventPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [officesData, setOfficesData] = useState<{ topLevelOffices: any[]; services: any[] } | null>(null);
-  const [resetCounter, setResetCounter] = useState(0);
+  const [resetCounter] = useState(0);
   useEffect(() => {
     api.get("/api/offices-data")
       .then((d) => setOfficesData(d));
