@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getUserFromToken } from "../auth";
 import EventDetailModal from "../components/EventDetailModal";
 import { api } from "../api";
@@ -96,13 +96,6 @@ export default function ArchivedEventsPage() {
     api.get("/api/events/archive").then((d) => setEvents(d));
   }, []);
 
-  const availableOffices = useMemo(() => {
-    if (!officesData) return [] as string[];
-    return [
-      ...officesData.topLevelOffices.map((o) => o.name),
-      ...officesData.services.flatMap((s) => s.offices.map((o) => o.name))
-    ];
-  }, [officesData]);
 
   function eventOfficeMatch(e: any, office: string) {
     if (!office) return true;
@@ -129,13 +122,6 @@ export default function ArchivedEventsPage() {
     if (typeof val === "string" && val.includes("T")) return val.split("T")[0];
     return String(val);
   }
-  const todayKey = (() => {
-    const t = new Date();
-    const y = t.getFullYear();
-    const m = String(t.getMonth() + 1).padStart(2, "0");
-    const d = String(t.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  })();
   const archived = useMemo(() => {
     return events
       .filter((e) => eventOfficeMatch(e, officeFilter) && eventCategoryMatch(e, categoryFilter))

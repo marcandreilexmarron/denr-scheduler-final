@@ -142,7 +142,7 @@ export default function AddEventModal({
           Object.keys(byOffice).forEach(k => byOffice[k].sort());
           setEmployeesData({ byOffice });
         } else {
-          // Assume it's already in the expected format if not an array (though previous implementation expected array from JSON file)
+          
           setEmployeesData(d);
         }
       })
@@ -222,11 +222,6 @@ export default function AddEventModal({
     }
   }, [isOpen, initialEvent, isEdit, defaultDate, defaultDateType, defaultStartDate, defaultEndDate, officesData]);
   function getEmployeesForOffice(officeName: string) {
-    const known = new Set<string>([
-      ...(availableOffices || []),
-      ...(officesData ? officesData.topLevelOffices.map(o => o.name) : []),
-      ...(officesData ? officesData.services.flatMap(s => s.offices.map(o => o.name)) : [])
-    ]);
     
     // Normalize helper
     const norm = (s: string) => s.trim().toLowerCase();

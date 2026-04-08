@@ -84,7 +84,10 @@ export default function Landing() {
     return normalizeCategory(e.category || "") === normalizeCategory(cat);
   }
   function parseDate(s: string) {
-    if (s.includes("T")) return new Date(s);
+    if (s.includes("T")) {
+      const d = new Date(s);
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    }
     const [y, m, d] = s.split("-").map(Number);
     return new Date(y, m - 1, d);
   }
@@ -97,38 +100,11 @@ export default function Landing() {
       return s;
     }
   }
-  function formatFullDate(s: string) {
-    try {
-      const [y, m, d] = s.split("-").map(Number);
-      const dt = new Date(y, m - 1, d);
-      return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-    } catch {
-      return s;
-    }
-  }
-  function isWorkingDay(d: Date) {
-    const wd = d.getDay();
-    return wd >= 1 && wd <= 5;
-  }
-  function isHoliday(d: Date) {
-    return holidays.some((h) => h.month === d.getMonth() + 1 && h.day === d.getDate());
-  }
-  function isFutureOrToday(d: Date) {
-    const now = new Date();
-    const a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    return b.getTime() >= a.getTime();
-  }
+
   function eventValidOnSpecificDay(e: any, day: Date) {
     return true;
   }
-  function formatTime(t?: string) {
-    if (!t) return "";
-    const [hh, mm] = t.split(":").map(Number);
-    const d = new Date();
-    d.setHours(hh || 0, mm || 0, 0, 0);
-    return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
-  }
+ 
   const selectedDateEventsComputed = useMemo(() => {
     if (!selectedDate) return [];
     const day = parseDate(selectedDate);
@@ -155,11 +131,10 @@ export default function Landing() {
         if (e.dateType === "range" && e.startDate && e.endDate) {
           const start = parseDate(e.startDate);
           const end = parseDate(e.endDate);
-          // include only if there exists at least one working, non-holiday, non-past day in this month
           const cursor = new Date(start);
           const monthIndex = viewMonth - 1;
           while (cursor <= end) {
-            if (cursor.getFullYear() === viewYear && cursor.getMonth() === monthIndex && eventValidOnSpecificDay(e, cursor)) {
+            if (cursor.getFullYear() === viewYear && cursor.getMonth() === monthIndex) {
               return true;
             }
             cursor.setDate(cursor.getDate() + 1);
@@ -167,11 +142,11 @@ export default function Landing() {
           return false;
         } else if (e.date) {
           const d = parseDate(e.date);
-          return d.getFullYear() === viewYear && d.getMonth() + 1 === viewMonth && eventValidOnSpecificDay(e, d);
+          return d.getFullYear() === viewYear && d.getMonth() + 1 === viewMonth;
         }
         return false;
       });
-  }, [events, officeFilter, categoryFilter, viewYear, viewMonth, holidays]);
+  }, [events, officeFilter, categoryFilter, viewYear, viewMonth]);
 
   function abbreviateOffice(name: string) {
     if (!name) return "";

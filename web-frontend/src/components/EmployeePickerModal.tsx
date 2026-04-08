@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import Modal from "./Modal";
 
 export default function EmployeePickerModal({

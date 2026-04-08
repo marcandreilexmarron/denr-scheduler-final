@@ -1,11 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import Calendar from "./Calendar";
-import Modal from "../components/Modal";
 import EventDetailModal from "../components/EventDetailModal";
 import AddEventModal from "../components/AddEventModal";
 import ConfirmModal from "../components/ConfirmModal";
-import { getUserFromToken, getToken } from "../auth";
+import { getUserFromToken } from "../auth";
 import { api } from "../api";
 
 export default function OfficeDashboard() {
@@ -112,7 +111,10 @@ export default function OfficeDashboard() {
     return normalizeCategory(e.category || "") === normalizeCategory(cat);
   }
   function parseDate(s: string) {
-    if (s.includes("T")) return new Date(s);
+    if (s.includes("T")) {
+      const d = new Date(s);
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    }
     const [y, m, d] = s.split("-").map(Number);
     return new Date(y, m - 1, d);
   }
@@ -125,36 +127,6 @@ export default function OfficeDashboard() {
     } catch {
       return s;
     }
-  }
-  function formatFullDate(s: string) {
-    try {
-      if (s.includes("T")) return new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-      const [y, m, d] = s.split("-").map(Number);
-      const dt = new Date(y, m - 1, d);
-      return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-    } catch {
-      return s;
-    }
-  }
-  function formatTime(t?: string) {
-    if (!t) return "";
-    const [hh, mm] = (t || "").split(":").map((n) => Number(n));
-    const d = new Date();
-    d.setHours(hh || 0, mm || 0, 0, 0);
-    return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
-  }
-  function isWorkingDay(d: Date) {
-    const wd = d.getDay();
-    return wd >= 1 && wd <= 5;
-  }
-  function isHoliday(d: Date) {
-    return holidays.some((h) => h.month === d.getMonth() + 1 && h.day === d.getDate());
-  }
-  function isFutureOrToday(d: Date) {
-    const now = new Date();
-    const a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    return b.getTime() >= a.getTime();
   }
   function abbreviateOffice(name: string) {
     if (!name) return "";
@@ -181,11 +153,8 @@ export default function OfficeDashboard() {
       const start = parseDate(e.startDate);
       const end = parseDate(e.endDate);
       const cursor = new Date(start);
-      // Safety check to prevent infinite loops if dates are invalid
-      if (isNaN(cursor.getTime()) || isNaN(end.getTime())) return false;
-      
       while (cursor <= end) {
-        if (cursor.getFullYear() === y && cursor.getMonth() + 1 === m && isWorkingDay(cursor) && !isHoliday(cursor) && isFutureOrToday(cursor)) {
+        if (cursor.getFullYear() === y && cursor.getMonth() + 1 === m) {
           return true;
         }
         cursor.setDate(cursor.getDate() + 1);
@@ -193,8 +162,7 @@ export default function OfficeDashboard() {
       return false;
     } else if (e.date) {
       const d = parseDate(e.date);
-      if (isNaN(d.getTime())) return false;
-      if (d.getFullYear() === y && d.getMonth() + 1 === m && isWorkingDay(d) && !isHoliday(d) && isFutureOrToday(d)) {
+      if (d.getFullYear() === y && d.getMonth() + 1 === m) {
         return true;
       }
       return false;
@@ -245,7 +213,6 @@ export default function OfficeDashboard() {
 
   const canAdd = !!me?.role?.endsWith?.("OFFICE");
   function deleteEvent(id: string) {
-    const eventToDelete = events.find(e => e.id === id);
     setEvents(prev => prev.filter(e => e.id !== id));
     
     api.delete(`/api/events/${id}`)
