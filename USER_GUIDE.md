@@ -69,7 +69,7 @@ The application is fully responsive and optimized for use on smartphones and tab
 
 ---
 
-## 📧 Email Notifications & Reminders (CURRENTLY DISABLED)
+## 📧 Email Notifications & Reminders
 -   **Creation Alert**: An email is sent to the creator when a new event is successfully added.
 -   **3-Day Reminder**: The system automatically sends a reminder email to participants 3 days before an event is scheduled to start.
 

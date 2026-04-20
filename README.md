@@ -20,7 +20,7 @@ The application follows a modern decoupled architecture:
 - **Database Access**: Knex.js (SQL query builder).
 - **Date/Time**: Luxon for robust time zone and ISO handling.
 - **File Uploads**: Multer for handling event attachments.
-- **Email**: NodeMailer-based service for notifications and reminders. (CURRENTLY DISABLED)
+- **Email**: NodeMailer-based service for notifications and reminders.
 
 ### Frontend (web-frontend)
 - **Framework**: React 18
@@ -95,7 +95,7 @@ DATABASE_URL=mysql://user:pass@host:3306/db_name
 ## 🤖 Background Tasks
 The server runs several automated processes:
 - **Auto-Archiver**: Runs every 10 minutes to move past events from the active list to the archive.
-- **Reminder System**: Scans events hourly and sends email reminders 3 days before an activity starts. (CURRENTLY DISABLED)
+- **Reminder System**: Scans events hourly and sends email reminders 3 days before an activity starts.
 
 ---
 **Looking for usage instructions?**  

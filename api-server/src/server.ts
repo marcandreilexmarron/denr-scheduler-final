@@ -429,6 +429,10 @@ app.post("/api/events", authMiddleware, requireAnyRole(["OFFICE"]), async (req, 
     events.push(payload);
     await writeEvents(events);
     console.log("Event created successfully:", id);
+
+    // Send email notification (fire and forget)
+    sendEventCreatedEmail(payload).catch(err => console.error("Event created email error:", err));
+
     res.status(201).json(payload);
   } catch (err) {
     console.error("Failed to create event:", err);
@@ -525,6 +529,11 @@ async function runArchiveScheduler() {
 setInterval(runArchiveScheduler, 10 * 60 * 1000);
 // Also run archive on startup after a short delay
 setTimeout(runArchiveScheduler, 5000);
+
+// Run reminder scheduler every hour
+setInterval(runReminderScheduler, 60 * 60 * 1000);
+// Also run reminder on startup after a short delay
+setTimeout(runReminderScheduler, 10000);
 
 const port = Number(process.env.PORT || 3000);
 app.listen(port, "0.0.0.0", () => {
