@@ -216,6 +216,23 @@ export async function readHolidays(): Promise<Array<{ month: number; day: number
   }
 }
 
+export async function writeHolidays(holidays: Array<{ month: number; day: number; name?: string }>): Promise<void> {
+  const k = getKnex();
+  try {
+    await k.transaction(async (trx) => {
+      await trx("holidays").del();
+      if (holidays.length > 0) {
+        const chunkSize = 100;
+        for (let i = 0; i < holidays.length; i += chunkSize) {
+          await trx("holidays").insert(holidays.slice(i, i + chunkSize));
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Error writing holidays:", err);
+  }
+}
+
 export async function readEmployees(): Promise<any[]> {
   const k = getKnex();
   try {

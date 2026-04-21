@@ -7,6 +7,10 @@ import Calendar from "./pages/Calendar";
 import Offices from "./pages/Offices";
 import AddEventPage from "./pages/AddEventPage";
 import ArchivedEventsPage from "./pages/ArchivedEventsPage";
+import SuperAdminDashboard from "./pages/SuperAdminDashboard";
+import UserManagement from "./pages/UserManagement";
+import EventManagement from "./pages/EventManagement";
+import AdminSettings from "./pages/AdminSettings";
 import ProtectedRoute from "./ProtectedRoute";
 import { clearToken, getToken, getUserFromToken, onAuthChange } from "./auth";
 import LoginModal from "./components/LoginModal";
@@ -195,9 +199,10 @@ function Shell() {
           {[
             { to: "/office-dashboard", label: "Office Dashboard", short: "Dashboard" },
             { to: "/add-event", label: "Add Event", short: "Add" },
-            { to: "/archived", label: "Archived", short: "Archived" }
+            { to: "/archived", label: "Archived", short: "Archived" },
+            ...(String(user.role || "").includes("ADMIN") ? [{ to: "/admin", label: "Admin Panel", short: "Admin" }] : [])
           ].map((t) => {
-            const active = location.pathname === t.to;
+            const active = location.pathname === t.to || (t.to === "/admin" && location.pathname.startsWith("/admin"));
             return (
               <Link
                 key={t.to}
@@ -260,6 +265,38 @@ function Shell() {
             element={
               <ProtectedRoute>
                 <AddEventPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute role="ADMIN">
+                <SuperAdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute role="ADMIN">
+                <UserManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/events"
+            element={
+              <ProtectedRoute role="ADMIN">
+                <EventManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/settings"
+            element={
+              <ProtectedRoute role="ADMIN">
+                <AdminSettings />
               </ProtectedRoute>
             }
           />
