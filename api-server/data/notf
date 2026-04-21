@@ -1,0 +1,10 @@
+notifications.denrcar@gmail.com
+No-Reply_DENR_CAR
+DENR Scheduler: dcry sepk eama gisl
+
+Enable it in the API server here:
+
+- Event-created notification (email when creating an event): uncomment the call in server.ts
+  
+  - Specifically, remove the // from:
+    - sendEventCreatedEmail(payload).catch(...) line 431

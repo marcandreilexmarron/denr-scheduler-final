@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate } from "react-router-dom";
+import { Moon, Sun } from "lucide-react";
 import Landing from "./pages/Landing";
-import Login from "./pages/Login";
-import Admin from "./pages/Admin";
 import OfficeDashboard from "./pages/OfficeDashboard";
 import Calendar from "./pages/Calendar";
 import Offices from "./pages/Offices";
@@ -10,14 +9,76 @@ import AddEventPage from "./pages/AddEventPage";
 import ArchivedEventsPage from "./pages/ArchivedEventsPage";
 import ProtectedRoute from "./ProtectedRoute";
 import { clearToken, getToken, getUserFromToken, onAuthChange } from "./auth";
-import Modal from "./components/Modal";
+import LoginModal from "./components/LoginModal";
+import { api } from "./api";
+
+function NotFoundRedirect() {
+  const navigate = useNavigate();
+  const user = getUserFromToken();
+
+  useEffect(() => {
+    if (user) {
+      navigate("/office-dashboard");
+    } else {
+      navigate("/");
+    }
+  }, [user, navigate]);
+
+  return null;
+}
 
 function Shell() {
   const [user, setUser] = useState<any | null>(getUserFromToken());
+  const [isPortrait, setIsPortrait] = useState(false);
   const loc = useLocation();
   const navigate = useNavigate();
   const [showLogin, setShowLogin] = useState(false);
   const [now, setNow] = useState<Date>(new Date());
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    return (localStorage.getItem("theme") as "light" | "dark") || "light";
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  function abbreviateOffice(name: string) {
+    if (!name) return "";
+    const n = name.trim();
+    const map: Record<string, string> = {
+      "Office of the Regional Director": "ORD",
+      "Office of the Assistant Regional Director for Management Services": "ARD-MS",
+      "Office of the Assistant Regional Director for Technical Services": "ARD-TS",
+      "Surveys and Mapping Division": "SMD",
+      "Licenses, Patents and Deeds Division": "LPDD",
+      "Conservation and Development Division": "CDD",
+      "Enforcement Division": "ED",
+      "Planning and Management Division": "PMD",
+      "Legal Division": "Legal",
+      "Administrative Division": "Admin",
+      "Finance Division": "Finance"
+    };
+    if (map[n]) return map[n];
+    // Case-insensitive fallback
+    const entry = Object.entries(map).find(([k]) => k.toLowerCase() === n.toLowerCase());
+    return entry ? entry[1] : n;
+  }
+
+  useEffect(() => {
+    function update() {
+      try {
+        const m = window.matchMedia && window.matchMedia("(orientation: portrait)");
+        const isSmall = window.innerWidth < 768;
+        setIsPortrait(isSmall || (m ? m.matches : window.innerHeight >= window.innerWidth));
+      } catch {
+        setIsPortrait(true);
+      }
+    }
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
   useEffect(() => {
     const unsub = onAuthChange(() => {
       const t = getToken();
@@ -25,93 +86,116 @@ function Shell() {
         setUser(null);
         return;
       }
-      fetch("/api/me", { headers: { Authorization: `Bearer ${t}` } })
-        .then((r) => r.ok ? r.json() : null)
-        .then((d) => setUser(d ?? getUserFromToken()));
+      api.get("/api/me").then((d) => setUser(d ?? getUserFromToken()));
     });
     const t = getToken();
     if (t) {
-      fetch("/api/me", { headers: { Authorization: `Bearer ${t}` } })
-        .then((r) => r.ok ? r.json() : null)
-        .then((d) => setUser(d ?? getUserFromToken()));
+      api.get("/api/me").then((d) => setUser(d ?? getUserFromToken()));
     }
     return () => { unsub(); };
   }, []);
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(id);
+    
+    // Heartbeat check for token validity every 5 minutes
+    const authId = window.setInterval(() => {
+      const t = getToken();
+      if (t) {
+        api.get("/api/me").catch(() => {
+          // api helper handles 401 redirect
+        });
+      }
+    }, 5 * 60 * 1000);
+
+    return () => {
+      window.clearInterval(id);
+      window.clearInterval(authId);
+    };
   }, []);
   useEffect(() => {
     const t = getToken();
     if (t && !user) {
-      fetch("/api/me", { headers: { Authorization: `Bearer ${t}` } })
-        .then((r) => r.ok ? r.json() : null)
-        .then((d) => setUser(d ?? getUserFromToken()));
+      api.get("/api/me").then((d) => setUser(d ?? getUserFromToken()));
     }
   }, [loc.pathname]);
   return (
-    <>
-      <nav style={{ display: "flex", gap: 16, padding: 12, borderBottom: "1px solid var(--border)", alignItems: "center", background: "var(--card)" }}>
-        <Link to="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "inherit" }}>
-          <img src="/logo.png" alt="DENR" style={{ width: 36, height: 36, objectFit: "contain" }} />
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <nav style={{ display: "flex", gap: isPortrait ? 8 : 16, padding: isPortrait ? "8px 12px" : 12, borderBottom: "1px solid var(--border)", alignItems: "center", background: "var(--nav-bg)", color: "white", flexWrap: "wrap" }}>
+        <Link to="/" style={{ display: "flex", alignItems: "center", gap: isPortrait ? 8 : 12, textDecoration: "none", color: "inherit" }}>
+          <img src="/logo.png" alt="DENR" style={{ width: isPortrait ? 28 : 36, height: isPortrait ? 28 : 36, objectFit: "contain" }} />
           <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-            <span style={{ fontWeight: 700, fontSize: 18, lineHeight: 1 }}>DENR Planner</span>
-            <span style={{ fontSize: 12, color: "#6b7280", marginTop: 2, lineHeight: 1.1 }}>Department of Environment and Natural Resources - CAR</span>
+            <span style={{ fontWeight: 700, fontSize: isPortrait ? 16 : 18, lineHeight: 1 }}>{isPortrait ? "DENR" : "DENR Planner"}</span>
+            <span style={{ fontSize: isPortrait ? 10 : 12, color: "rgba(255,255,255,0.8)", marginTop: 2, lineHeight: 1.1 }}>{isPortrait ? "DENR-CAR" : "Department of Environment and Natural Resources - CAR"}</span>
           </span>
         </Link>
-        <div style={{ display: "flex", gap: 12, marginLeft: 16 }}>
-          {user && (
-            <>
-              {user?.role?.endsWith("ADMIN") && <Link to="/admin">Admin</Link>}
-            </>
-          )}
-        </div>
         <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
           <span
             aria-label="Current date and time"
             title="Current date and time"
             style={{
-              fontSize: 14,
-              color: "#334155",
-              padding: "6px 10px",
-              border: "1px solid #e2e8f0",
+              fontSize: isPortrait ? 11 : 14,
+              color: "white",
+              padding: isPortrait ? "4px 6px" : "6px 10px",
+              border: "1px solid rgba(255,255,255,0.2)",
               borderRadius: 8,
-              background: "#f8fafc",
-              fontVariantNumeric: "tabular-nums"
+              background: "rgba(255,255,255,0.1)",
+              fontVariantNumeric: "tabular-nums",
+              whiteSpace: "nowrap"
             }}
           >
-            {now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })} • {now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })}
+            {isPortrait 
+              ? `${now.toLocaleDateString(undefined, { month: "short", day: "numeric" })} • ${now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true })}`
+              : `${now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })} • ${now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })}`
+            }
           </span>
+          <button
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+            aria-label="Toggle theme"
+            title="Toggle theme"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              background: "rgba(255,255,255,0.1)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              color: "white",
+              padding: 0
+            }}
+          >
+            {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
+          </button>
         </span>
-        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 0 }}>
           {user ? (
             <>
               <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", lineHeight: 1.2 }}>
-                <span>{user.officeName ? user.officeName : user.sub}</span>
-                <span style={{ fontSize: 12, color: "#6b7280" }}>{user.service || "Top-level Offices"}</span>
+                <span style={{ fontSize: isPortrait ? 12 : 14, fontWeight: 600 }}>{user.officeName ? (isPortrait ? abbreviateOffice(user.officeName) : user.officeName) : user.sub}</span>
+                {!isPortrait && <span style={{ fontSize: 12, color: "rgba(255,255,255,0.8)" }}>{user.service || "Top-level Offices"}</span>}
               </span>
-              <button onClick={() => { clearToken(); window.location.assign("/"); }}>Logout</button>
+              <button style={{ padding: isPortrait ? "4px 8px" : "8px 16px", fontSize: isPortrait ? 12 : 14, background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", color: "white" }} onClick={() => { clearToken(); window.location.assign("/"); }}>Logout</button>
             </>
           ) : (
-            <button onClick={() => setShowLogin(true)}>Login</button>
+            <button style={{ padding: isPortrait ? "4px 8px" : "8px 16px", fontSize: isPortrait ? 12 : 14, background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", color: "white" }} onClick={() => setShowLogin(true)}>Login</button>
           )}
         </span>
       </nav>
-      <Modal open={showLogin} onClose={() => setShowLogin(false)}>
-        <Login
-          onSuccess={(u) => {
-            setShowLogin(false);
-            if (String(u?.role || "").endsWith("ADMIN")) navigate("/admin");
-            else navigate("/office-dashboard");
-          }}
-        />
-      </Modal>
+      <LoginModal
+        open={showLogin}
+        onClose={() => setShowLogin(false)}
+        onSuccess={(u) => {
+          setUser(u);
+          navigate("/office-dashboard");
+        }}
+      />
       {user && (
-        <div style={{ display: "flex", gap: 8, padding: "8px 12px", borderBottom: "1px solid var(--border)", background: "var(--card)" }}>
+        <div style={{ display: "flex", gap: isPortrait ? 4 : 8, padding: isPortrait ? "4px 8px" : "8px 12px", borderBottom: "1px solid var(--border)", background: "var(--card)", overflowX: "auto" }}>
           {[
-            { to: "/office-dashboard", label: "Office Dashboard" },
-            { to: "/add-event", label: "Add Event" },
-            { to: "/archived", label: "Archived" }
+            { to: "/office-dashboard", label: "Office Dashboard", short: "Dashboard" },
+            { to: "/add-event", label: "Add Event", short: "Add" },
+            { to: "/archived", label: "Archived", short: "Archived" }
           ].map((t) => {
             const active = location.pathname === t.to;
             return (
@@ -119,77 +203,70 @@ function Shell() {
                 key={t.to}
                 to={t.to}
                 style={{
-                  padding: "8px 12px",
+                  padding: isPortrait ? "6px 8px" : "8px 12px",
                   borderRadius: 8,
-                  border: active ? "2px solid #2563eb" : "1px solid var(--border)",
-                  background: active ? "#dbeafe" : "transparent",
+                  border: active ? "2px solid var(--primary)" : "1px solid var(--border)",
+                  background: active ? "rgba(10, 75, 57, 0.15)" : "transparent",
                   fontWeight: 600,
-                  color: "inherit"
+                  color: "inherit",
+                  fontSize: isPortrait ? 12 : 14,
+                  whiteSpace: "nowrap"
                 }}
               >
-                {t.label}
+                {isPortrait ? t.short : t.label}
               </Link>
             );
           })}
         </div>
       )}
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route
-          path="/calendar"
-          element={
-            <ProtectedRoute>
-              <Calendar />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/offices"
-          element={
-            <ProtectedRoute>
-              <Offices />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute role="ADMIN">
-              <Admin />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/office-dashboard"
-          element={
-            <ProtectedRoute>
-              <OfficeDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/archived"
-          element={
-            <ProtectedRoute>
-              <ArchivedEventsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/add-event"
-          element={
-            <ProtectedRoute>
-              <AddEventPage />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
-      <footer style={{ marginTop: 16, padding: 12, textAlign: "center", color: "var(--muted)", background: "var(--card)", borderTop: "1px solid var(--border)" }}>
-        <div>© 2026 DENR Planner- Department of Environment and Natural Resources - CAR</div>
-        <div>Committed to Sustainable Environmental Management</div>
-      </footer>
-    </>
+      <div style={{ flex: 1 }}>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+
+          <Route
+            path="/calendar"
+            element={
+              <ProtectedRoute>
+                <Calendar/>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/offices"
+            element={
+              <ProtectedRoute>
+                <Offices />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/office-dashboard"
+            element={
+              <ProtectedRoute>
+                <OfficeDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/archived"
+            element={
+              <ProtectedRoute>
+                <ArchivedEventsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/add-event"
+            element={
+              <ProtectedRoute>
+                <AddEventPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<NotFoundRedirect />} />
+        </Routes>
+      </div>
+    </div>
   );
 }
 

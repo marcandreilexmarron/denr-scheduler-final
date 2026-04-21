@@ -4,7 +4,7 @@ import { Request, Response, NextFunction } from "express";
 const secret = process.env.JWT_SECRET || "dev-insecure-secret";
 
 export function signToken(payload: object) {
-  return jwt.sign(payload, secret, { expiresIn: "1h" });
+  return jwt.sign(payload, secret, { expiresIn: "24h" });
 }
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {

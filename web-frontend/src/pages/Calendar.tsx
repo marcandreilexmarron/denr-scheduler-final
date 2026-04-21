@@ -1,10 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getToken, getUserFromToken } from "../auth";
 import Modal from "../components/Modal";
 import AddEventModal from "../components/AddEventModal";
+import ConfirmModal from "../components/ConfirmModal";
+import { api } from "../api";
 
 type CalendarDay = { day: number | string; isToday: boolean; holiday: { day: number; month: number; name: string } | null };
 type CalendarData = {
+  year: number;
+  month: number;
   yearMonth: string;
   previousMonth: number;
   previousYear: number;
@@ -17,13 +22,13 @@ type CalendarData = {
 
 const CATEGORY_OPTIONS = ["workshop", "meeting", "training", "conference", "travel", "activity", "others - specified"];
 const CATEGORY_COLORS: Record<string, { bg: string; fg: string; border: string }> = {
-  workshop: { bg: "#eef7ff", fg: "#0b5ed7", border: "#b6d4fe" },
-  meeting: { bg: "#e8f5e9", fg: "#1b5e20", border: "#c8e6c9" },
-  training: { bg: "#fff8e1", fg: "#8d6e63", border: "#ffecb3" },
-  conference: { bg: "#f3e5f5", fg: "#4a148c", border: "#e1bee7" },
-  travel: { bg: "#e0f7fa", fg: "#006064", border: "#b2ebf2" },
-  activity: { bg: "#fce4ec", fg: "#880e4f", border: "#f8bbd0" },
-  "others - specified": { bg: "#f5f5f5", fg: "#424242", border: "#e0e0e0" }
+  workshop: { bg: "var(--cat-workshop-bg)", fg: "var(--cat-workshop-fg)", border: "var(--cat-workshop-bd)" },
+  meeting: { bg: "var(--cat-meeting-bg)", fg: "var(--cat-meeting-fg)", border: "var(--cat-meeting-bd)" },
+  training: { bg: "var(--cat-training-bg)", fg: "var(--cat-training-fg)", border: "var(--cat-training-bd)" },
+  conference: { bg: "var(--cat-conference-bg)", fg: "var(--cat-conference-fg)", border: "var(--cat-conference-bd)" },
+  travel: { bg: "var(--cat-travel-bg)", fg: "var(--cat-travel-fg)", border: "var(--cat-travel-bd)" },
+  activity: { bg: "var(--cat-activity-bg)", fg: "var(--cat-activity-fg)", border: "var(--cat-activity-bd)" },
+  "others - specified": { bg: "var(--cat-others-bg)", fg: "var(--cat-others-fg)", border: "var(--cat-others-bd)" }
 };
 
 export default function Calendar(props?: {
@@ -45,7 +50,17 @@ export default function Calendar(props?: {
   canEditEvent?: (e: any, user?: any) => boolean;
   headerBelow?: React.ReactNode;
   showTitle?: boolean;
+  refreshCounter?: number;
 }) {
+  const navigate = useNavigate();
+  function normalizeCategory(s: string) {
+    return String(s || "").trim().toLowerCase();
+  }
+  function categoryStyle(cat?: string) {
+    const key = normalizeCategory(cat || "");
+    const c = CATEGORY_COLORS[key] || { bg: "var(--cat-others-bg)", fg: "var(--cat-others-fg)", border: "var(--cat-others-bd)" };
+    return { backgroundColor: c.bg, color: c.fg, borderColor: c.border };
+  }
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
@@ -54,6 +69,7 @@ export default function Calendar(props?: {
   const [eventsOffice, setEventsOffice] = useState<any[]>([]);
   const [selected, setSelected] = useState<{ date: string; events: any[] } | null>(null);
   const [editing, setEditing] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState<any | null>(null);
   const [availableOffices, setAvailableOffices] = useState<string[]>([]);
   const [officesData, setOfficesData] = useState<{ topLevelOffices: Array<{ name: string }>; services: Array<{ name: string; offices: Array<{ name: string }> }> } | null>(null);
   const [compact, setCompact] = useState<boolean>(() => {
@@ -64,7 +80,7 @@ export default function Calendar(props?: {
     }
   });
   const user = getUserFromToken();
-  const canEdit = !!(user?.role?.endsWith?.("ADMIN") || user?.role?.endsWith?.("OFFICE"));
+  const canEdit = !!user?.role?.endsWith?.("OFFICE");
   const allowCreate = props?.allowCreate !== undefined ? !!props.allowCreate : canEdit;
   function canEditEvent(e: any) {
     if (typeof props?.canEditEvent === "function") return !!props!.canEditEvent!(e, user);
@@ -85,8 +101,7 @@ export default function Calendar(props?: {
   const showCategorySelector = props?.showCategorySelector !== undefined ? !!props.showCategorySelector : true;
 
   useEffect(() => {
-    fetch(`/api/calendar?month=${month}&year=${year}`)
-      .then((r) => r.json())
+    api.get(`/api/calendar?month=${month}&year=${year}`)
       .then((d) => setData(d));
     if (props?.onViewChange) props.onViewChange(year, month);
   }, [month, year]);
@@ -104,15 +119,12 @@ export default function Calendar(props?: {
     return () => window.removeEventListener("resize", onResize);
   }, []);
   useEffect(() => {
-    fetch("/api/events").then((r) => r.json()).then((d) => setEventsAll(d));
+    api.get("/api/events").then((d) => setEventsAll(d));
     const t = getToken();
     if (t) {
-      fetch("/api/office/events", { headers: { Authorization: `Bearer ${t}` } })
-        .then((r) => r.json())
-        .then((d) => setEventsOffice(d));
+      api.get("/api/office/events").then((d) => setEventsOffice(d));
     }
-    fetch("/api/offices-data")
-      .then((r) => r.json())
+    api.get("/api/offices-data")
       .then((d) => {
         setOfficesData(d);
         const names = [
@@ -125,12 +137,10 @@ export default function Calendar(props?: {
 
   useEffect(() => {
     function refresh() {
-      fetch("/api/events").then((r) => r.json()).then((d) => setEventsAll(d));
+      api.get("/api/events").then((d) => setEventsAll(d));
       const t = getToken();
       if (t) {
-        fetch("/api/office/events", { headers: { Authorization: `Bearer ${t}` } })
-          .then((r) => r.json())
-          .then((d) => setEventsOffice(d));
+        api.get("/api/office/events").then((d) => setEventsOffice(d));
       }
     }
     const onFocus = () => refresh();
@@ -144,7 +154,28 @@ export default function Calendar(props?: {
 
   const monthKey = `${year}-${String(month).padStart(2, "0")}`;
 
+  function abbreviateOffice(name: string) {
+    if (!name) return "";
+    const n = name.trim();
+    const map: Record<string, string> = {
+      "Office of the Regional Director": "ORD",
+      "Office of the Assistant Regional Director for Management Services": "ARD-MS",
+      "Office of the Assistant Regional Director for Technical Services": "ARD-TS",
+      "Surveys and Mapping Division": "SMD",
+      "Licenses, Patents and Deeds Division": "LPDD",
+      "Conservation and Development Division": "CDD",
+      "Enforcement Division": "ED",
+      "Planning and Management Division": "PMD",
+      "Legal Division": "Legal",
+      "Administrative Division": "Admin",
+      "Finance Division": "Finance"
+    };
+    if (map[n]) return map[n];
+    const entry = Object.entries(map).find(([k]) => k.toLowerCase() === n.toLowerCase());
+    return entry ? entry[1] : n;
+  }
   function parseDate(s: string) {
+    if (s.includes("T")) return new Date(s);
     const [y, m, d] = s.split("-").map(Number);
     return new Date(y, m - 1, d);
   }
@@ -157,17 +188,12 @@ export default function Calendar(props?: {
   }
   function eventMatchesOffice(e: any, officeName: string) {
     if (!officeName) return true;
-    if (e.office && e.office === officeName) return true;
-    if (Array.isArray(e.participants) && e.participants.includes(officeName)) return true;
+    const target = officeName.toLowerCase().trim();
+    if (e.office && e.office.toLowerCase().trim() === target) return true;
+    if (Array.isArray(e.participants)) {
+      return e.participants.some((p: any) => String(p).toLowerCase().includes(target));
+    }
     return false;
-  }
-  function normalizeCategory(s: string) {
-    return String(s || "").trim().toLowerCase();
-  }
-  function categoryStyle(cat?: string) {
-    const key = normalizeCategory(cat || "");
-    const c = CATEGORY_COLORS[key] || { bg: "#eeeeee", fg: "#333333", border: "#dddddd" };
-    return { background: c.bg, color: c.fg, borderColor: c.border };
   }
   function eventMatchesCategory(e: any, cat: string) {
     if (!cat) return true;
@@ -190,131 +216,67 @@ export default function Calendar(props?: {
     return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
   }
 
-  const eventsIndex = useMemo(() => {
-    const map = new Map<string, any[]>();
-    const src = eventsAll.filter((e) => eventMatchesOffice(e, officeFilter) && eventMatchesCategory(e, categoryFilter));
-    const holidayDays = new Set<number>((data?.calendarDays || []).filter((d) => d.holiday).map((d: any) => d.day).filter((n: any) => typeof n === "number"));
-    function isWorkingDay(d: Date) {
-      const wd = d.getDay();
-      return wd >= 1 && wd <= 5;
-    }
-    function isHoliday(d: Date) {
-      if (!data) return false;
-      if (d.getFullYear() !== year || d.getMonth() + 1 !== month) return false;
-      return holidayDays.has(d.getDate());
-    }
-    function isFutureOrToday(d: Date) {
-      const now = new Date();
-      const a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      return b.getTime() >= a.getTime();
-    }
-    for (const e of src) {
-      if (e.dateType === "range" && e.startDate && e.endDate) {
-        const start = parseDate(e.startDate);
-        const end = parseDate(e.endDate);
-        const cursor = new Date(start);
-        while (cursor <= end) {
-          if (isWorkingDay(cursor) && !isHoliday(cursor) && isFutureOrToday(cursor)) {
-            const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
-            if (!map.has(key)) map.set(key, []);
-            map.get(key)!.push(e);
-          }
-          cursor.setDate(cursor.getDate() + 1);
-        }
-      } else if (e.date) {
-        const d = parseDate(e.date);
-        if (isWorkingDay(d) && !isHoliday(d) && isFutureOrToday(d)) {
-          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-          if (!map.has(key)) map.set(key, []);
-          map.get(key)!.push(e);
-        }
-      }
-    }
-    return map;
-  }, [eventsAll, officeFilter, categoryFilter, data, month, year]);
-
-  const officeEventsIndex = useMemo(() => {
-    const map = new Map<string, any[]>();
-    const src = eventsOffice.filter((e) => eventMatchesOffice(e, officeFilter) && eventMatchesCategory(e, categoryFilter));
-    const holidayDays = new Set<number>((data?.calendarDays || []).filter((d) => d.holiday).map((d: any) => d.day).filter((n: any) => typeof n === "number"));
-    function isWorkingDay(d: Date) {
-      const wd = d.getDay();
-      return wd >= 1 && wd <= 5;
-    }
-    function isHoliday(d: Date) {
-      if (!data) return false;
-      if (d.getFullYear() !== year || d.getMonth() + 1 !== month) return false;
-      return holidayDays.has(d.getDate());
-    }
-    function isFutureOrToday(d: Date) {
-      const now = new Date();
-      const a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      return b.getTime() >= a.getTime();
-    }
-    for (const e of src) {
-      if (e.dateType === "range" && e.startDate && e.endDate) {
-        const start = parseDate(e.startDate);
-        const end = parseDate(e.endDate);
-        const cursor = new Date(start);
-        while (cursor <= end) {
-          if (isWorkingDay(cursor) && !isHoliday(cursor) && isFutureOrToday(cursor)) {
-            const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
-            if (!map.has(key)) map.set(key, []);
-            map.get(key)!.push(e);
-          }
-          cursor.setDate(cursor.getDate() + 1);
-        }
-      } else if (e.date) {
-        const d = parseDate(e.date);
-        if (isWorkingDay(d) && !isHoliday(d) && isFutureOrToday(d)) {
-          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-          if (!map.has(key)) map.set(key, []);
-          map.get(key)!.push(e);
-        }
-      }
-    }
-    return map;
-  }, [eventsOffice, officeFilter, categoryFilter, data, month, year]);
-
   const [scope, setScope] = useState<"all" | "office">("all");
-  const idx = scope === "all" ? eventsIndex : officeEventsIndex;
   const listSource = scope === "all" ? eventsAll : eventsOffice;
 
+  const idx = useMemo(() => {
+    const map = new Map<string, any[]>();
+    const src = listSource.filter((e) => eventMatchesOffice(e, officeFilter) && eventMatchesCategory(e, categoryFilter));
+    
+    for (const e of src) {
+      if (e.dateType === "range" && e.startDate && e.endDate) {
+        const start = parseDate(e.startDate);
+        const end = parseDate(e.endDate);
+        const cursor = new Date(start);
+        while (cursor <= end) {
+          const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
+          if (!map.has(key)) map.set(key, []);
+          map.get(key)!.push(e);
+          cursor.setDate(cursor.getDate() + 1);
+        }
+      } else if (e.date) {
+        const d = parseDate(e.date);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(e);
+      }
+    }
+    return map;
+  }, [listSource, officeFilter, categoryFilter]);
+
+  useEffect(() => {
+    reloadEvents();
+  }, [props?.refreshCounter]);
+
   function reloadEvents() {
-    fetch("/api/events").then((r) => r.json()).then((d) => setEventsAll(d));
+    api.get("/api/events").then((d) => setEventsAll(d));
     const t = getToken();
     if (t) {
-      fetch("/api/office/events", { headers: { Authorization: `Bearer ${t}` } })
-        .then((r) => r.json())
-        .then((d) => setEventsOffice(d));
+      api.get("/api/office/events").then((d) => setEventsOffice(d));
     }
   }
   function deleteEvent(id: string) {
-    const t = getToken();
-    if (!t) return;
-    fetch(`/api/events/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${t}` } })
-      .then((r) => {
-        if (r.status === 204) {
-          reloadEvents();
-          if (selected) {
-            const list = (idx.get(selected.date) ?? []).filter((e) => e.id !== id);
-            setSelected({ date: selected.date, events: list });
-          }
+    setEventsAll(prev => prev.filter(e => e.id !== id));
+    setEventsOffice(prev => prev.filter(e => e.id !== id));
+    
+    api.delete(`/api/events/${id}`)
+      .then(() => {
+        reloadEvents();
+        if (selected) {
+          const list = (idx.get(selected.date) ?? []).filter((e) => e.id !== id);
+          setSelected({ date: selected.date, events: list });
         }
+      })
+      .catch((err) => {
+        reloadEvents();
+        console.error("Delete failed:", err);
+        alert("Delete failed");
       });
   }
   function saveEdit(e: React.FormEvent) {
     e.preventDefault();
-    const t = getToken();
-    if (!t || !editing) return;
-    fetch(`/api/events/${editing.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
-      body: JSON.stringify(editing)
-    })
-      .then((r) => r.json())
+    if (!editing) return;
+    api.put(`/api/events/${editing.id}`, editing)
       .then(() => {
         setEditing(null);
         reloadEvents();
@@ -419,7 +381,7 @@ export default function Calendar(props?: {
             </>
           )}
           {showOfficeSelector && (
-            <select value={officeFilter} onChange={(e) => setOfficeFilter(e.target.value)}>
+            <select value={officeFilter} onChange={(e) => setOfficeFilter(e.target.value)} style={{ background: "var(--card)", color: "var(--text)" }}>
               <option value="">All Offices</option>
               {availableOffices.map((o) => (
                 <option key={o} value={o}>{o}</option>
@@ -427,7 +389,7 @@ export default function Calendar(props?: {
             </select>
           )}
           {!categoriesAsChips && showCategorySelector && (
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ background: "var(--card)", color: "var(--text)" }}>
               <option value="">All Categories</option>
               {categories.map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -453,9 +415,9 @@ export default function Calendar(props?: {
               onClick={() => setCategoryFilter("")}
               className="chip"
               style={{
-                background: categoryFilter ? "transparent" : "#e2e8f0",
-                color: categoryFilter ? "inherit" : "#0f172a",
-                border: `1px solid ${categoryFilter ? "var(--border)" : "#cbd5e1"}`,
+                background: categoryFilter ? "transparent" : "var(--primary)",
+                color: categoryFilter ? "inherit" : "white",
+                border: `1px solid ${categoryFilter ? "var(--border)" : "var(--primary)"}`,
                 flex: "1 1 0",
                 minWidth: 80,
                 borderRadius: 999,
@@ -475,7 +437,7 @@ export default function Calendar(props?: {
                   onClick={() => setCategoryFilter(c)}
                   className="chip"
                   style={{
-                    background: styles.background,
+                    background: styles.backgroundColor,
                     color: styles.color,
                     border: `1px solid ${styles.borderColor}`,
                     flex: "1 1 0",
@@ -515,47 +477,54 @@ export default function Calendar(props?: {
           gridTemplateColumns: "repeat(7, 1fr)",
           gap: 6,
           marginTop: 6,
-          padding: "0 24px 24px 24px"
+          padding: "0 24px 24px 24px",
+          userSelect: "none"
         }}
       >
         {data?.calendarDays.map((d, i) => {
-          const key = typeof d.day === "number" ? `${year}-${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}` : "";
+          const dy = data.year;
+          const dm = data.month;
+          const key = typeof d.day === "number" ? `${dy}-${String(dm).padStart(2, "0")}-${String(d.day).padStart(2, "0")}` : "";
           const isSelected =
             typeof d.day === "number" &&
             ((props?.selectedDate && key === props.selectedDate) || (!props?.selectedDate && selected?.date === key));
-          const baseBg = d.holiday ? "#f8d7da" : "white";
+          const baseBg = d.holiday ? "var(--error-bg)" : "var(--card)";
           const isNumber = typeof d.day === "number";
           let isPast = false;
           if (isNumber) {
             const t = new Date();
             const todayStart = new Date(t.getFullYear(), t.getMonth(), t.getDate());
-            const cellDate = new Date(year, month - 1, d.day as number);
+            const cellDate = new Date(dy, dm - 1, d.day as number);
             isPast = cellDate.getTime() < todayStart.getTime();
           }
           return (
             <div
               key={i}
               aria-selected={isSelected ? true : undefined}
+              onMouseDown={(ev) => {
+                // Prevent browser text selection when shift-clicking for range
+                if (ev.shiftKey) ev.preventDefault();
+              }}
               style={{
-                border: isSelected ? `2px solid var(--primary)` : (d.isToday ? "2px solid #93c5fd" : "1px solid #ddd"),
+                border: isSelected ? `2px solid var(--primary)` : (d.isToday ? "2px solid var(--blue-border)" : "1px solid var(--border)"),
                 height: compact ? 84 : 110,
                 padding: compact ? 4 : 6,
                 display: "flex",
                 flexDirection: "column",
                 overflow: "hidden",
-                background: isSelected ? "#eff6ff" : baseBg,
+                backgroundColor: isSelected ? "var(--blue-bg)" : baseBg,
                 opacity: isNumber && isPast ? 0.5 : 1,
                 cursor: isNumber ? (isPast && props?.blockPastDateClicks ? "default" : "pointer") : "default",
-                transition: "border-color 120ms ease, background 120ms ease"
+                transition: "border-color 120ms ease, background-color 120ms ease"
               }}
               onClick={(ev) => {
                 if (typeof d.day !== "number") return;
                 const t = new Date();
                 const todayStart = new Date(t.getFullYear(), t.getMonth(), t.getDate());
-                const cellDate = new Date(year, month - 1, d.day as number);
+                const cellDate = new Date(dy, dm - 1, d.day as number);
                 const isPastClick = cellDate.getTime() < todayStart.getTime();
                 if (props?.blockPastDateClicks && isPastClick) return;
-                const dayKey = `${year}-${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
+                const dayKey = `${dy}-${String(dm).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
                 const list = idx.get(dayKey) ?? [];
                 if (props?.onDateSelect) props.onDateSelect(dayKey, list, { shiftKey: !!(ev as any).shiftKey });
                 if (!props?.disableDateModal) {
@@ -579,8 +548,8 @@ export default function Calendar(props?: {
                       minWidth: 22,
                       height: 22,
                       padding: "0 6px",
-                      background: "#2563eb",
-                      color: "#ffffff",
+                      background: "var(--primary)",
+                      color: "var(--primary-contrast)",
                       borderRadius: 999,
                       fontSize: 12,
                       lineHeight: "22px"
@@ -595,7 +564,7 @@ export default function Calendar(props?: {
               {d.holiday && <div style={{ fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.holiday.name}</div>}
               {typeof d.day === "number" && (
                 <div style={{ marginTop: 6, overflow: "hidden" }}>
-                  {(idx.get(`${year}-${String(month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`) ?? [])
+                  {(idx.get(`${dy}-${String(dm).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`) ?? [])
                     .slice(0, 2)
                     .map((e, j) => {
                       const s = categoryStyle(e.category);
@@ -611,7 +580,7 @@ export default function Calendar(props?: {
                             alignItems: "center",
                             gap: 6,
                             lineHeight: compact ? "14px" : "16px",
-                            background: s.background,
+                            backgroundColor: s.backgroundColor,
                             color: s.color,
                             border: `1px solid ${s.borderColor}`,
                             borderRadius: 4,
@@ -646,21 +615,26 @@ export default function Calendar(props?: {
               availableOffices={availableOffices}
               officesData={officesData ?? undefined}
               onSubmit={(payload) => {
-                const t = getToken();
-                if (!t) return;
-                fetch("/api/events", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
-                  body: JSON.stringify(payload)
-                })
-                  .then((r) => r.json())
+                api.post("/api/events", payload)
                   .then(() => {
                     setAddOpen(false);
-                    reloadEvents();
-                    const list = idx.get(selected.date) ?? [];
-                    setSelected({ date: selected.date, events: list });
+                    navigate("/office-dashboard", { state: { successMessage: `Event "${payload.title}" created successfully!` } });
+                  })
+                  .catch((err) => {
+                    console.error("Failed to create event:", err);
+                    alert("Failed to create event");
                   });
               }}
+            />
+            <ConfirmModal
+              open={!!deleting}
+              onClose={() => setDeleting(null)}
+              onConfirm={() => {
+                if (deleting) deleteEvent(deleting.id);
+                setDeleting(null);
+              }}
+              title="Confirm Delete"
+              message={`Are you sure you want to delete "${deleting?.title}"? This action cannot be undone.`}
             />
             {selected.events.length === 0 ? (
               <div>No events</div>
@@ -673,7 +647,7 @@ export default function Calendar(props?: {
                       key={i}
                       className="list-item"
                       style={{
-                        background: categoryStyle(e.category).background,
+                        backgroundColor: categoryStyle(e.category).backgroundColor,
                         color: categoryStyle(e.category).color,
                         borderLeft: `4px solid ${categoryStyle(e.category).borderColor}`
                       }}
@@ -681,7 +655,7 @@ export default function Calendar(props?: {
                       {!isEditing ? (
                         <>
                           {e.startTime}-{e.endTime} {e.title} {e.location ? `@ ${e.location}` : ""}
-                          {e.office && <span className="badge">{e.office}</span>}
+                          {e.office && <span className="badge">{compact ? abbreviateOffice(e.office) : e.office}</span>}
                           {e.category && <span className="badge" style={categoryStyle(e.category)}>{e.category}</span>}
                           {e.category === "others - specified" && e.categoryDetail && <span className="badge">{e.categoryDetail}</span>}
                           {Array.isArray(e.participants) && e.participants.length > 0 && (
@@ -691,17 +665,17 @@ export default function Calendar(props?: {
                             <>
                               {" "}
                               <button onClick={() => setEditing({ ...e })}>Edit</button>{" "}
-                              <button onClick={() => deleteEvent(e.id)}>Delete</button>
+                              <button onClick={() => setDeleting(e)}>Delete</button>
                             </>
                           )}
                         </>
                       ) : (
                         <form onSubmit={saveEdit} style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6, alignItems: "center", width: "100%" }}>
-                          <input value={editing.title} onChange={(ev) => setEditing({ ...editing, title: ev.target.value })} />
-                          <input type="time" value={editing.startTime} onChange={(ev) => setEditing({ ...editing, startTime: ev.target.value })} />
-                          <input type="time" value={editing.endTime} onChange={(ev) => setEditing({ ...editing, endTime: ev.target.value })} />
-                          <input placeholder="Location" value={editing.location || ""} onChange={(ev) => setEditing({ ...editing, location: ev.target.value })} />
-                          <select value={editing.category || ""} onChange={(ev) => setEditing({ ...editing, category: ev.target.value })}>
+                          <input value={editing.title} onChange={(ev) => setEditing({ ...editing, title: ev.target.value })} style={{ backgroundColor: "var(--card)", color: "var(--text)" }} />
+                          <input type="time" value={editing.startTime} onChange={(ev) => setEditing({ ...editing, startTime: ev.target.value })} style={{ backgroundColor: "var(--card)", color: "var(--text)" }} />
+                          <input type="time" value={editing.endTime} onChange={(ev) => setEditing({ ...editing, endTime: ev.target.value })} style={{ backgroundColor: "var(--card)", color: "var(--text)" }} />
+                          <input placeholder="Location" value={editing.location || ""} onChange={(ev) => setEditing({ ...editing, location: ev.target.value })} style={{ backgroundColor: "var(--card)", color: "var(--text)" }} />
+                          <select value={editing.category || ""} onChange={(ev) => setEditing({ ...editing, category: ev.target.value })} style={{ backgroundColor: "var(--card)", color: "var(--text)" }}>
                             {categories.map((c) => (
                               <option key={c} value={c}>{c}</option>
                             ))}
@@ -709,7 +683,7 @@ export default function Calendar(props?: {
                           {normalizeCategory(editing.category || "") === "others - specified" && (
                             <input placeholder="Specify category" value={editing.categoryDetail || ""} onChange={(ev) => setEditing({ ...editing, categoryDetail: ev.target.value })} />
                           )}
-                          <select value={editing.office ?? ""} onChange={(ev) => setEditing({ ...editing, office: ev.target.value || null })}>
+                          <select value={editing.office ?? ""} onChange={(ev) => setEditing({ ...editing, office: ev.target.value || null })} style={{ backgroundColor: "var(--card)", color: "var(--text)" }}>
                             <option value="">No specific office</option>
                             {availableOffices.map((o) => (
                               <option key={o} value={o}>{o}</option>

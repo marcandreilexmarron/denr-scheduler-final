@@ -1,6 +1,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import Modal from "./Modal";
+import { api } from "../api";
 
 export default function EventDetailModal({
   open,
@@ -19,12 +20,12 @@ export default function EventDetailModal({
 }) {
   const [selectedOffice, setSelectedOffice] = React.useState<string | null>(null);
   const [selectedEmployees, setSelectedEmployees] = React.useState<string[]>([]);
+  const [clickedRect, setClickedRect] = React.useState<DOMRect | null>(null);
   const [divisionOfficeNames, setDivisionOfficeNames] = React.useState<string[]>([]);
   const [officeServiceMap, setOfficeServiceMap] = React.useState<Record<string, string>>({});
   const [serviceOrder, setServiceOrder] = React.useState<string[]>([]);
   React.useEffect(() => {
-    fetch("/api/offices-data")
-      .then((r) => (r.ok ? r.json() : null))
+    api.get("/api/offices-data")
       .then((d) => {
         if (!d) return;
         const names = Array.isArray(d?.services)
@@ -51,8 +52,46 @@ export default function EventDetailModal({
       })
       .catch(() => {});
   }, []);
+  const [isPortrait, setIsPortrait] = React.useState(false);
+  React.useEffect(() => {
+    function update() {
+      try {
+        const m = window.matchMedia && window.matchMedia("(orientation: portrait)");
+        const isSmall = window.innerWidth < 768;
+        setIsPortrait(isSmall || (m ? m.matches : window.innerHeight >= window.innerWidth));
+      } catch {
+        setIsPortrait(true);
+      }
+    }
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  function abbreviateOffice(name: string) {
+    if (!name) return "";
+    const n = name.trim();
+    const map: Record<string, string> = {
+      "Office of the Regional Director": "ORD",
+      "Office of the Assistant Regional Director for Management Services": "ARD-MS",
+      "Office of the Assistant Regional Director for Technical Services": "ARD-TS",
+      "Surveys and Mapping Division": "SMD",
+      "Licenses, Patents and Deeds Division": "LPDD",
+      "Conservation and Development Division": "CDD",
+      "Enforcement Division": "ED",
+      "Planning and Management Division": "PMD",
+      "Legal Division": "Legal",
+      "Administrative Division": "Admin",
+      "Finance Division": "Finance"
+    };
+    if (map[n]) return map[n];
+    const entry = Object.entries(map).find(([k]) => k.toLowerCase() === n.toLowerCase());
+    return entry ? entry[1] : n;
+  }
+
   function formatFullDate(s: string) {
     try {
+      if (s.includes("T")) return new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
       const [y, m, d] = s.split("-").map(Number);
       const dt = new Date(y, m - 1, d);
       return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -71,63 +110,73 @@ export default function EventDetailModal({
     if (!open) {
       setSelectedOffice(null);
       setSelectedEmployees([]);
+      setClickedRect(null);
     }
   }, [open, event]);
   React.useEffect(() => {
     setSelectedOffice(null);
     setSelectedEmployees([]);
+    setClickedRect(null);
   }, [event]);
   const handleClose = React.useCallback(() => {
     setSelectedOffice(null);
     setSelectedEmployees([]);
+    setClickedRect(null);
     onClose();
   }, [onClose]);
+
+  const modalBg = "var(--card)";
+  const modalColor = "var(--text)";
+
+  const subBorder = "1px solid var(--border)";
+
   return (
     <>
-    <Modal open={open} onClose={handleClose}>
+    <Modal open={open} onClose={handleClose} style={{ background: modalBg, color: modalColor, backdropFilter: "blur(14px)", border: `1px solid rgba(0,0,0,0.1)` }}>
       {event && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16, maxWidth: "100%", width: "100%", boxSizing: "border-box", margin: "0 auto" }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, justifyContent: "flex-start", gridColumn: "1 / 2" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, width: "100%", boxSizing: "border-box" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8, justifyContent: "space-between" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {event.category && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                  <span className="badge" style={categoryStyle(event.category)}>{event.category}</span>
-                  {event.category === "others - specified" && event.categoryDetail && <span className="badge">{event.categoryDetail}</span>}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <span style={{ ...categoryStyle(event.category), background: undefined, backgroundColor: categoryStyle(event.category)?.backgroundColor || "rgba(255,255,255,0.25)", border: `1px solid ${categoryStyle(event.category)?.borderColor || "rgba(0,0,0,0.05)"}`, fontSize: 13, padding: "4px 10px", borderRadius: 999, backdropFilter: "blur(4px)" }}>{event.category}</span>
+                  {event.category === "others - specified" && event.categoryDetail && <span style={{ backgroundColor: "rgba(255,255,255,0.25)", color: "inherit", border: "1px solid rgba(0,0,0,0.05)", fontSize: 13, padding: "4px 10px", borderRadius: 999, backdropFilter: "blur(4px)" }}>{event.categoryDetail}</span>}
                 </div>
               )}
-              <h2 style={{ margin: 0 }}>{event.title}</h2>
+              <h2 style={{ margin: 0, fontSize: 22, opacity: 0.9 }}>{event.title}</h2>
               {(() => {
                 const cat = String(event.category || "").trim().toLowerCase();
                 if (cat === "workshop" || cat === "training") {
-                  return <div style={{ fontSize: 12, color: "var(--muted)" }}>A report will be needed after the event.</div>;
+                  return <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 2, opacity: 0.8 }}>A report will be needed after the event.</div>;
                 }
                 return null;
               })()}
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 6, alignItems: "start", borderTop: "1px solid var(--border)", paddingTop: 10, gridColumn: "1 / 2" }}>
-            <div style={{ color: "var(--muted)" }}>Date & time</div>
-            <div>
+          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "10px 16px", alignItems: "baseline", borderTop: subBorder, paddingTop: 14 }}>
+            <div style={{ color: "var(--muted)", fontWeight: 500, fontSize: "0.95em", opacity: 0.7 }}>Date & time</div>
+            <div style={{ fontSize: 15, opacity: 0.9 }}>
               {event.dateType === "range" && event.startDate && event.endDate
                 ? `${formatFullDate(event.startDate)} ${formatTime(event.startTime)} → ${formatFullDate(event.endDate)} ${formatTime(event.endTime)}`
                 : `${formatFullDate(event.date)} ${formatTime(event.startTime)}${event.endTime ? `–${formatTime(event.endTime)}` : ""}`}
             </div>
             {event.location && (
               <>
-                <div style={{ color: "var(--muted)" }}>Location</div>
-                <div style={{ overflowWrap: "anywhere" }}>{event.location}</div>
+                <div style={{ color: "var(--muted)", fontWeight: 500, fontSize: "0.95em", opacity: 0.7 }}>Location</div>
+                <div style={{ overflowWrap: "anywhere", fontSize: 15, opacity: 0.9 }}>{event.location}</div>
               </>
             )}
-            <div style={{ color: "var(--muted)" }}>From</div>
-            <div>{event.creatingOffice || event.office || "Unknown office"}</div>
+            <div style={{ color: "var(--muted)", fontWeight: 500, fontSize: "0.95em", opacity: 0.7 }}>From</div>
+            <div style={{ fontSize: 15, opacity: 0.9 }}>{isPortrait ? abbreviateOffice(event.creatingOffice || event.office || "Unknown office") : (event.creatingOffice || event.office || "Unknown office")}</div>
           </div>
           {event.description && (
-            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10 }}>
-              <div style={{ marginBottom: 6, color: "var(--muted)", fontSize: 12 }}>Description</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{event.description}</div>
+            <div style={{ borderTop: subBorder, paddingTop: 12 }}>
+              <div style={{ marginBottom: 6, color: "var(--muted)", fontSize: 13, opacity: 0.7 }}>Description</div>
+              <div style={{ whiteSpace: "pre-wrap", fontSize: 15, lineHeight: 1.5, opacity: 0.9 }}>{event.description}</div>
             </div>
           )}
           {Array.isArray(event.participants) && event.participants.length > 0 && (() => {
+            // ... (rest of the logic remains the same, but using subBorder and transparent badges)
             const raw: string[] = event.participants;
             const byOffice = new Map<string, string[]>();
             const others: string[] = [];
@@ -177,13 +226,13 @@ export default function EventDetailModal({
               groups["Other"].others.push(...unknown);
             }
             return (
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10 }}>
-                <div style={{ marginBottom: 6, color: "var(--muted)", fontSize: 12 }}>Participants</div>
+              <div style={{ borderTop: subBorder, paddingTop: 12 }}>
+                <div style={{ marginBottom: 6, color: "var(--muted)", fontSize: 13, opacity: 0.7 }}>Participants</div>
                 {hasAllDivisionOffices && (
                   <div style={{ marginBottom: 6 }}>
                     <span
                       className="badge"
-                      style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
+                      style={{ position: "relative", display: "inline-flex", alignItems: "center", fontSize: 13, padding: "4px 10px", background: "rgba(255,255,255,0.25)", border: "1px solid rgba(0,0,0,0.05)", backdropFilter: "blur(4px)" }}
                     >
                       Division Chiefs
                     </span>
@@ -193,15 +242,16 @@ export default function EventDetailModal({
                   const g = groups[svc];
                   if (!g || (g.collapsed.length === 0 && g.singles.length === 0 && g.officeOnly.length === 0 && g.others.length === 0)) return null;
                   return (
-                    <div key={`svc-${svc}`} style={{ marginBottom: 8 }}>
-                      <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 4 }}>{svc}</div>
+                    <div key={`svc-${svc}`} style={{ marginBottom: 10 }}>
+                      <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 4, fontWeight: 500, opacity: 0.7 }}>{svc}</div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", maxWidth: "100%" }}>
                         {g.collapsed.map(([off, emps]) => (
                           <span
                             key={`off-${svc}-${off}`}
                             className="badge"
-                            style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer" }}
-                            onClick={() => {
+                            style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer", fontSize: 13, padding: "4px 10px", background: "rgba(255,255,255,0.25)", color: "inherit", border: "1px solid rgba(0,0,0,0.05)", backdropFilter: "blur(4px)" }}
+                            onClick={(e) => {
+                              setClickedRect(e.currentTarget.getBoundingClientRect());
                               setSelectedOffice(off);
                               setSelectedEmployees(emps);
                             }}
@@ -211,13 +261,13 @@ export default function EventDetailModal({
                               aria-hidden
                               style={{
                                 marginLeft: 6,
-                                fontSize: 10,
+                                fontSize: 11,
                                 opacity: 0.85,
                                 padding: "0 6px",
-                                border: "1px solid var(--border)",
+                                border: "1px solid rgba(0,0,0,0.1)",
                                 borderRadius: 999,
                                 lineHeight: "16px",
-                                background: "var(--card)",
+                                background: "rgba(255,255,255,0.3)",
                                 color: "inherit"
                               }}
                             >
@@ -226,13 +276,13 @@ export default function EventDetailModal({
                           </span>
                         ))}
                         {g.singles.map((p, idx) => (
-                          <span key={`sg-${svc}-${idx}`} className="badge">{p}</span>
+                          <span key={`sg-${svc}-${idx}`} className="badge" style={{ fontSize: 13, padding: "4px 10px", background: "rgba(255,255,255,0.25)", color: "inherit", border: "1px solid rgba(0,0,0,0.05)", backdropFilter: "blur(4px)" }}>{p}</span>
                         ))}
                         {g.officeOnly.map((p, idx) => (
-                          <span key={`oo-${svc}-${idx}`} className="badge">{p}</span>
+                          <span key={`oo-${svc}-${idx}`} className="badge" style={{ fontSize: 13, padding: "4px 10px", background: "rgba(255,255,255,0.25)", color: "inherit", border: "1px solid rgba(0,0,0,0.05)", backdropFilter: "blur(4px)" }}>{p}</span>
                         ))}
                         {g.others.map((p, idx) => (
-                          <span key={`ot-${svc}-${idx}`} className="badge">{p}</span>
+                          <span key={`ot-${svc}-${idx}`} className="badge" style={{ fontSize: 13, padding: "4px 10px", background: "rgba(255,255,255,0.25)", color: "inherit", border: "1px solid rgba(0,0,0,0.05)", backdropFilter: "blur(4px)" }}>{p}</span>
                         ))}
                       </div>
                     </div>
@@ -242,15 +292,22 @@ export default function EventDetailModal({
             );
           })()}
           {Array.isArray(event.attachments) && event.attachments.length > 0 && (
-            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, gridColumn: "1 / 2" }}>
-              <div style={{ marginBottom: 6, color: "var(--muted)", fontSize: 12 }}>Attachments</div>
-              <ul className="list">
-                {event.attachments.map((a: any, i: number) => {
-                  const label = typeof a === "string" ? a : a?.name || a?.url || `Attachment ${i + 1}`;
-                  const url = typeof a === "string" ? a : a?.url;
+            <div style={{ marginTop: 12, borderTop: subBorder, paddingTop: 12 }}>
+              <strong style={{ fontSize: 14, opacity: 0.8 }}>Attachments:</strong>
+              <ul style={{ listStyle: "none", padding: 0, marginTop: 4 }}>
+                {event.attachments.map((att: any, idx: number) => {
+                  const downloadUrl = att.blob || att.url;
                   return (
-                    <li key={i} className="list-item">
-                      {url ? <a href={url} target="_blank" rel="noreferrer">{label}</a> : <span>{label}</span>}
+                    <li key={idx} style={{ marginBottom: 4 }}>
+                      <a 
+                        href={downloadUrl} 
+                        download={att.name || "attachment"}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ color: "var(--blue-color)", textDecoration: "underline", cursor: "pointer", fontSize: 14, opacity: 0.9 }}
+                      >
+                        {att.name || "Attachment"}
+                      </a>
                     </li>
                   );
                 })}
@@ -258,18 +315,19 @@ export default function EventDetailModal({
             </div>
           )}
           {canEditEvent && canEditEvent(event) && onEdit && (
-            <div style={{ display: "flex", justifyContent: "flex-end", borderTop: "1px solid var(--border)", paddingTop: 10, gridColumn: "1 / 2" }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", borderTop: subBorder, paddingTop: 12, gridColumn: "1 / 2" }}>
               <button
                 onClick={() => onEdit(event)}
                 style={{
-                  padding: "8px 10px",
-                  background: "#2563eb",
-                  color: "#ffffff",
-                  border: "1px solid #1d4ed8",
+                  padding: "8px 14px",
+                  background: "var(--primary)",
+                  color: "var(--primary-contrast)",
+                  border: "none",
                   borderRadius: 8,
                   cursor: "pointer",
-                  fontSize: 13,
-                  fontWeight: 600
+                  fontSize: 14,
+                  fontWeight: 600,
+                  opacity: 0.85
                 }}
                 title="Edit event"
                 aria-label="Edit event"
@@ -281,17 +339,28 @@ export default function EventDetailModal({
         </div>
       )}
     </Modal>
-    {open && selectedOffice && selectedEmployees.length > 0
+    {open && selectedOffice && selectedEmployees.length > 0 && clickedRect
       ? createPortal((() => {
           try {
-            const el = document.querySelector(".modal-card") as HTMLElement | null;
-            if (!el) return null;
-            const rect = el.getBoundingClientRect();
-            const panelWidth = 300;
-            const gap = 8;
-            const left = Math.min(rect.right + gap, window.innerWidth - panelWidth - 8);
-            const top = Math.max(8, rect.top);
-            const maxHeight = Math.min(rect.height, window.innerHeight - top - 8);
+            const panelWidth = Math.min(280, window.innerWidth - 32);
+            const gap = 4;
+            let left = clickedRect.left;
+            let top = clickedRect.bottom + gap;
+            
+            if (left + panelWidth > window.innerWidth - 16) {
+              left = window.innerWidth - panelWidth - 16;
+            }
+            if (left < 16) left = 16;
+
+            let finalMaxHeight = Math.min(300, window.innerHeight - top - 16);
+            
+            // If it would be too small below, and there is more room above, flip it
+            if (finalMaxHeight < 120 && clickedRect.top > window.innerHeight - clickedRect.bottom) {
+              const aboveSpace = clickedRect.top - 16 - gap;
+              finalMaxHeight = Math.min(300, aboveSpace);
+              top = clickedRect.top - finalMaxHeight - gap;
+            }
+
             return (
               <div
                 style={{
@@ -300,21 +369,22 @@ export default function EventDetailModal({
                   top,
                   left,
                   width: panelWidth,
-                  maxHeight,
+                  maxHeight: finalMaxHeight,
                   overflow: "auto",
                   border: "1px solid var(--border)",
                   borderRadius: 8,
                   padding: 10,
                   background: "var(--card)",
-                  boxShadow: "0 6px 24px rgba(0,0,0,0.12)"
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+                  animation: "fadeIn 0.2s ease-out"
                 }}
                 role="dialog"
                 aria-label={`${selectedOffice} employees`}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <strong>{selectedOffice}</strong>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, borderBottom: "1px solid var(--border)", paddingBottom: 6 }}>
+                  <strong style={{ fontSize: 13 }}>{selectedOffice}</strong>
                   <button
-                    onClick={() => { setSelectedOffice(null); setSelectedEmployees([]); }}
+                    onClick={() => { setSelectedOffice(null); setSelectedEmployees([]); setClickedRect(null); }}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -322,7 +392,8 @@ export default function EventDetailModal({
                   fontSize: 18,
                   lineHeight: 1,
                   padding: 0,
-                  color: "inherit"
+                  color: "inherit",
+                  opacity: 0.6
                 }}
                     aria-label="Close"
                     title="Close"
@@ -330,10 +401,38 @@ export default function EventDetailModal({
                     ×
                   </button>
                 </div>
-                <ul className="list">
+                <ul
+                  className="list"
+                  style={{
+                    margin: 0,
+                    padding: 0,
+                    listStyle: "none",
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 6
+                  }}
+                >
                   {selectedEmployees.map((name, i) => (
-                    <li key={`${name}-${i}`} className="list-item">
-                      {name}
+                    <li
+                      key={`${name}-${i}`}
+                      style={{ margin: 0, padding: 0, border: "none", background: "transparent" }}
+                    >
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                          background: "var(--secondary-bg)",
+                          color: "var(--secondary-color)",
+                          fontSize: 12,
+                          lineHeight: "16px",
+                          whiteSpace: "nowrap"
+                        }}
+                        title={name}
+                      >
+                        {name}
+                      </span>
                     </li>
                   ))}
                 </ul>

@@ -1,17 +1,15 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AddEventModal from "../components/AddEventModal";
-import { getToken } from "../auth";
 import { useNavigate, useLocation } from "react-router-dom";
+import { api } from "../api";
 
 export default function AddEventPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [officesData, setOfficesData] = useState<{ topLevelOffices: any[]; services: any[] } | null>(null);
-  const [resetCounter, setResetCounter] = useState(0);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [resetCounter] = useState(0);
   useEffect(() => {
-    fetch("/api/offices-data")
-      .then((r) => r.json())
+    api.get("/api/offices-data")
       .then((d) => setOfficesData(d));
   }, []);
   const availableOffices = useMemo(() => {
@@ -44,26 +42,25 @@ export default function AddEventPage() {
     return {};
   }
   const range = getRangeFromQuery();
+  const [isPortrait, setIsPortrait] = useState(false);
+  useEffect(() => {
+    function update() {
+      try {
+        const m = window.matchMedia && window.matchMedia("(orientation: portrait)");
+        const isSmall = window.innerWidth < 768;
+        setIsPortrait(isSmall || (m ? m.matches : window.innerHeight >= window.innerWidth));
+      } catch {
+        setIsPortrait(true);
+      }
+    }
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
   return (
-    <div style={{ padding: 16 }}>
-      <div className="card hover-scroll" style={{ padding: 12, maxWidth: 900, margin: "0 auto" }}>
-        {success && (
-          <div
-            role="status"
-            aria-live="polite"
-            style={{
-              marginBottom: 12,
-              padding: "8px 10px",
-              border: "1px solid #86efac",
-              background: "#dcfce7",
-              color: "#166534",
-              borderRadius: 8,
-              fontWeight: 600
-            }}
-          >
-            {success}
-          </div>
-        )}
+    <div style={{ padding: isPortrait ? 8 : 16 }}>
+      <div className="card hover-scroll" style={{ padding: isPortrait ? 8 : 12, maxWidth: 900, margin: "0 auto", width: "100%", boxSizing: "border-box", borderTop: "4px solid var(--primary)" }}>
         <AddEventModal
           key={resetCounter}
           variant="page"
@@ -77,24 +74,14 @@ export default function AddEventPage() {
           availableOffices={availableOffices}
           officesData={officesData ?? undefined}
           onSubmit={(payload) => {
-            const t = getToken();
-            if (!t) return;
-            fetch("/api/events", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
-              body: JSON.stringify(payload)
-            })
-              .then((r) => r.json())
-              .then((res) => {
-                if ((res as any)?.error) {
-                  alert((res as any).error);
-                  return;
-                }
-                setSuccess("Event created successfully");
-                setResetCounter((n) => n + 1);
-                window.setTimeout(() => setSuccess(null), 3000);
+            api.post("/api/events", payload)
+              .then(() => {
+                navigate("/office-dashboard", { state: { successMessage: `Event "${payload.title}" created successfully!` } });
               })
-              .catch(() => alert("Create failed"));
+              .catch((err) => {
+                console.error("Failed to create event:", err);
+                alert("Failed to create event");
+              });
           }}
         />
       </div>
