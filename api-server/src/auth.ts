@@ -20,6 +20,23 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   }
 }
 
+export function authMiddlewareAllowQuery(req: Request, res: Response, next: NextFunction) {
+  const header = req.headers.authorization || "";
+  let token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) {
+    const q = (req.query as any)?.token;
+    if (typeof q === "string" && q.trim()) token = q.trim();
+  }
+  if (!token) return res.status(401).json({ error: "unauthorized" });
+  try {
+    const decoded = jwt.verify(token, secret);
+    (req as any).user = decoded;
+    next();
+  } catch {
+    res.status(401).json({ error: "unauthorized" });
+  }
+}
+
 export function requireRole(role: string) {
   return (req: Request, res: Response, next: NextFunction) => {
     const user = (req as any).user as any;

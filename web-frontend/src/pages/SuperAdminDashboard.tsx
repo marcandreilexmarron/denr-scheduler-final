@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getUserFromToken } from "../auth";
-import { api } from "../api";
-import { Users, Calendar, Settings, BarChart3 } from "lucide-react";
+import { api, subscribeAdminEvents } from "../api";
+import { Users, Calendar, Settings, BarChart3, Activity, RefreshCw } from "lucide-react";
 
 export default function SuperAdminDashboard() {
   const user = getUserFromToken();
@@ -10,6 +10,10 @@ export default function SuperAdminDashboard() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [audit, setAudit] = useState<any[]>([]);
+  const [auditLoading, setAuditLoading] = useState(true);
+  const [realtimeStatus, setRealtimeStatus] = useState<"connected" | "error">("connected");
+  const [refreshing, setRefreshing] = useState(false);
 
   // Check if user is ADMIN
   if (!user || !String(user.role || "").includes("ADMIN")) {
@@ -20,21 +24,49 @@ export default function SuperAdminDashboard() {
     );
   }
 
+  const fetchStats = async () => {
+    const data = await api.get("/api/admin/stats");
+    setStats(data);
+  };
+
+  const fetchAudit = async () => {
+    const data = await api.get("/api/admin/audit?limit=12");
+    setAudit(Array.isArray(data) ? data : []);
+  };
+
   useEffect(() => {
-    const fetchStats = async () => {
+    let mounted = true;
+    (async () => {
       try {
         setLoading(true);
-        const data = await api.get("/api/admin/stats");
-        setStats(data);
-        setError(null);
+        setAuditLoading(true);
+        await Promise.all([fetchStats(), fetchAudit()]);
+        if (mounted) setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load stats");
+        if (mounted) setError(err instanceof Error ? err.message : "Failed to load admin dashboard");
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+          setAuditLoading(false);
+        }
       }
-    };
+    })();
 
-    fetchStats();
+    const unsub = subscribeAdminEvents(
+      (payload) => {
+        const type = payload?.type;
+        if (typeof type !== "string") return;
+        if (type === "hello" || type === "ping") return;
+        fetchStats().catch(() => {});
+        fetchAudit().catch(() => {});
+      },
+      (s) => setRealtimeStatus(s)
+    );
+
+    return () => {
+      mounted = false;
+      unsub();
+    };
   }, []);
 
   const modules = [
@@ -63,23 +95,76 @@ export default function SuperAdminDashboard() {
 
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-      <div style={{ marginBottom: "30px" }}>
-        <h1 style={{ fontSize: "28px", fontWeight: "700", marginBottom: "8px" }}>
-          SuperAdmin Dashboard
-        </h1>
-        <p style={{ color: "var(--text-secondary)", margin: 0 }}>
-          Welcome, {user.sub}. Manage the entire system from here.
-        </p>
+      <div style={{ marginBottom: "18px", display: "flex", gap: 12, alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap" }}>
+        <div>
+          <h1 style={{ fontSize: "28px", fontWeight: "700", marginBottom: "6px", marginTop: 0 }}>
+            Admin Panel
+          </h1>
+          <p style={{ color: "var(--muted)", margin: 0 }}>
+            Signed in as <span style={{ fontWeight: 600 }}>{user.sub}</span>
+          </p>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div
+            title={realtimeStatus === "connected" ? "Realtime connected" : "Realtime disconnected (using manual refresh)"}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "8px 10px",
+              borderRadius: 10,
+              border: "1px solid var(--border)",
+              background: "var(--card)",
+              fontSize: 13,
+              color: "var(--muted)"
+            }}
+          >
+            <Activity size={16} style={{ color: realtimeStatus === "connected" ? "#16a34a" : "#dc2626" }} />
+            {realtimeStatus === "connected" ? "Realtime" : "Offline"}
+          </div>
+          <button
+            onClick={async () => {
+              try {
+                setRefreshing(true);
+                await Promise.all([fetchStats(), fetchAudit()]);
+                setError(null);
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "Failed to refresh");
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+            style={{
+              padding: "10px 14px",
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: 10,
+              cursor: "pointer",
+              fontWeight: 600,
+              color: "inherit",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              opacity: refreshing ? 0.7 : 1
+            }}
+            title="Refresh admin dashboard"
+            disabled={refreshing}
+          >
+            <RefreshCw size={16} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} />
+            Refresh
+          </button>
+        </div>
       </div>
 
-      {/* Statistics Section */}
+      {error && (
+        <div style={{ padding: "12px 16px", background: "var(--error-bg)", border: "1px solid var(--error-border)", borderRadius: "10px", color: "var(--error-color)", marginBottom: "16px", fontSize: 14 }}>
+          {error}
+        </div>
+      )}
+
       {loading ? (
         <div style={{ padding: "20px", textAlign: "center", color: "var(--text-secondary)" }}>
           Loading statistics...
-        </div>
-      ) : error ? (
-        <div style={{ padding: "20px", color: "red", background: "rgba(255,0,0,0.1)", borderRadius: "8px" }}>
-          Error: {error}
         </div>
       ) : stats ? (
         <div style={{
@@ -97,10 +182,9 @@ export default function SuperAdminDashboard() {
         </div>
       ) : null}
 
-      {/* Admin Modules */}
-      <div style={{ marginBottom: "30px" }}>
-        <h2 style={{ fontSize: "20px", fontWeight: "600", marginBottom: "16px" }}>
-          Admin Modules
+      <div style={{ marginBottom: "26px" }}>
+        <h2 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "12px" }}>
+          Modules
         </h2>
         <div style={{
           display: "grid",
@@ -152,35 +236,58 @@ export default function SuperAdminDashboard() {
         </div>
       </div>
 
-      {/* Quick Info Section */}
-      {stats && (
-        <div style={{
-          padding: "20px",
-          border: "1px solid var(--border)",
-          borderRadius: "12px",
-          background: "var(--card)",
-          marginBottom: "20px"
-        }}>
-          <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "16px" }}>
-            <BarChart3 size={20} style={{ marginRight: "8px", verticalAlign: "middle" }} />
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, alignItems: "start" }}>
+        <div style={{ padding: "18px", border: "1px solid var(--border)", borderRadius: 12, background: "var(--card)" }}>
+          <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
+            <BarChart3 size={18} />
             System Overview
           </h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" }}>
-            <div>
-              <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "4px" }}>Users by Role</p>
-              <div style={{ fontSize: "14px", fontWeight: "500" }}>
-                ADMIN: {stats.adminUsers} | OFFICE: {stats.officeUsers}
+          <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
+            <div style={{ padding: 12, border: "1px solid var(--border)", borderRadius: 10, background: "var(--secondary-bg)" }}>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>Users</div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>
+                Admin: {stats?.adminUsers ?? "-"} • Office: {stats?.officeUsers ?? "-"}
               </div>
             </div>
-            <div>
-              <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "4px" }}>Event Distribution</p>
-              <div style={{ fontSize: "14px", fontWeight: "500" }}>
-                Active: {stats.totalEvents} | Archived: {stats.totalArchivedEvents}
+            <div style={{ padding: 12, border: "1px solid var(--border)", borderRadius: 10, background: "var(--secondary-bg)" }}>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>Events</div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>
+                Active: {stats?.totalEvents ?? "-"} • Archived: {stats?.totalArchivedEvents ?? "-"}
               </div>
             </div>
           </div>
         </div>
-      )}
+
+        <div style={{ padding: "18px", border: "1px solid var(--border)", borderRadius: 12, background: "var(--card)" }}>
+          <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
+            <Activity size={18} />
+            Activity
+          </h3>
+          <div style={{ marginTop: 14 }}>
+            {auditLoading ? (
+              <div style={{ padding: "14px 0", color: "var(--muted)" }}>Loading activity...</div>
+            ) : audit.length === 0 ? (
+              <div style={{ padding: "14px 0", color: "var(--muted)" }}>No recent activity.</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {audit.slice(0, 8).map((a) => (
+                  <div key={a.id} style={{ padding: 10, border: "1px solid var(--border)", borderRadius: 10, background: "var(--secondary-bg)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{String(a.action || "activity")}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" }}>
+                        {a.at ? new Date(a.at).toLocaleString() : ""}
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: 12, color: "var(--muted)" }}>
+                      {(a.actor ? `By ${a.actor}` : "System")}{a.meta?.username ? ` • ${a.meta.username}` : ""}{a.meta?.eventId ? ` • ${a.meta.eventId}` : ""}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

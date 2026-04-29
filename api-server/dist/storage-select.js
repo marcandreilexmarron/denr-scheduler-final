@@ -1,6 +1,6 @@
 import * as fsStore from "./storage.js";
 import * as dbStore from "./storage-db.js";
-const backend = (process.env.DATA_BACKEND || "fs").toLowerCase();
+const backend = (process.env.DATA_BACKEND || "db").toLowerCase();
 export function getDataDir() {
     if (backend === "db")
         return "";
@@ -40,6 +40,11 @@ export async function readHolidays() {
     if (backend === "db")
         return await dbStore.readHolidays();
     return Promise.resolve(fsStore.readHolidays());
+}
+export async function writeHolidays(holidays) {
+    if (backend === "db")
+        return await dbStore.writeHolidays(holidays);
+    return Promise.resolve(fsStore.writeHolidays(holidays));
 }
 export async function readEmployees() {
     if (backend === "db")

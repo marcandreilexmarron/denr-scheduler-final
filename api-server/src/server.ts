@@ -1,9 +1,10 @@
 import "dotenv/config";
 import express from "express";
+import type { Response } from "express";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
-import { authMiddleware, signToken, requireAnyRole } from "./auth.js";
+import { authMiddleware, authMiddlewareAllowQuery, signToken, requireAnyRole } from "./auth.js";
 import crypto from "crypto";
 import { DateTime } from "luxon";
 import { fileURLToPath } from "url";
@@ -213,6 +214,52 @@ async function backfillDivisionChiefTokensArchive() {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const dataDir = getDataDir();
+const adminAuditPath = path.join(dataDir, "admin-audit.json");
+const adminSseClients = new Set<Response>();
+
+function readAdminAudit(): any[] {
+  if (!fs.existsSync(adminAuditPath)) {
+    fs.writeFileSync(adminAuditPath, "[]", "utf-8");
+    return [];
+  }
+  const raw = fs.readFileSync(adminAuditPath, "utf-8").trim();
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function appendAdminAudit(entry: any) {
+  const existing = readAdminAudit();
+  existing.unshift(entry);
+  if (existing.length > 2000) existing.length = 2000;
+  fs.writeFileSync(adminAuditPath, JSON.stringify(existing, null, 2), "utf-8");
+}
+
+function makeAuditEntry(user: any, action: string, meta?: any) {
+  return {
+    id: crypto.randomUUID(),
+    at: new Date().toISOString(),
+    actor: user?.sub || null,
+    actorRole: user?.role || null,
+    action,
+    meta: meta ?? null
+  };
+}
+
+function adminBroadcast(payload: any) {
+  const data = `data: ${JSON.stringify(payload)}\n\n`;
+  for (const res of adminSseClients) {
+    try {
+      res.write(data);
+    } catch {
+      adminSseClients.delete(res);
+    }
+  }
+}
 
 function getServicesStructure() {
   const topLevelOffices = [
@@ -305,6 +352,7 @@ app.post("/api/login", async (req, res) => {
   const users = await readUsers();
   const user = users.find((u) => u.username === username && u.password === password);
   if (!user) return res.status(401).json({ error: "invalid_credentials" });
+  if ((user as any).disabled) return res.status(403).json({ error: "user_disabled" });
   const token = signToken({
     sub: user.username,
     role: user.role,
@@ -430,6 +478,7 @@ app.post("/api/events", authMiddleware, requireAnyRole(["OFFICE"]), async (req, 
     // Send email notification (fire and forget)
     sendEventCreatedEmail(payload).catch(err => console.error("Event created email error:", err));
 
+    adminBroadcast({ type: "event.created", at: new Date().toISOString(), eventId: id, office: payload.office ?? null });
     res.status(201).json(payload);
   } catch (err) {
     console.error("Failed to create event:", err);
@@ -452,6 +501,7 @@ app.put("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE"]), async (re
   const updated = { ...events[idx], ...req.body, id: events[idx].id };
   events[idx] = updated;
   await writeEvents(events);
+  adminBroadcast({ type: "event.updated", at: new Date().toISOString(), eventId: updated.id, office: updated.office ?? null });
   res.json(updated);
 });
 
@@ -469,10 +519,51 @@ app.delete("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE"]), async 
   }
   const next = events.filter((e: any) => e.id !== req.params.id);
   await writeEvents(next);
+  adminBroadcast({ type: "event.deleted", at: new Date().toISOString(), eventId: req.params.id, office: ownerOffice ?? null });
   res.status(204).end();
 });
 
 // ====== SUPERADMIN ENDPOINTS ======
+
+function normalizeEmailInput(v: any): string | null {
+  if (v == null) return null;
+  if (typeof v !== "string") return null;
+  const s = v.trim();
+  return s ? s : null;
+}
+
+function isEmailLike(s: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+}
+
+app.get("/api/admin/stream", authMiddlewareAllowQuery, requireAnyRole(["ADMIN"]), (req, res) => {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no"
+  });
+  res.write(`data: ${JSON.stringify({ type: "hello", at: new Date().toISOString() })}\n\n`);
+  adminSseClients.add(res);
+  const pingId = setInterval(() => {
+    try {
+      res.write(`event: ping\ndata: ${Date.now()}\n\n`);
+    } catch {
+      adminSseClients.delete(res);
+      clearInterval(pingId);
+    }
+  }, 25000);
+  req.on("close", () => {
+    clearInterval(pingId);
+    adminSseClients.delete(res);
+  });
+});
+
+app.get("/api/admin/audit", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+  const limit = req.query.limit ? Math.max(1, Math.min(500, Number(req.query.limit))) : 50;
+  const items = readAdminAudit().slice(0, limit);
+  res.json(items);
+});
 
 // GET /api/admin/users - Get all users
 app.get("/api/admin/users", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
@@ -493,18 +584,29 @@ app.get("/api/admin/users", authMiddleware, requireAnyRole(["ADMIN"]), async (re
 // POST /api/admin/users - Create a new user
 app.post("/api/admin/users", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
   try {
-    const { username, password, role, officeName, service } = req.body || {};
+    const { username, password, role, officeName, service, email } = req.body || {};
     if (!username || !password || !role) {
       return res.status(400).json({ error: "missing_required_fields" });
+    }
+    const normalizedEmail = normalizeEmailInput(email);
+    if (normalizedEmail && !isEmailLike(normalizedEmail)) {
+      return res.status(400).json({ error: "invalid_email" });
     }
     const users = await readUsers();
     if (users.find((u: any) => u.username === username)) {
       return res.status(409).json({ error: "username_already_exists" });
     }
-    const newUser = { username, password, role, officeName, service };
+    if (normalizedEmail && users.some((u: any) => String(u.email || "").toLowerCase() === normalizedEmail.toLowerCase())) {
+      return res.status(409).json({ error: "email_already_exists" });
+    }
+    const newUser = { username, password, role, officeName, service, email: normalizedEmail ?? undefined, disabled: false };
     users.push(newUser);
     await (await import("./storage-select.js")).writeUsers(users);
     const { password: _, ...safeUser } = newUser;
+    const actor = (req as any).user as any;
+    const audit = makeAuditEntry(actor, "user.created", { username, role, officeName: officeName ?? null, service: service ?? null, email: normalizedEmail ?? null });
+    appendAdminAudit(audit);
+    adminBroadcast({ type: "user.created", at: audit.at, username, role, officeName: officeName ?? null, service: service ?? null, email: normalizedEmail ?? null });
     res.status(201).json(safeUser);
   } catch (err) {
     console.error("Error creating user:", err);
@@ -520,15 +622,74 @@ app.put("/api/admin/users/:username", authMiddleware, requireAnyRole(["ADMIN"]),
     const users = await readUsers();
     const idx = users.findIndex((u: any) => u.username === username);
     if (idx === -1) return res.status(404).json({ error: "user_not_found" });
-    
-    const updated = { ...users[idx], ...updates, username };
+
+    const nextUpdates = { ...updates } as any;
+    if ("email" in nextUpdates) {
+      const normalizedEmail = normalizeEmailInput(nextUpdates.email);
+      if (normalizedEmail && !isEmailLike(normalizedEmail)) {
+        return res.status(400).json({ error: "invalid_email" });
+      }
+      if (normalizedEmail && users.some((u: any) => u.username !== username && String(u.email || "").toLowerCase() === normalizedEmail.toLowerCase())) {
+        return res.status(409).json({ error: "email_already_exists" });
+      }
+      if (!normalizedEmail) {
+        delete nextUpdates.email;
+        (users[idx] as any).email = undefined;
+      } else {
+        nextUpdates.email = normalizedEmail;
+      }
+    }
+
+    const updated = { ...users[idx], ...nextUpdates, username };
     users[idx] = updated;
     await (await import("./storage-select.js")).writeUsers(users);
     const { password: _, ...safeUser } = updated;
+    const actor = (req as any).user as any;
+    const audit = makeAuditEntry(actor, "user.updated", {
+      username,
+      role: safeUser.role ?? null,
+      officeName: safeUser.officeName ?? null,
+      service: safeUser.service ?? null,
+      email: (safeUser as any).email ?? null,
+      disabled: !!(safeUser as any).disabled
+    });
+    appendAdminAudit(audit);
+    adminBroadcast({
+      type: "user.updated",
+      at: audit.at,
+      username,
+      role: safeUser.role ?? null,
+      officeName: safeUser.officeName ?? null,
+      service: safeUser.service ?? null,
+      email: (safeUser as any).email ?? null,
+      disabled: !!(safeUser as any).disabled
+    });
     res.json(safeUser);
   } catch (err) {
     console.error("Error updating user:", err);
     res.status(500).json({ error: "failed_to_update_user" });
+  }
+});
+
+app.post("/api/admin/users/:username/reset-password", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { username } = req.params;
+    const body = req.body || {};
+    const provided = typeof body.password === "string" ? body.password.trim() : "";
+    const newPassword = provided || crypto.randomBytes(9).toString("base64url");
+    const users = await readUsers();
+    const idx = users.findIndex((u: any) => u.username === username);
+    if (idx === -1) return res.status(404).json({ error: "user_not_found" });
+    users[idx] = { ...users[idx], password: newPassword };
+    await (await import("./storage-select.js")).writeUsers(users);
+    const actor = (req as any).user as any;
+    const audit = makeAuditEntry(actor, "user.password_reset", { username });
+    appendAdminAudit(audit);
+    adminBroadcast({ type: "user.password_reset", at: audit.at, username });
+    res.json({ username, password: newPassword });
+  } catch (err) {
+    console.error("Error resetting password:", err);
+    res.status(500).json({ error: "failed_to_reset_password" });
   }
 });
 
@@ -542,6 +703,10 @@ app.delete("/api/admin/users/:username", authMiddleware, requireAnyRole(["ADMIN"
       return res.status(404).json({ error: "user_not_found" });
     }
     await (await import("./storage-select.js")).writeUsers(remaining);
+    const actor = (req as any).user as any;
+    const audit = makeAuditEntry(actor, "user.deleted", { username });
+    appendAdminAudit(audit);
+    adminBroadcast({ type: "user.deleted", at: audit.at, username });
     res.status(204).end();
   } catch (err) {
     console.error("Error deleting user:", err);
@@ -583,6 +748,10 @@ app.delete("/api/admin/events/:id", authMiddleware, requireAnyRole(["ADMIN"]), a
       return res.status(404).json({ error: "event_not_found" });
     }
     await writeEvents(remaining);
+    const actor = (req as any).user as any;
+    const audit = makeAuditEntry(actor, "admin.event.deleted", { eventId: req.params.id });
+    appendAdminAudit(audit);
+    adminBroadcast({ type: "admin.event.deleted", at: audit.at, eventId: req.params.id });
     res.status(204).end();
   } catch (err) {
     console.error("Error deleting event:", err);
@@ -599,6 +768,10 @@ app.delete("/api/admin/events/archived/:id", authMiddleware, requireAnyRole(["AD
       return res.status(404).json({ error: "event_not_found" });
     }
     await writeArchivedEvents(remaining);
+    const actor = (req as any).user as any;
+    const audit = makeAuditEntry(actor, "admin.archived_event.deleted", { eventId: req.params.id });
+    appendAdminAudit(audit);
+    adminBroadcast({ type: "admin.archived_event.deleted", at: audit.at, eventId: req.params.id });
     res.status(204).end();
   } catch (err) {
     console.error("Error deleting archived event:", err);
@@ -616,6 +789,10 @@ app.put("/api/admin/events/:id", authMiddleware, requireAnyRole(["ADMIN"]), asyn
     const updated = { ...events[idx], ...req.body, id: events[idx].id };
     events[idx] = updated;
     await writeEvents(events);
+    const actor = (req as any).user as any;
+    const audit = makeAuditEntry(actor, "admin.event.updated", { eventId: updated.id });
+    appendAdminAudit(audit);
+    adminBroadcast({ type: "admin.event.updated", at: audit.at, eventId: updated.id });
     res.json(updated);
   } catch (err) {
     console.error("Error updating event:", err);
@@ -645,6 +822,10 @@ app.post("/api/admin/holidays", authMiddleware, requireAnyRole(["ADMIN"]), async
     const holiday = { month, day, name };
     holidays.push(holiday);
     await (await import("./storage-select.js")).writeHolidays(holidays);
+    const actor = (req as any).user as any;
+    const audit = makeAuditEntry(actor, "holiday.created", { month, day, name: name ?? null });
+    appendAdminAudit(audit);
+    adminBroadcast({ type: "holiday.created", at: audit.at, month, day, name: name ?? null });
     res.status(201).json(holiday);
   } catch (err) {
     console.error("Error creating holiday:", err);
@@ -664,6 +845,10 @@ app.delete("/api/admin/holidays/:month/:day", authMiddleware, requireAnyRole(["A
       return res.status(404).json({ error: "holiday_not_found" });
     }
     await (await import("./storage-select.js")).writeHolidays(remaining);
+    const actor = (req as any).user as any;
+    const audit = makeAuditEntry(actor, "holiday.deleted", { month: m, day: d });
+    appendAdminAudit(audit);
+    adminBroadcast({ type: "holiday.deleted", at: audit.at, month: m, day: d });
     res.status(204).end();
   } catch (err) {
     console.error("Error deleting holiday:", err);

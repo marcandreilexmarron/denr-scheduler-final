@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getUserFromToken } from "../auth";
-import { api } from "../api";
-import { Plus, Trash2, ChevronLeft, Calendar } from "lucide-react";
+import { api, subscribeAdminEvents } from "../api";
+import { Plus, Trash2, Calendar, Activity, RefreshCw } from "lucide-react";
 import Modal from "../components/Modal";
+import ConfirmModal from "../components/ConfirmModal";
 
 export default function AdminSettings() {
   const user = getUserFromToken();
@@ -14,6 +15,14 @@ export default function AdminSettings() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [formData, setFormData] = useState({ month: 1, day: 1, name: "" });
   const [filter, setFilter] = useState("");
+  const [realtimeStatus, setRealtimeStatus] = useState<"connected" | "error">("connected");
+  const [refreshing, setRefreshing] = useState(false);
+  const [confirmState, setConfirmState] = useState<{ open: boolean; title: string; message: string; onConfirm: (() => void) | null }>({
+    open: false,
+    title: "",
+    message: "",
+    onConfirm: null
+  });
 
   // Check if user is ADMIN
   if (!user || !String(user.role || "").includes("ADMIN")) {
@@ -26,6 +35,18 @@ export default function AdminSettings() {
 
   useEffect(() => {
     fetchHolidays();
+
+    const unsub = subscribeAdminEvents(
+      (payload) => {
+        const type = payload?.type;
+        if (typeof type !== "string") return;
+        if (type.startsWith("holiday.")) {
+          fetchHolidays().catch(() => {});
+        }
+      },
+      (s) => setRealtimeStatus(s)
+    );
+    return () => unsub();
   }, []);
 
   const fetchHolidays = async () => {
@@ -60,15 +81,20 @@ export default function AdminSettings() {
   const handleDeleteHoliday = async (month: number, day: number) => {
     const holiday = holidays.find(h => h.month === month && h.day === day);
     const holidayName = holiday?.name || `${month}/${day}`;
-    if (confirm(`Delete holiday "${holidayName}"?`)) {
-      try {
-        await api.delete(`/api/admin/holidays/${month}/${day}`);
-        fetchHolidays();
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to delete holiday");
+    setConfirmState({
+      open: true,
+      title: "Delete holiday",
+      message: `Delete holiday "${holidayName}"?`,
+      onConfirm: async () => {
+        try {
+          await api.delete(`/api/admin/holidays/${month}/${day}`);
+          await fetchHolidays();
+          setError(null);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Failed to delete holiday");
+        }
       }
-    }
+    });
   };
 
   const resetForm = () => {
@@ -113,6 +139,53 @@ export default function AdminSettings() {
           ← Back
         </button>
         <h1 style={{ fontSize: "28px", fontWeight: "700", margin: 0 }}>System Settings</h1>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+          <div
+            title={realtimeStatus === "connected" ? "Realtime connected" : "Realtime disconnected"}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "8px 10px",
+              borderRadius: 10,
+              border: "1px solid var(--border)",
+              background: "var(--card)",
+              fontSize: 13,
+              color: "var(--muted)"
+            }}
+          >
+            <Activity size={16} style={{ color: realtimeStatus === "connected" ? "#16a34a" : "#dc2626" }} />
+            {realtimeStatus === "connected" ? "Realtime" : "Offline"}
+          </div>
+          <button
+            onClick={async () => {
+              try {
+                setRefreshing(true);
+                await fetchHolidays();
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+            style={{
+              padding: "10px 14px",
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: 10,
+              cursor: "pointer",
+              fontWeight: 600,
+              color: "inherit",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              opacity: refreshing ? 0.7 : 1
+            }}
+            title="Refresh settings"
+            disabled={refreshing}
+          >
+            <RefreshCw size={16} style={{ animation: refreshing ? "spin 1s linear infinite" : "none" }} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -375,6 +448,14 @@ export default function AdminSettings() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmModal
+        open={confirmState.open}
+        onClose={() => setConfirmState({ open: false, title: "", message: "", onConfirm: null })}
+        onConfirm={() => confirmState.onConfirm?.()}
+        title={confirmState.title}
+        message={confirmState.message}
+      />
     </div>
   );
 }

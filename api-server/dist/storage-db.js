@@ -180,6 +180,23 @@ export async function readHolidays() {
         return [];
     }
 }
+export async function writeHolidays(holidays) {
+    const k = getKnex();
+    try {
+        await k.transaction(async (trx) => {
+            await trx("holidays").del();
+            if (holidays.length > 0) {
+                const chunkSize = 100;
+                for (let i = 0; i < holidays.length; i += chunkSize) {
+                    await trx("holidays").insert(holidays.slice(i, i + chunkSize));
+                }
+            }
+        });
+    }
+    catch (err) {
+        console.error("Error writing holidays:", err);
+    }
+}
 export async function readEmployees() {
     const k = getKnex();
     try {

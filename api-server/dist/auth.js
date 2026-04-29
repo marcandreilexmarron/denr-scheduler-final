@@ -1,11 +1,30 @@
 import jwt from "jsonwebtoken";
 const secret = process.env.JWT_SECRET || "dev-insecure-secret";
 export function signToken(payload) {
-    return jwt.sign(payload, secret, { expiresIn: "1h" });
+    return jwt.sign(payload, secret, { expiresIn: "24h" });
 }
 export function authMiddleware(req, res, next) {
     const header = req.headers.authorization || "";
     const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!token)
+        return res.status(401).json({ error: "unauthorized" });
+    try {
+        const decoded = jwt.verify(token, secret);
+        req.user = decoded;
+        next();
+    }
+    catch {
+        res.status(401).json({ error: "unauthorized" });
+    }
+}
+export function authMiddlewareAllowQuery(req, res, next) {
+    const header = req.headers.authorization || "";
+    let token = header.startsWith("Bearer ") ? header.slice(7) : null;
+    if (!token) {
+        const q = req.query?.token;
+        if (typeof q === "string" && q.trim())
+            token = q.trim();
+    }
     if (!token)
         return res.status(401).json({ error: "unauthorized" });
     try {

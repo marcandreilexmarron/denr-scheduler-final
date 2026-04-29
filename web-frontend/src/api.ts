@@ -1,4 +1,6 @@
 
+import { clearToken, getToken } from "./auth";
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -7,7 +9,7 @@ export class ApiError extends Error {
   }
 }
 
-const getApiBaseUrl = () => {
+export const getApiBaseUrl = () => {
   const envUrl = import.meta.env.VITE_API_BASE_URL;
   const { protocol, hostname } = window.location;
 
@@ -26,13 +28,14 @@ const getApiBaseUrl = () => {
 export const api = {
   get: async (path: string) => {
     const url = `${getApiBaseUrl()}${path}`;
+    const token = getToken();
     const response = await fetch(url, {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        Authorization: token ? `Bearer ${token}` : "",
       },
     });
     if (response.status === 401) {
-      localStorage.removeItem("token");
+      clearToken();
       window.location.assign("/");
       throw new ApiError("Unauthorized", 401);
     }
@@ -45,16 +48,17 @@ export const api = {
   },
   post: async (path: string, body: any) => {
     const url = `${getApiBaseUrl()}${path}`;
+    const token = getToken();
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        Authorization: token ? `Bearer ${token}` : "",
       },
       body: JSON.stringify(body),
     });
     if (response.status === 401) {
-      localStorage.removeItem("token");
+      clearToken();
       window.location.assign("/");
       throw new ApiError("Unauthorized", 401);
     }
@@ -67,16 +71,17 @@ export const api = {
   },
   put: async (path: string, body: any) => {
     const url = `${getApiBaseUrl()}${path}`;
+    const token = getToken();
     const response = await fetch(url, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        Authorization: token ? `Bearer ${token}` : "",
       },
       body: JSON.stringify(body),
     });
     if (response.status === 401) {
-      localStorage.removeItem("token");
+      clearToken();
       window.location.assign("/");
       throw new ApiError("Unauthorized", 401);
     }
@@ -89,14 +94,15 @@ export const api = {
   },
   delete: async (path: string) => {
     const url = `${getApiBaseUrl()}${path}`;
+    const token = getToken();
     const response = await fetch(url, {
       method: "DELETE",
       headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        Authorization: token ? `Bearer ${token}` : "",
       },
     });
     if (response.status === 401) {
-      localStorage.removeItem("token");
+      clearToken();
       window.location.assign("/");
       throw new ApiError("Unauthorized", 401);
     }
@@ -108,3 +114,29 @@ export const api = {
     return response.json();
   },
 };
+
+export function subscribeAdminEvents(onEvent: (payload: any) => void, onStatus?: (status: "connected" | "error") => void) {
+  const token = getToken();
+  if (!token) return () => {};
+  const url = `${getApiBaseUrl()}/api/admin/stream?token=${encodeURIComponent(token)}`;
+  const es = new EventSource(url);
+  es.onopen = () => {
+    if (onStatus) onStatus("connected");
+  };
+  es.onmessage = (e) => {
+    const raw = e.data;
+    try {
+      onEvent(JSON.parse(raw));
+    } catch {
+      onEvent(raw);
+    }
+  };
+  es.onerror = () => {
+    if (onStatus) onStatus("error");
+  };
+  return () => {
+    try {
+      es.close();
+    } catch {}
+  };
+}

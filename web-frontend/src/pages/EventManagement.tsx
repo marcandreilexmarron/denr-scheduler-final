@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getUserFromToken } from "../auth";
-import { api } from "../api";
-import { Trash2, Edit2, ChevronLeft, Filter, RefreshCw } from "lucide-react";
-import Modal from "../components/Modal";
+import { api, subscribeAdminEvents } from "../api";
+import { Trash2, Edit2, Filter, RefreshCw, Activity } from "lucide-react";
+import ConfirmModal from "../components/ConfirmModal";
+import AddEventModal from "../components/AddEventModal";
 
 export default function EventManagement() {
   const user = getUserFromToken();
@@ -15,8 +16,32 @@ export default function EventManagement() {
   const [tab, setTab] = useState<"active" | "archived">("active");
   const [filter, setFilter] = useState("");
   const [editingEvent, setEditingEvent] = useState<any>(null);
-  const [formData, setFormData] = useState<any>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [realtimeStatus, setRealtimeStatus] = useState<"connected" | "error">("connected");
+  const [confirmState, setConfirmState] = useState<{ open: boolean; title: string; message: string; onConfirm: (() => void) | null }>({
+    open: false,
+    title: "",
+    message: "",
+    onConfirm: null
+  });
+  const [officesData, setOfficesData] = useState<{ topLevelOffices: any[]; services: any[] } | null>(null);
+
+  const CATEGORY_OPTIONS = ["workshop", "meeting", "training", "conference", "travel", "activity", "others - specified"];
+  const availableOffices = useMemo(() => {
+    if (!officesData) return [] as string[];
+    return [
+      ...officesData.topLevelOffices.map((o: any) => o.name),
+      ...officesData.services.flatMap((s: any) => s.offices.map((o: any) => o.name))
+    ];
+  }, [officesData]);
+
+  const today = useMemo(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${dd}`;
+  }, []);
 
   // Check if user is ADMIN
   if (!user || !String(user.role || "").includes("ADMIN")) {
@@ -29,10 +54,29 @@ export default function EventManagement() {
 
   useEffect(() => {
     fetchEvents();
-    // Auto-refresh every 3 seconds
-    const interval = setInterval(fetchEvents, 3000);
-    return () => clearInterval(interval);
+    api.get("/api/offices-data")
+      .then((d) => setOfficesData(d))
+      .catch(() => setOfficesData(null));
+    const unsub = subscribeAdminEvents(
+      (payload) => {
+        const type = payload?.type;
+        if (typeof type !== "string") return;
+        if (type.startsWith("event.") || type.startsWith("admin.event.") || type.startsWith("admin.archived_event.")) {
+          fetchEvents().catch(() => {});
+        }
+      },
+      (s) => setRealtimeStatus(s)
+    );
+    return () => unsub();
   }, []);
+
+  useEffect(() => {
+    if (realtimeStatus !== "error") return;
+    const id = window.setInterval(() => {
+      fetchEvents().catch(() => {});
+    }, 6000);
+    return () => window.clearInterval(id);
+  }, [realtimeStatus]);
 
   const fetchEvents = async () => {
     try {
@@ -58,39 +102,25 @@ export default function EventManagement() {
   };
 
   const handleDeleteEvent = async (id: string, isArchived: boolean) => {
-    if (confirm("Are you sure you want to delete this event?")) {
-      try {
-        const endpoint = isArchived ? `/api/admin/events/archived/${id}` : `/api/admin/events/${id}`;
-        await api.delete(endpoint);
-        fetchEvents();
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to delete event");
+    setConfirmState({
+      open: true,
+      title: "Delete event",
+      message: "Delete this event? This cannot be undone.",
+      onConfirm: async () => {
+        try {
+          const endpoint = isArchived ? `/api/admin/events/archived/${id}` : `/api/admin/events/${id}`;
+          await api.delete(endpoint);
+          await fetchEvents();
+          setError(null);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Failed to delete event");
+        }
       }
-    }
-  };
-
-  const handleEditEvent = async () => {
-    if (!editingEvent?.id) return;
-    try {
-      await api.put(`/api/admin/events/${editingEvent.id}`, formData);
-      fetchEvents();
-      setEditingEvent(null);
-      setFormData({});
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update event");
-    }
+    });
   };
 
   const startEdit = (event: any) => {
     setEditingEvent(event);
-    setFormData({
-      title: event.title,
-      description: event.description,
-      category: event.category,
-      office: event.office
-    });
   };
 
   const currentEvents = tab === "active" ? events : archivedEvents;
@@ -123,6 +153,23 @@ export default function EventManagement() {
           ← Back
         </button>
         <h1 style={{ fontSize: "28px", fontWeight: "700", margin: 0 }}>Event Management</h1>
+        <div
+          title={realtimeStatus === "connected" ? "Realtime connected" : "Realtime disconnected (fallback polling enabled)"}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 10px",
+            borderRadius: 10,
+            border: "1px solid var(--border)",
+            background: "var(--card)",
+            fontSize: 13,
+            color: "var(--muted)"
+          }}
+        >
+          <Activity size={16} style={{ color: realtimeStatus === "connected" ? "#16a34a" : "#dc2626" }} />
+          {realtimeStatus === "connected" ? "Realtime" : "Offline"}
+        </div>
         <button
           onClick={handleRefresh}
           disabled={isRefreshing}
@@ -320,150 +367,37 @@ export default function EventManagement() {
         </div>
       )}
 
-      {/* Edit Event Modal */}
-      <Modal
+      <AddEventModal
         open={!!editingEvent}
-        onClose={() => {
-          setEditingEvent(null);
-          setFormData({});
+        onClose={() => setEditingEvent(null)}
+        defaultDate={today}
+        categories={CATEGORY_OPTIONS}
+        availableOffices={availableOffices}
+        officesData={officesData ?? undefined}
+        mode="edit"
+        initialEvent={editingEvent}
+        title="Edit Event"
+        submitLabel="Save Changes"
+        onSubmit={async (payload) => {
+          if (!editingEvent?.id) return;
+          try {
+            await api.put(`/api/admin/events/${editingEvent.id}`, payload);
+            await fetchEvents();
+            setEditingEvent(null);
+            setError(null);
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to update event");
+          }
         }}
-      >
-        <div style={{ padding: "20px", minWidth: "500px" }}>
-          <h2 style={{ fontSize: "20px", fontWeight: "600", marginBottom: "16px" }}>
-            Edit Event
-          </h2>
+      />
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <div>
-              <label style={{ display: "block", fontSize: "12px", marginBottom: "4px", fontWeight: "500" }}>
-                Title
-              </label>
-              <input
-                type="text"
-                value={formData.title || ""}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid var(--border)",
-                  borderRadius: "6px",
-                  background: "var(--card)",
-                  color: "inherit"
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: "block", fontSize: "12px", marginBottom: "4px", fontWeight: "500" }}>
-                Description
-              </label>
-              <textarea
-                value={formData.description || ""}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid var(--border)",
-                  borderRadius: "6px",
-                  background: "var(--card)",
-                  color: "inherit",
-                  minHeight: "100px",
-                  fontFamily: "inherit",
-                  resize: "vertical"
-                }}
-              />
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-              <div>
-                <label style={{ display: "block", fontSize: "12px", marginBottom: "4px", fontWeight: "500" }}>
-                  Category
-                </label>
-                <input
-                  type="text"
-                  value={formData.category || ""}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "8px 12px",
-                    border: "1px solid var(--border)",
-                    borderRadius: "6px",
-                    background: "var(--card)",
-                    color: "inherit"
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "12px", marginBottom: "4px", fontWeight: "500" }}>
-                  Office
-                </label>
-                <input
-                  type="text"
-                  value={formData.office || ""}
-                  onChange={(e) => setFormData({ ...formData, office: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "8px 12px",
-                    border: "1px solid var(--border)",
-                    borderRadius: "6px",
-                    background: "var(--card)",
-                    color: "inherit"
-                  }}
-                />
-              </div>
-            </div>
-
-            {editingEvent && (
-              <div style={{
-                padding: "12px",
-                background: "rgba(59, 130, 246, 0.05)",
-                border: "1px solid rgba(59, 130, 246, 0.2)",
-                borderRadius: "6px",
-                fontSize: "12px",
-                color: "var(--text-secondary)"
-              }}>
-                <strong>Created by:</strong> {editingEvent.createdBy || "-"} on {editingEvent.createdAt ? new Date(editingEvent.createdAt).toLocaleDateString() : "-"}
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: "8px", marginTop: "16px" }}>
-              <button
-                onClick={handleEditEvent}
-                style={{
-                  flex: 1,
-                  padding: "10px",
-                  background: "#3b82f6",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  fontWeight: "500"
-                }}
-              >
-                Save Changes
-              </button>
-              <button
-                onClick={() => {
-                  setEditingEvent(null);
-                  setFormData({});
-                }}
-                style={{
-                  flex: 1,
-                  padding: "10px",
-                  background: "var(--card)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  fontWeight: "500"
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      </Modal>
+      <ConfirmModal
+        open={confirmState.open}
+        onClose={() => setConfirmState({ open: false, title: "", message: "", onConfirm: null })}
+        onConfirm={() => confirmState.onConfirm?.()}
+        title={confirmState.title}
+        message={confirmState.message}
+      />
     </div>
   );
 }
