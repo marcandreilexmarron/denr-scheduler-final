@@ -7,7 +7,7 @@ import { authMiddleware, authMiddlewareAllowQuery, signToken, requireAnyRole } f
 import crypto from "crypto";
 import { DateTime } from "luxon";
 import { fileURLToPath } from "url";
-import { readEvents, writeEvents, readArchivedEvents, writeArchivedEvents, readUsers, readHolidays, readEmployees, getDataDir } from "./storage-select.js";
+import { readEvents, writeEvents, readArchivedEvents, writeArchivedEvents, readUsers, readHolidays, writeHolidays, readEmployees, getDataDir } from "./storage-select.js";
 import { sendEventCreatedEmail, sendReminderEmail } from "./email-service.js";
 import multer from "multer";
 const app = express();
@@ -330,11 +330,13 @@ app.get("/api/calendar", async (req, res) => {
 app.post("/api/login", async (req, res) => {
     const { username, password } = req.body || {};
     const users = await readUsers();
-    const user = users.find((u) => u.username === username && u.password === password);
+    const user = users.find((u) => u.username === username);
     if (!user)
-        return res.status(401).json({ error: "invalid_credentials" });
+        return res.status(404).json({ error: "username_not_found" });
     if (user.disabled)
         return res.status(403).json({ error: "user_disabled" });
+    if (user.password !== password)
+        return res.status(401).json({ error: "incorrect_password" });
     const token = signToken({
         sub: user.username,
         role: user.role,
@@ -801,7 +803,7 @@ app.post("/api/admin/holidays", authMiddleware, requireAnyRole(["ADMIN"]), async
         const holidays = await readHolidays();
         const holiday = { month, day, name };
         holidays.push(holiday);
-        await (await import("./storage-select.js")).writeHolidays(holidays);
+        await writeHolidays(holidays);
         const actor = req.user;
         const audit = makeAuditEntry(actor, "holiday.created", { month, day, name: name ?? null });
         appendAdminAudit(audit);
@@ -811,6 +813,52 @@ app.post("/api/admin/holidays", authMiddleware, requireAnyRole(["ADMIN"]), async
     catch (err) {
         console.error("Error creating holiday:", err);
         res.status(500).json({ error: "failed_to_create_holiday" });
+    }
+});
+// PUT /api/admin/holidays/:month/:day - Update a holiday
+app.put("/api/admin/holidays/:month/:day", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+    try {
+        const { month, day } = req.params;
+        const oldMonth = Number(month);
+        const oldDay = Number(day);
+        const { month: newMonthRaw, day: newDayRaw, name } = req.body || {};
+        const newMonth = Number(newMonthRaw);
+        const newDay = Number(newDayRaw);
+        if (!Number.isFinite(oldMonth) || !Number.isFinite(oldDay)) {
+            return res.status(400).json({ error: "invalid_params" });
+        }
+        if (!Number.isFinite(newMonth) || !Number.isFinite(newDay)) {
+            return res.status(400).json({ error: "missing_required_fields" });
+        }
+        const holidays = await readHolidays();
+        const idx = holidays.findIndex((h) => h.month === oldMonth && h.day === oldDay);
+        if (idx < 0)
+            return res.status(404).json({ error: "holiday_not_found" });
+        const collision = (newMonth !== oldMonth || newDay !== oldDay) &&
+            holidays.some((h) => h.month === newMonth && h.day === newDay);
+        if (collision)
+            return res.status(409).json({ error: "holiday_date_conflict" });
+        const updated = { month: newMonth, day: newDay, name };
+        const next = holidays.slice();
+        next[idx] = updated;
+        await writeHolidays(next);
+        const actor = req.user;
+        const audit = makeAuditEntry(actor, "holiday.updated", {
+            from: { month: oldMonth, day: oldDay },
+            to: { month: newMonth, day: newDay, name: name ?? null }
+        });
+        appendAdminAudit(audit);
+        adminBroadcast({
+            type: "holiday.updated",
+            at: audit.at,
+            from: { month: oldMonth, day: oldDay },
+            to: { month: newMonth, day: newDay, name: name ?? null }
+        });
+        res.json(updated);
+    }
+    catch (err) {
+        console.error("Error updating holiday:", err);
+        res.status(500).json({ error: "failed_to_update_holiday" });
     }
 });
 // DELETE /api/admin/holidays/:month/:day - Delete a holiday
@@ -824,7 +872,7 @@ app.delete("/api/admin/holidays/:month/:day", authMiddleware, requireAnyRole(["A
         if (remaining.length === holidays.length) {
             return res.status(404).json({ error: "holiday_not_found" });
         }
-        await (await import("./storage-select.js")).writeHolidays(remaining);
+        await writeHolidays(remaining);
         const actor = req.user;
         const audit = makeAuditEntry(actor, "holiday.deleted", { month: m, day: d });
         appendAdminAudit(audit);
@@ -834,6 +882,47 @@ app.delete("/api/admin/holidays/:month/:day", authMiddleware, requireAnyRole(["A
     catch (err) {
         console.error("Error deleting holiday:", err);
         res.status(500).json({ error: "failed_to_delete_holiday" });
+    }
+});
+// PUT /api/admin/holidays/:month/:day - Edit a holiday
+app.put("/api/admin/holidays/:month/:day", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+    try {
+        const { month, day } = req.params;
+        const fromMonth = Number(month);
+        const fromDay = Number(day);
+        if (!Number.isFinite(fromMonth) || !Number.isFinite(fromDay)) {
+            return res.status(400).json({ error: "invalid_params" });
+        }
+        const { month: nextMonthRaw, day: nextDayRaw, name } = req.body || {};
+        const toMonth = Number(nextMonthRaw);
+        const toDay = Number(nextDayRaw);
+        if (!toMonth || !toDay) {
+            return res.status(400).json({ error: "missing_required_fields" });
+        }
+        if (!Number.isFinite(toMonth) || !Number.isFinite(toDay) || toMonth < 1 || toMonth > 12 || toDay < 1 || toDay > 31) {
+            return res.status(400).json({ error: "invalid_date" });
+        }
+        const holidays = await readHolidays();
+        const idx = holidays.findIndex((h) => h.month === fromMonth && h.day === fromDay);
+        if (idx === -1) {
+            return res.status(404).json({ error: "holiday_not_found" });
+        }
+        const collision = holidays.some((h, i) => i !== idx && h.month === toMonth && h.day === toDay);
+        if (collision) {
+            return res.status(409).json({ error: "holiday_already_exists" });
+        }
+        const updated = { month: toMonth, day: toDay, name };
+        holidays[idx] = updated;
+        await writeHolidays(holidays);
+        const actor = req.user;
+        const audit = makeAuditEntry(actor, "holiday.updated", { from: { month: fromMonth, day: fromDay }, to: { month: toMonth, day: toDay }, name: name ?? null });
+        appendAdminAudit(audit);
+        adminBroadcast({ type: "holiday.updated", at: audit.at, fromMonth, fromDay, month: toMonth, day: toDay, name: name ?? null });
+        res.json(updated);
+    }
+    catch (err) {
+        console.error("Error updating holiday:", err);
+        res.status(500).json({ error: "failed_to_update_holiday" });
     }
 });
 // GET /api/admin/stats - Get system statistics

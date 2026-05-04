@@ -35,8 +35,10 @@ export const api = {
       },
     });
     if (response.status === 401) {
-      clearToken();
-      window.location.assign("/");
+      if (path !== "/api/login") {
+        clearToken();
+        window.location.assign("/");
+      }
       throw new ApiError("Unauthorized", 401);
     }
     if (!response.ok) {
@@ -58,8 +60,10 @@ export const api = {
       body: JSON.stringify(body),
     });
     if (response.status === 401) {
-      clearToken();
-      window.location.assign("/");
+      if (path !== "/api/login") {
+        clearToken();
+        window.location.assign("/");
+      }
       throw new ApiError("Unauthorized", 401);
     }
     if (!response.ok) {
@@ -81,8 +85,10 @@ export const api = {
       body: JSON.stringify(body),
     });
     if (response.status === 401) {
-      clearToken();
-      window.location.assign("/");
+      if (path !== "/api/login") {
+        clearToken();
+        window.location.assign("/");
+      }
       throw new ApiError("Unauthorized", 401);
     }
     if (!response.ok) {
@@ -102,8 +108,10 @@ export const api = {
       },
     });
     if (response.status === 401) {
-      clearToken();
-      window.location.assign("/");
+      if (path !== "/api/login") {
+        clearToken();
+        window.location.assign("/");
+      }
       throw new ApiError("Unauthorized", 401);
     }
     if (!response.ok) {

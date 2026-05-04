@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getUserFromToken } from "../auth";
 import { api, subscribeAdminEvents } from "../api";
-import { Plus, Trash2, Calendar, Activity, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Calendar, Activity, RefreshCw, Pencil } from "lucide-react";
 import Modal from "../components/Modal";
 import ConfirmModal from "../components/ConfirmModal";
 
@@ -14,6 +14,9 @@ export default function AdminSettings() {
   const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [formData, setFormData] = useState({ month: 1, day: 1, name: "" });
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTarget, setEditTarget] = useState<{ month: number; day: number } | null>(null);
+  const [editForm, setEditForm] = useState({ month: 1, day: 1, name: "" });
   const [filter, setFilter] = useState("");
   const [realtimeStatus, setRealtimeStatus] = useState<"connected" | "error">("connected");
   const [refreshing, setRefreshing] = useState(false);
@@ -75,6 +78,35 @@ export default function AdminSettings() {
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create holiday");
+    }
+  };
+
+  const openEditHoliday = (holiday: any) => {
+    setEditTarget({ month: Number(holiday.month), day: Number(holiday.day) });
+    setEditForm({ month: Number(holiday.month), day: Number(holiday.day), name: String(holiday.name || "") });
+    setShowEditModal(true);
+    setError(null);
+  };
+
+  const handleUpdateHoliday = async () => {
+    if (!editTarget) return;
+    if (!editForm.month || !editForm.day) {
+      setError("Month and day are required");
+      return;
+    }
+    try {
+      await api.put(`/api/admin/holidays/${editTarget.month}/${editTarget.day}`, editForm);
+      await fetchHolidays();
+      setShowEditModal(false);
+      setEditTarget(null);
+      setError(null);
+    } catch (err: any) {
+      const status = typeof err?.status === "number" ? err.status : null;
+      if (status === 409) {
+        setError("That date already exists as a holiday. Please choose a different date.");
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to update holiday");
+      }
     }
   };
 
@@ -288,20 +320,36 @@ export default function AdminSettings() {
                       </td>
                       <td style={{ padding: "12px" }}>{holiday.name || "-"}</td>
                       <td style={{ padding: "12px", textAlign: "center" }}>
-                        <button
-                          onClick={() => handleDeleteHoliday(holiday.month, holiday.day)}
-                          style={{
-                            padding: "6px 10px",
-                            background: "rgba(239, 68, 68, 0.1)",
-                            border: "1px solid rgba(239, 68, 68, 0.3)",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            color: "#dc2626"
-                          }}
-                          title="Delete holiday"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
+                          <button
+                            onClick={() => openEditHoliday(holiday)}
+                            style={{
+                              padding: "6px 10px",
+                              background: "rgba(59, 130, 246, 0.1)",
+                              border: "1px solid rgba(59, 130, 246, 0.3)",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                              color: "#2563eb"
+                            }}
+                            title="Edit holiday"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteHoliday(holiday.month, holiday.day)}
+                            style={{
+                              padding: "6px 10px",
+                              background: "rgba(239, 68, 68, 0.1)",
+                              border: "1px solid rgba(239, 68, 68, 0.3)",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                              color: "#dc2626"
+                            }}
+                            title="Delete holiday"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -431,6 +479,125 @@ export default function AdminSettings() {
                 onClick={() => {
                   setShowAddModal(false);
                   resetForm();
+                }}
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  background: "var(--card)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontWeight: "500"
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Edit Holiday Modal */}
+      <Modal
+        open={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditTarget(null);
+        }}
+      >
+        <div style={{ padding: "20px", minWidth: "400px" }}>
+          <h2 style={{ fontSize: "20px", fontWeight: "600", marginBottom: "16px" }}>
+            Edit Holiday
+          </h2>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "12px", marginBottom: "4px", fontWeight: "500" }}>
+                  Month
+                </label>
+                <select
+                  value={editForm.month}
+                  onChange={(e) => setEditForm({ ...editForm, month: Number(e.target.value) })}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    border: "1px solid var(--border)",
+                    borderRadius: "6px",
+                    background: "var(--card)",
+                    color: "inherit"
+                  }}
+                >
+                  {monthNames.map((name, idx) => (
+                    <option key={idx} value={idx + 1}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "12px", marginBottom: "4px", fontWeight: "500" }}>
+                  Day
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="31"
+                  value={editForm.day}
+                  onChange={(e) => setEditForm({ ...editForm, day: Number(e.target.value) })}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    border: "1px solid var(--border)",
+                    borderRadius: "6px",
+                    background: "var(--card)",
+                    color: "inherit"
+                  }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: "12px", marginBottom: "4px", fontWeight: "500" }}>
+                Holiday Name (Optional)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., New Year's Day"
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  border: "1px solid var(--border)",
+                  borderRadius: "6px",
+                  background: "var(--card)",
+                  color: "inherit"
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: "8px", marginTop: "16px" }}>
+              <button
+                onClick={handleUpdateHoliday}
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  background: "#f59e0b",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontWeight: "500"
+                }}
+              >
+                Save Changes
+              </button>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditTarget(null);
                 }}
                 style={{
                   flex: 1,

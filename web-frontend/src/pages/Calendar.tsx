@@ -179,13 +179,7 @@ export default function Calendar(props?: {
     const [y, m, d] = s.split("-").map(Number);
     return new Date(y, m - 1, d);
   }
-  function isSameDay(a: Date, b: Date) {
-    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-  }
-  function dayInRange(day: Date, start: Date, end: Date) {
-    const t = day.getTime();
-    return t >= start.getTime() && t <= end.getTime();
-  }
+
   function eventMatchesOffice(e: any, officeName: string) {
     if (!officeName) return true;
     const target = officeName.toLowerCase().trim();
@@ -198,22 +192,6 @@ export default function Calendar(props?: {
   function eventMatchesCategory(e: any, cat: string) {
     if (!cat) return true;
     return normalizeCategory(e.category || "") === normalizeCategory(cat);
-  }
-  function formatFullDate(s: string) {
-    try {
-      const [y, m, d] = s.split("-").map(Number);
-      const dt = new Date(y, m - 1, d);
-      return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-    } catch {
-      return s;
-    }
-  }
-  function formatTime(t?: string) {
-    if (!t) return "";
-    const [hh, mm] = t.split(":").map(Number);
-    const d = new Date();
-    d.setHours(hh || 0, mm || 0, 0, 0);
-    return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
   }
 
   const [scope, setScope] = useState<"all" | "office">("all");

@@ -7,6 +7,30 @@ function normalizeCategory(s: string) {
   return String(s || "").trim().toLowerCase();
 }
 
+type TimeParts = { hour: string; minute: string; ampm: string };
+function parseTimeToParts(time24: any): TimeParts {
+  const s = String(time24 ?? "").trim();
+  const m = /^(\d{2}):(\d{2})$/.exec(s);
+  if (!m) return { hour: "", minute: "", ampm: "" };
+  const hh = Number(m[1]);
+  const mm = Number(m[2]);
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return { hour: "", minute: "", ampm: "" };
+  if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return { hour: "", minute: "", ampm: "" };
+  const ampm = hh >= 12 ? "PM" : "AM";
+  const h12 = hh % 12 === 0 ? 12 : hh % 12;
+  return { hour: String(h12).padStart(2, "0"), minute: String(mm).padStart(2, "0"), ampm };
+}
+function partsToTime24(parts: TimeParts): string {
+  const h = Number(parts.hour);
+  const m = Number(parts.minute);
+  const ap = String(parts.ampm || "").toUpperCase();
+  if (!Number.isInteger(h) || h < 1 || h > 12) return "";
+  if (!Number.isInteger(m) || m < 0 || m > 59) return "";
+  if (ap !== "AM" && ap !== "PM") return "";
+  const hh = ap === "AM" ? (h === 12 ? 0 : h) : (h === 12 ? 12 : h + 12);
+  return `${String(hh).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 export default function AddEventModal({
   open,
   onClose,
@@ -94,13 +118,22 @@ export default function AddEventModal({
     attachments: [],
     _participantInput: ""
   });
+  const [startTimeParts, setStartTimeParts] = useState<TimeParts>(() => parseTimeToParts(""));
+  const [endTimeParts, setEndTimeParts] = useState<TimeParts>(() => parseTimeToParts(""));
   const isEdit = (mode ?? "add") === "edit";
   const isRange = state.dateType === "range";
   const titleError = String(state.title || "").trim() ? null : "Title is required";
   const categoryError = state.category ? null : "Category is required";
   const typeError = state.type ? null : "Type is required";
+  const dateRequiredError = !isRange && !String(state.date || "").trim() ? "Date is required" : null;
+  const startDateRequiredError = isRange && !String(state.startDate || "").trim() ? "Start date is required" : null;
+  const endDateRequiredError = isRange && !String(state.endDate || "").trim() ? "End date is required" : null;
   const dateRangeError = isRange && state.startDate && state.endDate && state.endDate < state.startDate ? "End date must be on or after start date" : null;
+  const startTimeRequiredError = !String(state.startTime || "").trim() ? "Start time is required" : null;
+  const endTimeRequiredError = !String(state.endTime || "").trim() ? "End time is required" : null;
   const timeRangeError = state.startTime && state.endTime && state.endTime <= state.startTime ? "End time must be after start time" : null;
+  const participantsError =
+    Array.isArray(state.participants) && state.participants.length > 0 ? null : "Participants is required";
   const today = (() => {
     const d = new Date();
     const y = d.getFullYear();
@@ -118,13 +151,28 @@ export default function AddEventModal({
   const holidaySingleError = state.dateType !== "range" && isHolidayDate(state.date) ? "Selected date is a holiday" : null;
   const startPastError = state.dateType === "range" && state.startDate && state.startDate < today ? "Start date must be today or later" : null;
   // For ranges, holidays will be automatically skipped; do not error on holiday starts/ends
-  const scheduleErrors = [pastSingleError, holidaySingleError, startPastError].filter(Boolean) as string[];
+  const scheduleErrors = [dateRequiredError, startDateRequiredError, endDateRequiredError, pastSingleError, holidaySingleError, startPastError].filter(Boolean) as string[];
   const holidaysNote = state.dateType === "range" ? "Holidays within the range will be excluded" : "";
   const isValidSchedule = scheduleErrors.length === 0 && !dateRangeError;
-  const isValid = !titleError && !categoryError && !typeError && isValidSchedule && !timeRangeError;
+  const isValid =
+    !titleError &&
+    !categoryError &&
+    !typeError &&
+    isValidSchedule &&
+    !startTimeRequiredError &&
+    !endTimeRequiredError &&
+    !timeRangeError &&
+    !participantsError;
   const [employeeModalOffice, setEmployeeModalOffice] = useState<string | null>(null);
   const [employeeChoices, setEmployeeChoices] = useState<string[]>([]);
   const [employeeChecked, setEmployeeChecked] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setStartTimeParts(parseTimeToParts(state.startTime));
+  }, [state.startTime]);
+  useEffect(() => {
+    setEndTimeParts(parseTimeToParts(state.endTime));
+  }, [state.endTime]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -349,7 +397,9 @@ export default function AddEventModal({
         )}
         <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "1fr 180px", gap: 8 }}>
           <div>
-            <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Category</label>
+            <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>
+              Category <span style={{ color: "var(--error-color)" }}>*</span>
+            </label>
             <select
               style={{
                 width: "100%",
@@ -381,7 +431,9 @@ export default function AddEventModal({
             )}
           </div>
           <div>
-            <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Type</label>
+            <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>
+              Type <span style={{ color: "var(--error-color)" }}>*</span>
+            </label>
             <select
               style={{
                 width: "100%",
@@ -422,7 +474,9 @@ export default function AddEventModal({
           </div>
         )}
         <div>
-          <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Event Title</label>
+          <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>
+            Event Title <span style={{ color: "var(--error-color)" }}>*</span>
+          </label>
           <input
             style={{ width: "100%", boxSizing: "border-box", padding: 8, border: `1px solid ${titleError ? "var(--error-color)" : "var(--border)"}`, borderRadius: 8, background: "var(--card)", fontSize: 13 }}
             placeholder="Title"
@@ -452,7 +506,9 @@ export default function AddEventModal({
           />
         </div>
         <div>
-          <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>Schedule</div>
+          <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>
+            Schedule <span style={{ color: "var(--error-color)" }}>*</span>
+          </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 4 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13 }}>
               <input
@@ -474,21 +530,25 @@ export default function AddEventModal({
           {state.dateType === "range" ? (
             <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "1fr 1fr", gap: 10 }}>
               <div>
-                <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Start Date</label>
+                <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>
+                  Start Date <span style={{ color: "var(--error-color)" }}>*</span>
+                </label>
                 <input
                   type="date"
-                  style={{ width: "100%", boxSizing: "border-box", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }}
+                  style={{ width: "100%", boxSizing: "border-box", padding: 8, border: `1px solid ${startDateRequiredError || startPastError ? "var(--error-color)" : "var(--border)"}`, borderRadius: 8, background: "var(--card)", fontSize: 13 }}
                   min={today}
                   value={state.startDate}
                   onChange={(e) => setState({ ...state, startDate: e.target.value })}
                 />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>End Date</label>
+                <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>
+                  End Date <span style={{ color: "var(--error-color)" }}>*</span>
+                </label>
                 <input
                   type="date"
                   min={state.startDate || undefined}
-                  style={{ width: "100%", boxSizing: "border-box", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }}
+                  style={{ width: "100%", boxSizing: "border-box", padding: 8, border: `1px solid ${endDateRequiredError || dateRangeError ? "var(--error-color)" : "var(--border)"}`, borderRadius: 8, background: "var(--card)", fontSize: 13 }}
                   value={state.endDate}
                   onChange={(e) => setState({ ...state, endDate: e.target.value })}
                 />
@@ -496,10 +556,12 @@ export default function AddEventModal({
             </div>
           ) : (
             <div>
-              <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Date</label>
+              <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>
+                Date <span style={{ color: "var(--error-color)" }}>*</span>
+              </label>
               <input
                 type="date"
-                style={{ width: "100%", boxSizing: "border-box", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }}
+                style={{ width: "100%", boxSizing: "border-box", padding: 8, border: `1px solid ${dateRequiredError || scheduleErrors.length > 0 ? "var(--error-color)" : "var(--border)"}`, borderRadius: 8, background: "var(--card)", fontSize: 13 }}
                 min={today}
                 value={state.date}
                 onChange={(e) => setState({ ...state, date: e.target.value })}
@@ -517,17 +579,260 @@ export default function AddEventModal({
         </div>
         <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "1fr 1fr", gap: 10 }}>
           <div>
-            <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Start Time</label>
-            <input type="time" style={{ width: "100%", boxSizing: "border-box", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }} value={state.startTime} onChange={(e) => setState({ ...state, startTime: e.target.value })} />
+            <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>
+              Start Time <span style={{ color: "var(--error-color)" }}>*</span>
+            </label>
+            <div style={{ display: "grid", gridTemplateColumns: "64px 14px 64px 80px", gap: 6, marginBottom: 4, color: "var(--muted)", fontSize: 11 }}>
+              <div style={{ textAlign: "center" }}>Hour</div>
+              <div />
+              <div style={{ textAlign: "center" }}>Minute</div>
+              <div style={{ textAlign: "center" }}>AM/PM</div>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 10px",
+                borderRadius: 12,
+                border: `1px solid ${startTimeRequiredError ? "var(--error-color)" : "var(--border)"}`,
+                background: "var(--card)",
+                color: "var(--text)",
+                fontFamily:
+                  "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace"
+              }}
+            >
+              <select
+                aria-label="Start time hour"
+                value={startTimeParts.hour}
+                onChange={(e) => {
+                  const hour = e.target.value;
+                  setStartTimeParts((prev) => {
+                    const next = { ...prev, hour };
+                    setState((s: any) => ({ ...s, startTime: partsToTime24(next) }));
+                    return next;
+                  });
+                }}
+                style={{
+                  width: 64,
+                  height: 36,
+                  border: "1px solid var(--border)",
+                  borderRadius: 10,
+                  background: "var(--secondary-bg)",
+                  color: "inherit",
+                  fontSize: 18,
+                  fontWeight: 800,
+                  padding: "0 8px",
+                  textAlign: "center",
+                  textAlignLast: "center",
+                  appearance: "none",
+                  WebkitAppearance: "none"
+                }}
+              >
+                <option value="">--</option>
+                {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")).map((h) => (
+                  <option key={`sh-${h}`} value={h}>{h}</option>
+                ))}
+              </select>
+              <span style={{ fontSize: 18, fontWeight: 900, color: "var(--muted)" }}>:</span>
+              <select
+                aria-label="Start time minute"
+                value={startTimeParts.minute}
+                onChange={(e) => {
+                  const minute = e.target.value;
+                  setStartTimeParts((prev) => {
+                    const next = { ...prev, minute };
+                    setState((s: any) => ({ ...s, startTime: partsToTime24(next) }));
+                    return next;
+                  });
+                }}
+                style={{
+                  width: 64,
+                  height: 36,
+                  border: "1px solid var(--border)",
+                  borderRadius: 10,
+                  background: "var(--secondary-bg)",
+                  color: "inherit",
+                  fontSize: 18,
+                  fontWeight: 800,
+                  padding: "0 8px",
+                  textAlign: "center",
+                  textAlignLast: "center",
+                  appearance: "none",
+                  WebkitAppearance: "none"
+                }}
+              >
+                <option value="">--</option>
+                {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0")).map((m) => (
+                  <option key={`sm-${m}`} value={m}>{m}</option>
+                ))}
+              </select>
+              <select
+                aria-label="Start time AM or PM"
+                value={startTimeParts.ampm}
+                onChange={(e) => {
+                  const ampm = e.target.value;
+                  setStartTimeParts((prev) => {
+                    const next = { ...prev, ampm };
+                    setState((s: any) => ({ ...s, startTime: partsToTime24(next) }));
+                    return next;
+                  });
+                }}
+                style={{
+                  width: 80,
+                  height: 36,
+                  border: "1px solid var(--border)",
+                  borderRadius: 10,
+                  background: "var(--secondary-bg)",
+                  color: "inherit",
+                  fontSize: 16,
+                  fontWeight: 800,
+                  padding: "0 8px",
+                  textAlign: "center",
+                  textAlignLast: "center",
+                  appearance: "none",
+                  WebkitAppearance: "none"
+                }}
+              >
+                <option value="">--</option>
+                <option value="AM">AM</option>
+                <option value="PM">PM</option>
+              </select>
+            </div>
           </div>
           <div>
-            <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>End Time</label>
-            <input type="time" style={{ width: "100%", boxSizing: "border-box", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }} value={state.endTime} onChange={(e) => setState({ ...state, endTime: e.target.value })} />
+            <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>
+              End Time <span style={{ color: "var(--error-color)" }}>*</span>
+            </label>
+            <div style={{ display: "grid", gridTemplateColumns: "64px 14px 64px 80px", gap: 6, marginBottom: 4, color: "var(--muted)", fontSize: 11 }}>
+              <div style={{ textAlign: "center" }}>Hour</div>
+              <div />
+              <div style={{ textAlign: "center" }}>Minute</div>
+              <div style={{ textAlign: "center" }}>AM/PM</div>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 10px",
+                borderRadius: 12,
+                border: `1px solid ${endTimeRequiredError || timeRangeError ? "var(--error-color)" : "var(--border)"}`,
+                background: "var(--card)",
+                color: "var(--text)",
+                fontFamily:
+                  "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace"
+              }}
+            >
+              <select
+                aria-label="End time hour"
+                value={endTimeParts.hour}
+                onChange={(e) => {
+                  const hour = e.target.value;
+                  setEndTimeParts((prev) => {
+                    const next = { ...prev, hour };
+                    setState((s: any) => ({ ...s, endTime: partsToTime24(next) }));
+                    return next;
+                  });
+                }}
+                style={{
+                  width: 64,
+                  height: 36,
+                  border: "1px solid var(--border)",
+                  borderRadius: 10,
+                  background: "var(--secondary-bg)",
+                  color: "inherit",
+                  fontSize: 18,
+                  fontWeight: 800,
+                  padding: "0 8px",
+                  textAlign: "center",
+                  textAlignLast: "center",
+                  appearance: "none",
+                  WebkitAppearance: "none"
+                }}
+              >
+                <option value="">--</option>
+                {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")).map((h) => (
+                  <option key={`eh-${h}`} value={h}>{h}</option>
+                ))}
+              </select>
+              <span style={{ fontSize: 18, fontWeight: 900, color: "var(--muted)" }}>:</span>
+              <select
+                aria-label="End time minute"
+                value={endTimeParts.minute}
+                onChange={(e) => {
+                  const minute = e.target.value;
+                  setEndTimeParts((prev) => {
+                    const next = { ...prev, minute };
+                    setState((s: any) => ({ ...s, endTime: partsToTime24(next) }));
+                    return next;
+                  });
+                }}
+                style={{
+                  width: 64,
+                  height: 36,
+                  border: "1px solid var(--border)",
+                  borderRadius: 10,
+                  background: "var(--secondary-bg)",
+                  color: "inherit",
+                  fontSize: 18,
+                  fontWeight: 800,
+                  padding: "0 8px",
+                  textAlign: "center",
+                  textAlignLast: "center",
+                  appearance: "none",
+                  WebkitAppearance: "none"
+                }}
+              >
+                <option value="">--</option>
+                {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0")).map((m) => (
+                  <option key={`em-${m}`} value={m}>{m}</option>
+                ))}
+              </select>
+              <select
+                aria-label="End time AM or PM"
+                value={endTimeParts.ampm}
+                onChange={(e) => {
+                  const ampm = e.target.value;
+                  setEndTimeParts((prev) => {
+                    const next = { ...prev, ampm };
+                    setState((s: any) => ({ ...s, endTime: partsToTime24(next) }));
+                    return next;
+                  });
+                }}
+                style={{
+                  width: 80,
+                  height: 36,
+                  border: "1px solid var(--border)",
+                  borderRadius: 10,
+                  background: "var(--secondary-bg)",
+                  color: "inherit",
+                  fontSize: 16,
+                  fontWeight: 800,
+                  padding: "0 8px",
+                  textAlign: "center",
+                  textAlignLast: "center",
+                  appearance: "none",
+                  WebkitAppearance: "none"
+                }}
+              >
+                <option value="">--</option>
+                <option value="AM">AM</option>
+                <option value="PM">PM</option>
+              </select>
+            </div>
           </div>
         </div>
-        {timeRangeError && <div style={{ color: "var(--error-color)", fontSize: 11, marginTop: -2 }}>{timeRangeError}</div>}
+        {(startTimeRequiredError || endTimeRequiredError || timeRangeError) && (
+          <div style={{ color: "var(--error-color)", fontSize: 11, marginTop: -2 }}>
+            {timeRangeError || startTimeRequiredError || endTimeRequiredError}
+          </div>
+        )}
         <div>
-          <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>Participants</div>
+          <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>
+            Participants <span style={{ color: "var(--error-color)" }}>*</span>
+          </div>
+          {participantsError && <div style={{ color: "var(--error-color)", fontSize: 11, marginTop: -2, marginBottom: 6 }}>{participantsError}</div>}
           <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 6 }}>
             {officesData ? (
               <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
