@@ -15,13 +15,19 @@ const db = knex({
   connection
 });
 
+const TABLE_PREFIX = (process.env.DB_TABLE_PREFIX || "scheduler_").trim();
+function tableName(base: string) {
+  if (!TABLE_PREFIX) return base;
+  return base.startsWith(TABLE_PREFIX) ? base : `${TABLE_PREFIX}${base}`;
+}
+
 async function run() {
   try {
     // 1. Add email to office_users
-    const hasEmail = await db.schema.hasColumn("office_users", "email");
+    const hasEmail = await db.schema.hasColumn(tableName("office_users"), "email");
     if (!hasEmail) {
       console.log("Adding email column to office_users...");
-      await db.schema.table("office_users", (t) => {
+      await db.schema.table(tableName("office_users"), (t) => {
         t.string("email");
       });
     } else {
@@ -29,10 +35,10 @@ async function run() {
     }
 
     // 2. Add reminder_sent to events
-    const hasReminderSent = await db.schema.hasColumn("events", "reminder_sent");
+    const hasReminderSent = await db.schema.hasColumn(tableName("events"), "reminder_sent");
     if (!hasReminderSent) {
       console.log("Adding reminder_sent column to events...");
-      await db.schema.table("events", (t) => {
+      await db.schema.table(tableName("events"), (t) => {
         t.boolean("reminder_sent").defaultTo(false);
       });
     } else {

@@ -7,6 +7,8 @@ import Calendar from "./pages/Calendar";
 import Offices from "./pages/Offices";
 import AddEventPage from "./pages/AddEventPage";
 import ArchivedEventsPage from "./pages/ArchivedEventsPage";
+import UserManagement from "./pages/UserManagement";
+import HolidaysPage from "./pages/HolidaysPage";
 import ProtectedRoute from "./ProtectedRoute";
 import { clearToken, getToken, getUserFromToken, onAuthChange } from "./auth";
 import LoginModal from "./components/LoginModal";
@@ -18,7 +20,8 @@ function NotFoundRedirect() {
 
   useEffect(() => {
     if (user) {
-      navigate("/office-dashboard");
+      const isAdmin = String(user.role || "").endsWith("ADMIN");
+      navigate(isAdmin ? "/admin/users" : "/office-dashboard");
     } else {
       navigate("/");
     }
@@ -187,16 +190,24 @@ function Shell() {
         onClose={() => setShowLogin(false)}
         onSuccess={(u) => {
           setUser(u);
-          navigate("/office-dashboard");
+            const isAdmin = String(u?.role || "").endsWith("ADMIN");
+            navigate(isAdmin ? "/admin/users" : "/office-dashboard");
         }}
       />
       {user && (
         <div style={{ display: "flex", gap: isPortrait ? 4 : 8, padding: isPortrait ? "4px 8px" : "8px 12px", borderBottom: "1px solid var(--border)", background: "var(--card)", overflowX: "auto" }}>
-          {[
-            { to: "/office-dashboard", label: "Office Dashboard", short: "Dashboard" },
-            { to: "/add-event", label: "Add Event", short: "Add" },
-            { to: "/archived", label: "Archived", short: "Archived" }
-          ].map((t) => {
+          {(
+            String(user.role || "").endsWith("ADMIN")
+              ? [
+                  { to: "/admin/users", label: "User Management", short: "Users" },
+                  { to: "/holidays", label: "Holidays", short: "Holidays" }
+                ]
+              : [
+                  { to: "/office-dashboard", label: "Office Dashboard", short: "Dashboard" },
+                  { to: "/add-event", label: "Add Event", short: "Add" },
+                  { to: "/archived", label: "Archived", short: "Archived" }
+                ]
+          ).map((t) => {
             const active = location.pathname === t.to;
             return (
               <Link
@@ -226,7 +237,7 @@ function Shell() {
           <Route
             path="/calendar"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute role="OFFICE">
                 <Calendar/>
               </ProtectedRoute>
             }
@@ -234,7 +245,7 @@ function Shell() {
           <Route
             path="/offices"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute role="OFFICE">
                 <Offices />
               </ProtectedRoute>
             }
@@ -242,7 +253,7 @@ function Shell() {
           <Route
             path="/office-dashboard"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute role="OFFICE">
                 <OfficeDashboard />
               </ProtectedRoute>
             }
@@ -250,7 +261,7 @@ function Shell() {
           <Route
             path="/archived"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute role="OFFICE">
                 <ArchivedEventsPage />
               </ProtectedRoute>
             }
@@ -258,8 +269,24 @@ function Shell() {
           <Route
             path="/add-event"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute role="OFFICE">
                 <AddEventPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute role="ADMIN">
+                <UserManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/holidays"
+            element={
+              <ProtectedRoute role="ADMIN">
+                <HolidaysPage />
               </ProtectedRoute>
             }
           />

@@ -16,10 +16,17 @@ const db = knex({
   pool: { min: 0, max: 1 }
 });
 
+const TABLE_PREFIX = (process.env.DB_TABLE_PREFIX || "scheduler_").trim();
+function tableName(base: string) {
+  if (!TABLE_PREFIX) return base;
+  return base.startsWith(TABLE_PREFIX) ? base : `${TABLE_PREFIX}${base}`;
+}
+
 async function inspect() {
   try {
     const tables = ["events", "events_archive", "employee_details", "holidays", "office_users"];
-    for (const t of tables) {
+    for (const base of tables) {
+      const t = tableName(base);
       console.log(`\n--- ${t} ---`);
       if (await db.schema.hasTable(t)) {
         const cols = await db(t).columnInfo();

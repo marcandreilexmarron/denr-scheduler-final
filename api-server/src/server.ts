@@ -13,7 +13,9 @@ import {
   readArchivedEvents,
   writeArchivedEvents,
   readUsers,
+  writeUsers,
   readHolidays,
+  writeHolidays,
   readEmployees,
   getDataDir
 } from "./storage-select.js";
@@ -305,9 +307,6 @@ app.post("/api/login", async (req, res) => {
   const users = await readUsers();
   const user = users.find((u) => u.username === username && u.password === password);
   if (!user) return res.status(401).json({ error: "invalid_credentials" });
-  if (String(user.role || "").replace(/^ROLE_/, "") === "ADMIN") {
-    return res.status(403).json({ error: "admin_login_disabled" });
-  }
   const token = signToken({
     sub: user.username,
     role: user.role,
@@ -315,6 +314,109 @@ app.post("/api/login", async (req, res) => {
     service: user.service
   });
   res.json({ token });
+});
+
+function sanitizeUser(u: any) {
+  if (!u) return u;
+  const { password, ...rest } = u;
+  return rest;
+}
+function normRole(r: any) {
+  return String(r || "").replace(/^ROLE_/, "").toUpperCase();
+}
+function normOfficeName(v: any) {
+  const s = String(v ?? "").trim();
+  return s ? s : null;
+}
+
+app.get("/api/admin/users", authMiddleware, requireAnyRole(["ADMIN"]), async (_req, res) => {
+  const users = await readUsers();
+  res.json(users.map(sanitizeUser));
+});
+
+app.post("/api/admin/users", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+  const { username, password, role, officeName, service, email } = req.body || {};
+  const un = String(username ?? "").trim();
+  const pw = String(password ?? "");
+  const r = normRole(role);
+  const on = normOfficeName(officeName);
+  const svc = String(service ?? "").trim() || null;
+  const em = String(email ?? "").trim() || null;
+
+  if (!un) return res.status(400).json({ error: "username_required" });
+  if (!pw) return res.status(400).json({ error: "password_required" });
+  if (!r) return res.status(400).json({ error: "role_required" });
+  if (!["ADMIN", "OFFICE"].includes(r)) return res.status(400).json({ error: "invalid_role" });
+
+  const users = await readUsers();
+  if (users.some((u) => String(u.username || "").toLowerCase() === un.toLowerCase())) {
+    return res.status(409).json({ error: "username_exists" });
+  }
+  if (on && users.some((u) => normOfficeName(u.officeName)?.toLowerCase() === on.toLowerCase())) {
+    return res.status(409).json({ error: "office_exists" });
+  }
+
+  const next = { username: un, password: pw, role: r, officeName: on, service: svc, email: em };
+  await writeUsers([...users, next]);
+  res.status(201).json(sanitizeUser(next));
+});
+
+app.put("/api/admin/users/:username", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+  const targetUsername = String(req.params.username || "").trim();
+  if (!targetUsername) return res.status(400).json({ error: "username_required" });
+
+  const { password, role, officeName, service, email } = req.body || {};
+  const pw = typeof password === "string" ? password : undefined;
+  const r = role === undefined ? undefined : normRole(role);
+  const on = officeName === undefined ? undefined : normOfficeName(officeName);
+  const svc = service === undefined ? undefined : (String(service ?? "").trim() || null);
+  const em = email === undefined ? undefined : (String(email ?? "").trim() || null);
+
+  if (r !== undefined && !["ADMIN", "OFFICE"].includes(r)) return res.status(400).json({ error: "invalid_role" });
+
+  const users = await readUsers();
+  const idx = users.findIndex((u) => String(u.username || "").toLowerCase() === targetUsername.toLowerCase());
+  if (idx < 0) return res.status(404).json({ error: "not_found" });
+
+  if (on !== undefined && on) {
+    const conflict = users.some((u, i) => {
+      if (i === idx) return false;
+      return normOfficeName(u.officeName)?.toLowerCase() === on.toLowerCase();
+    });
+    if (conflict) return res.status(409).json({ error: "office_exists" });
+  }
+
+  const current = users[idx] || {};
+  const updated = {
+    ...current,
+    ...(pw !== undefined ? { password: pw } : {}),
+    ...(r !== undefined ? { role: r } : {}),
+    ...(on !== undefined ? { officeName: on } : {}),
+    ...(svc !== undefined ? { service: svc } : {}),
+    ...(em !== undefined ? { email: em } : {})
+  };
+
+  const nextUsers = [...users];
+  nextUsers[idx] = updated;
+  await writeUsers(nextUsers);
+  res.json(sanitizeUser(updated));
+});
+
+app.delete("/api/admin/users/:username", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+  const targetUsername = String(req.params.username || "").trim();
+  if (!targetUsername) return res.status(400).json({ error: "username_required" });
+
+  const actor = (req as any).user as any;
+  if (String(actor?.sub || "").toLowerCase() === targetUsername.toLowerCase()) {
+    return res.status(403).json({ error: "cannot_delete_self" });
+  }
+
+  const users = await readUsers();
+  const before = users.length;
+  const nextUsers = users.filter((u) => String(u.username || "").toLowerCase() !== targetUsername.toLowerCase());
+  if (nextUsers.length === before) return res.status(404).json({ error: "not_found" });
+  await writeUsers(nextUsers);
+  res.status(204).send();
 });
 
 function isHolidayDate(d: Date, holidays: Array<{ month: number; day: number }>) {
@@ -396,6 +498,81 @@ app.get("/api/office/events", authMiddleware, async (req, res) => {
 
 app.get("/api/holidays", async (_req, res) => {
   res.json(await readHolidays());
+});
+
+function normHolidayName(v: any) {
+  return String(v ?? "").trim();
+}
+function holidayKeyByName(name: string) {
+  return String(name || "").trim().toLowerCase();
+}
+
+app.get("/api/admin/holidays", authMiddleware, requireAnyRole(["ADMIN"]), async (_req, res) => {
+  res.json(await readHolidays());
+});
+
+app.post("/api/admin/holidays", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+  const { month, day, name } = req.body || {};
+  const m = Number(month);
+  const d = Number(day);
+  const n = normHolidayName(name);
+  if (!Number.isInteger(m) || m < 1 || m > 12) return res.status(400).json({ error: "invalid_month" });
+  if (!Number.isInteger(d) || d < 1 || d > 31) return res.status(400).json({ error: "invalid_day" });
+  if (!n) return res.status(400).json({ error: "name_required" });
+
+  const holidays = await readHolidays();
+  const key = holidayKeyByName(n);
+  if (holidays.some((h: any) => holidayKeyByName(h?.name) === key)) {
+    return res.status(409).json({ error: "name_exists" });
+  }
+
+  const next = [...holidays, { month: m, day: d, name: n }];
+  await writeHolidays(next);
+  res.status(201).json({ month: m, day: d, name: n });
+});
+
+app.put("/api/admin/holidays/:name", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+  const targetName = normHolidayName(req.params.name);
+  if (!targetName) return res.status(400).json({ error: "name_required" });
+
+  const { month, day, name } = req.body || {};
+  const m = month === undefined ? undefined : Number(month);
+  const d = day === undefined ? undefined : Number(day);
+  const n = name === undefined ? undefined : normHolidayName(name);
+  if (m !== undefined && (!Number.isInteger(m) || m < 1 || m > 12)) return res.status(400).json({ error: "invalid_month" });
+  if (d !== undefined && (!Number.isInteger(d) || d < 1 || d > 31)) return res.status(400).json({ error: "invalid_day" });
+
+  const holidays = await readHolidays();
+  const idx = holidays.findIndex((h: any) => holidayKeyByName(h?.name) === holidayKeyByName(targetName));
+  if (idx < 0) return res.status(404).json({ error: "not_found" });
+
+  const current: any = holidays[idx] || {};
+  const updated = {
+    ...current,
+    ...(m !== undefined ? { month: m } : {}),
+    ...(d !== undefined ? { day: d } : {}),
+    ...(n !== undefined ? { name: n } : {})
+  };
+  const nextNameKey = holidayKeyByName(updated.name);
+  const conflict = holidays.some((h: any, i: number) => i !== idx && holidayKeyByName(h?.name) === nextNameKey);
+  if (conflict) return res.status(409).json({ error: "name_exists" });
+
+  const next = [...holidays];
+  next[idx] = updated;
+  await writeHolidays(next);
+  res.json(updated);
+});
+
+app.delete("/api/admin/holidays/:name", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+  const targetName = normHolidayName(req.params.name);
+  if (!targetName) return res.status(400).json({ error: "name_required" });
+
+  const holidays = await readHolidays();
+  const before = holidays.length;
+  const next = holidays.filter((h: any) => holidayKeyByName(h?.name) !== holidayKeyByName(targetName));
+  if (next.length === before) return res.status(404).json({ error: "not_found" });
+  await writeHolidays(next);
+  res.status(204).send();
 });
 
 app.get("/api/employees", async (_req, res) => {

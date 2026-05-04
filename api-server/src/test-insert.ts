@@ -16,6 +16,12 @@ const db = knex({
   pool: { min: 0, max: 1 }
 });
 
+const TABLE_PREFIX = (process.env.DB_TABLE_PREFIX || "scheduler_").trim();
+function tableName(base: string) {
+  if (!TABLE_PREFIX) return base;
+  return base.startsWith(TABLE_PREFIX) ? base : `${TABLE_PREFIX}${base}`;
+}
+
 async function testEventInsert() {
   try {
     const id = "test-" + Date.now();
@@ -28,9 +34,9 @@ async function testEventInsert() {
       created_at: new Date()
     };
     console.log("Attempting to insert:", payload);
-    await db("events").insert(payload);
+    await db(tableName("events")).insert(payload);
     console.log("Insert success!");
-    await db("events").where({ id }).del();
+    await db(tableName("events")).where({ id }).del();
     console.log("Cleanup success!");
   } catch (err) {
     console.error("Insert failed:", err);

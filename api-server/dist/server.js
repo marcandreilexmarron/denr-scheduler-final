@@ -7,11 +7,15 @@ import { authMiddleware, signToken, requireAnyRole } from "./auth.js";
 import crypto from "crypto";
 import { DateTime } from "luxon";
 import { fileURLToPath } from "url";
-import { readEvents, writeEvents, readArchivedEvents, writeArchivedEvents, readUsers, readHolidays, readEmployees, getDataDir } from "./storage-select.js";
-import { sendReminderEmail } from "./email-service.js";
+import { readEvents, writeEvents, readArchivedEvents, writeArchivedEvents, readUsers, writeUsers, readHolidays, writeHolidays, readEmployees, getDataDir } from "./storage-select.js";
+import { sendEventCreatedEmail, sendReminderEmail } from "./email-service.js";
 import multer from "multer";
 const app = express();
-app.use(cors());
+app.use(cors({
+    origin: "*", // Allow all origins for remote access
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+}));
 app.use(express.json());
 // Setup static file serving for attachments
 // Files will be stored in 'api-server/data/uploads'
@@ -70,7 +74,15 @@ function parseDateTime(dateStr, timeStr) {
     if (!dateStr)
         return null;
     try {
-        const [y, m, d] = dateStr.split("-").map((n) => Number(n));
+        let y, m, d;
+        if (dateStr instanceof Date) {
+            y = dateStr.getFullYear();
+            m = dateStr.getMonth() + 1;
+            d = dateStr.getDate();
+        }
+        else {
+            [y, m, d] = String(dateStr).split("-").map((n) => Number(n));
+        }
         let hh = 23, mm = 59;
         if (timeStr && /^\d{2}:\d{2}$/.test(timeStr)) {
             const [h2, m2] = timeStr.split(":").map((n) => Number(n));
@@ -250,9 +262,15 @@ app.get("/api/calendar", async (req, res) => {
         const holiday = monthHolidays.find((h) => h.day === d) ?? null;
         calendarDays.push({ day: d, isToday: d === today, holiday });
     }
+    // Fill the grid to the end of the week
+    while (calendarDays.length % 7 !== 0) {
+        calendarDays.push({ day: "", isToday: false, holiday: null });
+    }
     const prev = ym.minus({ months: 1 });
     const next = ym.plus({ months: 1 });
     res.json({
+        year: ym.year,
+        month: ym.month,
         yearMonth: ym.toFormat("MMMM yyyy"),
         previousMonth: prev.month,
         previousYear: prev.year,
@@ -269,9 +287,6 @@ app.post("/api/login", async (req, res) => {
     const user = users.find((u) => u.username === username && u.password === password);
     if (!user)
         return res.status(401).json({ error: "invalid_credentials" });
-    if (String(user.role || "").replace(/^ROLE_/, "") === "ADMIN") {
-        return res.status(403).json({ error: "admin_login_disabled" });
-    }
     const token = signToken({
         sub: user.username,
         role: user.role,
@@ -280,6 +295,105 @@ app.post("/api/login", async (req, res) => {
     });
     res.json({ token });
 });
+function sanitizeUser(u) {
+    if (!u)
+        return u;
+    const { password, ...rest } = u;
+    return rest;
+}
+function normRole(r) {
+    return String(r || "").replace(/^ROLE_/, "").toUpperCase();
+}
+function normOfficeName(v) {
+    const s = String(v ?? "").trim();
+    return s ? s : null;
+}
+app.get("/api/admin/users", authMiddleware, requireAnyRole(["ADMIN"]), async (_req, res) => {
+    const users = await readUsers();
+    res.json(users.map(sanitizeUser));
+});
+app.post("/api/admin/users", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+    const { username, password, role, officeName, service, email } = req.body || {};
+    const un = String(username ?? "").trim();
+    const pw = String(password ?? "");
+    const r = normRole(role);
+    const on = normOfficeName(officeName);
+    const svc = String(service ?? "").trim() || null;
+    const em = String(email ?? "").trim() || null;
+    if (!un)
+        return res.status(400).json({ error: "username_required" });
+    if (!pw)
+        return res.status(400).json({ error: "password_required" });
+    if (!r)
+        return res.status(400).json({ error: "role_required" });
+    if (!["ADMIN", "OFFICE"].includes(r))
+        return res.status(400).json({ error: "invalid_role" });
+    const users = await readUsers();
+    if (users.some((u) => String(u.username || "").toLowerCase() === un.toLowerCase())) {
+        return res.status(409).json({ error: "username_exists" });
+    }
+    if (on && users.some((u) => normOfficeName(u.officeName)?.toLowerCase() === on.toLowerCase())) {
+        return res.status(409).json({ error: "office_exists" });
+    }
+    const next = { username: un, password: pw, role: r, officeName: on, service: svc, email: em };
+    await writeUsers([...users, next]);
+    res.status(201).json(sanitizeUser(next));
+});
+app.put("/api/admin/users/:username", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+    const targetUsername = String(req.params.username || "").trim();
+    if (!targetUsername)
+        return res.status(400).json({ error: "username_required" });
+    const { password, role, officeName, service, email } = req.body || {};
+    const pw = typeof password === "string" ? password : undefined;
+    const r = role === undefined ? undefined : normRole(role);
+    const on = officeName === undefined ? undefined : normOfficeName(officeName);
+    const svc = service === undefined ? undefined : (String(service ?? "").trim() || null);
+    const em = email === undefined ? undefined : (String(email ?? "").trim() || null);
+    if (r !== undefined && !["ADMIN", "OFFICE"].includes(r))
+        return res.status(400).json({ error: "invalid_role" });
+    const users = await readUsers();
+    const idx = users.findIndex((u) => String(u.username || "").toLowerCase() === targetUsername.toLowerCase());
+    if (idx < 0)
+        return res.status(404).json({ error: "not_found" });
+    if (on !== undefined && on) {
+        const conflict = users.some((u, i) => {
+            if (i === idx)
+                return false;
+            return normOfficeName(u.officeName)?.toLowerCase() === on.toLowerCase();
+        });
+        if (conflict)
+            return res.status(409).json({ error: "office_exists" });
+    }
+    const current = users[idx] || {};
+    const updated = {
+        ...current,
+        ...(pw !== undefined ? { password: pw } : {}),
+        ...(r !== undefined ? { role: r } : {}),
+        ...(on !== undefined ? { officeName: on } : {}),
+        ...(svc !== undefined ? { service: svc } : {}),
+        ...(em !== undefined ? { email: em } : {})
+    };
+    const nextUsers = [...users];
+    nextUsers[idx] = updated;
+    await writeUsers(nextUsers);
+    res.json(sanitizeUser(updated));
+});
+app.delete("/api/admin/users/:username", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+    const targetUsername = String(req.params.username || "").trim();
+    if (!targetUsername)
+        return res.status(400).json({ error: "username_required" });
+    const actor = req.user;
+    if (String(actor?.sub || "").toLowerCase() === targetUsername.toLowerCase()) {
+        return res.status(403).json({ error: "cannot_delete_self" });
+    }
+    const users = await readUsers();
+    const before = users.length;
+    const nextUsers = users.filter((u) => String(u.username || "").toLowerCase() !== targetUsername.toLowerCase());
+    if (nextUsers.length === before)
+        return res.status(404).json({ error: "not_found" });
+    await writeUsers(nextUsers);
+    res.status(204).send();
+});
 function isHolidayDate(d, holidays) {
     return holidays.some((h) => h.month === d.getMonth() + 1 && h.day === d.getDate());
 }
@@ -287,6 +401,8 @@ function parseYMD(s) {
     if (!s)
         return null;
     try {
+        if (s instanceof Date)
+            return new Date(s.getFullYear(), s.getMonth(), s.getDate());
         const [y, m, d] = String(s).split("-").map((n) => Number(n));
         return new Date(y, (m || 1) - 1, d || 1);
     }
@@ -361,40 +477,115 @@ app.get("/api/office/events", authMiddleware, async (req, res) => {
 app.get("/api/holidays", async (_req, res) => {
     res.json(await readHolidays());
 });
+function normHolidayName(v) {
+    return String(v ?? "").trim();
+}
+function holidayKeyByName(name) {
+    return String(name || "").trim().toLowerCase();
+}
+app.get("/api/admin/holidays", authMiddleware, requireAnyRole(["ADMIN"]), async (_req, res) => {
+    res.json(await readHolidays());
+});
+app.post("/api/admin/holidays", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+    const { month, day, name } = req.body || {};
+    const m = Number(month);
+    const d = Number(day);
+    const n = normHolidayName(name);
+    if (!Number.isInteger(m) || m < 1 || m > 12)
+        return res.status(400).json({ error: "invalid_month" });
+    if (!Number.isInteger(d) || d < 1 || d > 31)
+        return res.status(400).json({ error: "invalid_day" });
+    if (!n)
+        return res.status(400).json({ error: "name_required" });
+    const holidays = await readHolidays();
+    const key = holidayKeyByName(n);
+    if (holidays.some((h) => holidayKeyByName(h?.name) === key)) {
+        return res.status(409).json({ error: "name_exists" });
+    }
+    const next = [...holidays, { month: m, day: d, name: n }];
+    await writeHolidays(next);
+    res.status(201).json({ month: m, day: d, name: n });
+});
+app.put("/api/admin/holidays/:name", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+    const targetName = normHolidayName(req.params.name);
+    if (!targetName)
+        return res.status(400).json({ error: "name_required" });
+    const { month, day, name } = req.body || {};
+    const m = month === undefined ? undefined : Number(month);
+    const d = day === undefined ? undefined : Number(day);
+    const n = name === undefined ? undefined : normHolidayName(name);
+    if (m !== undefined && (!Number.isInteger(m) || m < 1 || m > 12))
+        return res.status(400).json({ error: "invalid_month" });
+    if (d !== undefined && (!Number.isInteger(d) || d < 1 || d > 31))
+        return res.status(400).json({ error: "invalid_day" });
+    const holidays = await readHolidays();
+    const idx = holidays.findIndex((h) => holidayKeyByName(h?.name) === holidayKeyByName(targetName));
+    if (idx < 0)
+        return res.status(404).json({ error: "not_found" });
+    const current = holidays[idx] || {};
+    const updated = {
+        ...current,
+        ...(m !== undefined ? { month: m } : {}),
+        ...(d !== undefined ? { day: d } : {}),
+        ...(n !== undefined ? { name: n } : {})
+    };
+    const nextNameKey = holidayKeyByName(updated.name);
+    const conflict = holidays.some((h, i) => i !== idx && holidayKeyByName(h?.name) === nextNameKey);
+    if (conflict)
+        return res.status(409).json({ error: "name_exists" });
+    const next = [...holidays];
+    next[idx] = updated;
+    await writeHolidays(next);
+    res.json(updated);
+});
+app.delete("/api/admin/holidays/:name", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+    const targetName = normHolidayName(req.params.name);
+    if (!targetName)
+        return res.status(400).json({ error: "name_required" });
+    const holidays = await readHolidays();
+    const before = holidays.length;
+    const next = holidays.filter((h) => holidayKeyByName(h?.name) !== holidayKeyByName(targetName));
+    if (next.length === before)
+        return res.status(404).json({ error: "not_found" });
+    await writeHolidays(next);
+    res.status(204).send();
+});
 app.get("/api/employees", async (_req, res) => {
     res.json(await readEmployees());
 });
 app.post("/api/events", authMiddleware, requireAnyRole(["OFFICE"]), async (req, res) => {
-    const events = await archivePastEvents(); // also ensures ids for current records
-    const user = req.user;
-    const id = crypto.randomUUID();
-    const payload = {
-        id,
-        ...req.body,
-        createdBy: user?.sub || user?.username || null,
-        createdByOffice: user?.officeName || null,
-        createdAt: new Date().toISOString()
-    };
-    if (!("office" in payload) || payload.office == null) {
-        payload.office = user?.officeName ?? null;
-    }
-    // Ensure attachments is valid array before saving
-    if (req.body.attachments) {
-        payload.attachments = req.body.attachments;
-    }
-    else {
-        payload.attachments = [];
-    }
-    events.push(payload);
+    console.log("POST /api/events - Payload:", JSON.stringify(req.body, null, 2));
     try {
+        const events = await readEvents(); // Get current events directly
+        const user = req.user;
+        const id = crypto.randomUUID();
+        const payload = {
+            id,
+            ...req.body,
+            createdBy: user?.sub || user?.username || null,
+            createdByOffice: user?.officeName || null,
+            createdAt: new Date().toISOString()
+        };
+        if (!("office" in payload) || payload.office == null) {
+            payload.office = user?.officeName ?? null;
+        }
+        // Ensure attachments is valid array before saving
+        if (req.body.attachments) {
+            payload.attachments = req.body.attachments;
+        }
+        else {
+            payload.attachments = [];
+        }
+        events.push(payload);
         await writeEvents(events);
-        // Send email notification asynchronously (Disabled for now)
-        // sendEventCreatedEmail(payload).catch(err => console.error("Email error:", err));
+        console.log("Event created successfully:", id);
+        // Send email notification (fire and forget)
+        sendEventCreatedEmail(payload).catch(err => console.error("Event created email error:", err));
         res.status(201).json(payload);
     }
     catch (err) {
-        console.error("Failed to write events:", err);
-        res.status(500).json({ error: "db_write_failed" });
+        console.error("Failed to create event:", err);
+        res.status(500).json({ error: "db_write_failed", message: err instanceof Error ? err.message : String(err) });
     }
 });
 app.put("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE"]), async (req, res) => {
@@ -472,11 +663,25 @@ async function runReminderScheduler() {
         console.error("Scheduler error:", err);
     }
 }
-// Run scheduler every hour (Disabled for now)
-// setInterval(runReminderScheduler, 60 * 60 * 1000);
-// Also run on startup after a short delay (Disabled for now)
-// setTimeout(runReminderScheduler, 10000);
+// Background Archive Scheduler
+async function runArchiveScheduler() {
+    try {
+        console.log("Running background archive check...");
+        await archivePastEvents();
+    }
+    catch (err) {
+        console.error("Archive scheduler error:", err);
+    }
+}
+// Run archive scheduler every 10 minutes
+setInterval(runArchiveScheduler, 10 * 60 * 1000);
+// Also run archive on startup after a short delay
+setTimeout(runArchiveScheduler, 5000);
+// Run reminder scheduler every hour
+setInterval(runReminderScheduler, 60 * 60 * 1000);
+// Also run reminder on startup after a short delay
+setTimeout(runReminderScheduler, 10000);
 const port = Number(process.env.PORT || 3000);
-app.listen(port, () => {
-    console.log(`api listening on port ${port}`);
+app.listen(port, "0.0.0.0", () => {
+    console.log(`api listening on port ${port} (all interfaces)`);
 });

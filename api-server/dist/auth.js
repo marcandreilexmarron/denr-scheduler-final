@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 const secret = process.env.JWT_SECRET || "dev-insecure-secret";
 export function signToken(payload) {
-    return jwt.sign(payload, secret, { expiresIn: "1h" });
+    return jwt.sign(payload, secret, { expiresIn: "24h" });
 }
 export function authMiddleware(req, res, next) {
     const header = req.headers.authorization || "";

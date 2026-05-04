@@ -59,6 +59,9 @@ export function writeUsers(users: any[]) {
 export function readHolidays(): Array<{ month: number; day: number; name?: string }> {
   return readJsonSafe(HOLIDAYS, []);
 }
+export function writeHolidays(holidays: Array<{ month: number; day: number; name?: string }>) {
+  writePretty(HOLIDAYS, holidays);
+}
 
 export function readEmployees(): any[] {
   return readJsonSafe<any[]>(EMPLOYEES, []);

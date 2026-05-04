@@ -18,19 +18,26 @@ const db = knex({
   pool: { min: 0, max: 1 }
 });
 
+const TABLE_PREFIX = (process.env.DB_TABLE_PREFIX || "scheduler_").trim();
+function tableName(base: string) {
+  if (!TABLE_PREFIX) return base;
+  return base.startsWith(TABLE_PREFIX) ? base : `${TABLE_PREFIX}${base}`;
+}
+
 async function inspect() {
   try {
-    const exists = await db.schema.hasTable("office_users");
+    const userTable = tableName("office_users");
+    const exists = await db.schema.hasTable(userTable);
     if (!exists) {
-      console.log("Table 'office_users' does not exist.");
+      console.log(`Table '${userTable}' does not exist.`);
       const tables = await db.raw("SHOW TABLES");
       console.log("Available tables:", tables[0]);
     } else {
-      console.log("Table 'office_users' exists.");
-      const columns = await db("office_users").columnInfo();
+      console.log(`Table '${userTable}' exists.`);
+      const columns = await db(userTable).columnInfo();
       console.log("Columns:", columns);
       
-      const firstRow = await db("office_users").first();
+      const firstRow = await db(userTable).first();
       console.log("First row sample:", firstRow);
     }
   } catch (err) {
