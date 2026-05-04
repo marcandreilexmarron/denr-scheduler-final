@@ -284,9 +284,12 @@ app.get("/api/calendar", async (req, res) => {
 app.post("/api/login", async (req, res) => {
     const { username, password } = req.body || {};
     const users = await readUsers();
-    const user = users.find((u) => u.username === username && u.password === password);
-    if (!user)
-        return res.status(401).json({ error: "invalid_credentials" });
+    const u = users.find((x) => x.username === username);
+    if (!u)
+        return res.status(404).json({ error: "username_not_found" });
+    if (u.password !== password)
+        return res.status(401).json({ error: "incorrect_password" });
+    const user = u;
     const token = signToken({
         sub: user.username,
         role: user.role,

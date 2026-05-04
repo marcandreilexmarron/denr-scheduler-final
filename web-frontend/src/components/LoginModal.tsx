@@ -49,7 +49,7 @@ export default function LoginModal({
       <div style={{ padding: "8px 0" }}>
         <div style={{ textAlign: "center", marginBottom: 16 }}>
           <img src="/logo.png" alt="" aria-hidden style={{ width: 96, height: 96, objectFit: "contain", opacity: 0.95 }} />
-          <h2 style={{ margin: "12px 0 4px 0", lineHeight: 1.2, fontSize: 24 }}>Login</h2>
+          <h2 style={{ margin: "12px 0 4px 0", lineHeight: 1.2, fontSize: 24 }}>DENR Planner</h2>
           <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 2 }}>Login to schedule an event.</div>
         </div>
         {error && (

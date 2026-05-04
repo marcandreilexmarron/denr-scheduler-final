@@ -32,8 +32,10 @@ export const api = {
       },
     });
     if (response.status === 401) {
-      localStorage.removeItem("token");
-      window.location.assign("/");
+      if (path !== "/api/login") {
+        localStorage.removeItem("token");
+        window.location.assign("/");
+      }
       throw new ApiError("Unauthorized", 401);
     }
     if (!response.ok) {
@@ -54,8 +56,10 @@ export const api = {
       body: JSON.stringify(body),
     });
     if (response.status === 401) {
-      localStorage.removeItem("token");
-      window.location.assign("/");
+      if (path !== "/api/login") {
+        localStorage.removeItem("token");
+        window.location.assign("/");
+      }
       throw new ApiError("Unauthorized", 401);
     }
     if (!response.ok) {
@@ -76,8 +80,10 @@ export const api = {
       body: JSON.stringify(body),
     });
     if (response.status === 401) {
-      localStorage.removeItem("token");
-      window.location.assign("/");
+      if (path !== "/api/login") {
+        localStorage.removeItem("token");
+        window.location.assign("/");
+      }
       throw new ApiError("Unauthorized", 401);
     }
     if (!response.ok) {
@@ -96,8 +102,10 @@ export const api = {
       },
     });
     if (response.status === 401) {
-      localStorage.removeItem("token");
-      window.location.assign("/");
+      if (path !== "/api/login") {
+        localStorage.removeItem("token");
+        window.location.assign("/");
+      }
       throw new ApiError("Unauthorized", 401);
     }
     if (!response.ok) {
