@@ -53,6 +53,9 @@ export function writeUsers(users) {
 export function readHolidays() {
     return readJsonSafe(HOLIDAYS, []);
 }
+export function writeHolidays(holidays) {
+    writePretty(HOLIDAYS, holidays);
+}
 export function readEmployees() {
     return readJsonSafe(EMPLOYEES, []);
 }

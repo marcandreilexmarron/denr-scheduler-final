@@ -35,6 +35,10 @@ export async function readHolidays(): Promise<Array<{ month: number; day: number
   if (backend === "db") return await dbStore.readHolidays();
   return Promise.resolve(fsStore.readHolidays());
 }
+export async function writeHolidays(holidays: Array<{ month: number; day: number; name?: string }>): Promise<void> {
+  if (backend === "db") return await dbStore.writeHolidays(holidays);
+  return Promise.resolve(fsStore.writeHolidays(holidays));
+}
 export async function readEmployees(): Promise<any[]> {
   if (backend === "db") return await dbStore.readEmployees();
   return Promise.resolve(fsStore.readEmployees());

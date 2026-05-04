@@ -1,14 +1,40 @@
 export function saveToken(t: string) {
-  localStorage.setItem("token", t);
+  try {
+    sessionStorage.setItem("token", t);
+  } catch {}
+  try {
+    localStorage.removeItem("token");
+  } catch {}
   window.dispatchEvent(new Event("auth:changed"));
 }
 
 export function getToken(): string | null {
-  return localStorage.getItem("token");
+  try {
+    const v = sessionStorage.getItem("token");
+    if (v) return v;
+  } catch {}
+  try {
+    const legacy = localStorage.getItem("token");
+    if (legacy) {
+      try {
+        sessionStorage.setItem("token", legacy);
+      } catch {}
+      try {
+        localStorage.removeItem("token");
+      } catch {}
+      return legacy;
+    }
+  } catch {}
+  return null;
 }
 
 export function clearToken() {
-  localStorage.removeItem("token");
+  try {
+    sessionStorage.removeItem("token");
+  } catch {}
+  try {
+    localStorage.removeItem("token");
+  } catch {}
   window.dispatchEvent(new Event("auth:changed"));
 }
 
