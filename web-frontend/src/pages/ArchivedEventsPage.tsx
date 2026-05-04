@@ -131,6 +131,19 @@ export default function ArchivedEventsPage() {
         return db.localeCompare(da); // newest past first
       });
   }, [events, officeFilter, categoryFilter]);
+  const allArchivedAllCategories = useMemo(() => {
+    return events
+      .filter((e) => eventOfficeMatch(e, officeFilter));
+  }, [events, officeFilter]);
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const e of allArchivedAllCategories) {
+      const raw = normalizeCategory(e.category || "");
+      const cat = CATEGORIES.includes(raw) ? raw : "others - specified";
+      counts[cat] = (counts[cat] || 0) + 1;
+    }
+    return CATEGORIES.map((cat) => ({ category: cat, count: counts[cat] || 0 })).filter((x) => x.count > 0);
+  }, [allArchivedAllCategories]);
 
   return (
     <div style={{ padding: isPortrait ? 8 : 16, maxWidth: "100%", boxSizing: "border-box", overflowX: "hidden", background: "var(--bg)", minHeight: "calc(100vh - 100px)" }}>
@@ -235,6 +248,44 @@ export default function ArchivedEventsPage() {
                 Clear Filters
               </button>
             </div>
+          </div>
+        </div>
+        <div style={{ padding: "10px 12px" }}>
+          <div style={{ padding: 10, border: "1px solid var(--border)", borderRadius: 12, background: "var(--secondary-bg)" }}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 800 }}>Category Counts</div>
+              <div style={{ fontSize: 12, color: "var(--muted)", fontWeight: 700 }}>All time</div>
+            </div>
+            {categoryCounts.length === 0 ? (
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>No archived events</div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
+                {categoryCounts.map(({ category, count }) => {
+                  const s = categoryStyle(category);
+                  return (
+                    <div
+                      key={category}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        padding: "8px 10px",
+                        borderRadius: 10,
+                        border: `1px solid ${s.borderColor}`,
+                        background: s.backgroundColor,
+                        color: s.color,
+                        fontSize: 12,
+                        fontWeight: 800
+                      }}
+                    >
+                      <span style={{ textTransform: "capitalize" }}>{category}</span>
+                      <span style={{ fontWeight: 900 }}>{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
         {!isPortrait && (

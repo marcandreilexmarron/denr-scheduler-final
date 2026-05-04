@@ -147,6 +147,45 @@ export default function Landing() {
         return false;
       });
   }, [events, officeFilter, categoryFilter, viewYear, viewMonth]);
+  const monthEventsAllCategories = useMemo(() => {
+    return events
+      .filter((e) => eventMatchesOffice(e, officeFilter))
+      .filter((e) => {
+        if (e.dateType === "range" && e.startDate && e.endDate) {
+          const start = parseDate(e.startDate);
+          const end = parseDate(e.endDate);
+          const cursor = new Date(start);
+          const monthIndex = viewMonth - 1;
+          while (cursor <= end) {
+            if (cursor.getFullYear() === viewYear && cursor.getMonth() === monthIndex) {
+              return true;
+            }
+            cursor.setDate(cursor.getDate() + 1);
+          }
+          return false;
+        } else if (e.date) {
+          const d = parseDate(e.date);
+          return d.getFullYear() === viewYear && d.getMonth() + 1 === viewMonth;
+        }
+        return false;
+      });
+  }, [events, officeFilter, viewYear, viewMonth]);
+  const monthLabel = useMemo(() => {
+    try {
+      return new Date(viewYear, viewMonth - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    } catch {
+      return `${viewMonth}/${viewYear}`;
+    }
+  }, [viewYear, viewMonth]);
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const e of monthEventsAllCategories) {
+      const raw = normalizeCategory(e.category || "");
+      const cat = CATEGORIES.includes(raw) ? raw : "others - specified";
+      counts[cat] = (counts[cat] || 0) + 1;
+    }
+    return CATEGORIES.map((cat) => ({ category: cat, count: counts[cat] || 0 })).filter((x) => x.count > 0);
+  }, [monthEventsAllCategories]);
 
   function abbreviateOffice(name: string) {
     if (!name) return "";
@@ -300,6 +339,44 @@ export default function Landing() {
             </h3>
             
           </div>
+          {!selectedDate && (
+            <div style={{ padding: 10, border: "1px solid var(--border)", borderRadius: 12, background: "var(--secondary-bg)", marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
+                <div style={{ fontSize: 12, fontWeight: 800 }}>Category Counts</div>
+                <div style={{ fontSize: 12, color: "var(--muted)", fontWeight: 700 }}>{monthLabel}</div>
+              </div>
+              {categoryCounts.length === 0 ? (
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>No events this month</div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
+                  {categoryCounts.map(({ category, count }) => {
+                    const s = categoryStyle(category);
+                    return (
+                      <div
+                        key={category}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 10,
+                          padding: "8px 10px",
+                          borderRadius: 10,
+                          border: `1px solid ${s.borderColor}`,
+                          background: s.backgroundColor,
+                          color: s.color,
+                          fontSize: 12,
+                          fontWeight: 800
+                        }}
+                      >
+                        <span style={{ textTransform: "capitalize" }}>{category}</span>
+                        <span style={{ fontWeight: 900 }}>{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
           <ul className="list">
             {(selectedDate ? selectedDateEventsComputed : monthEvents).length === 0 ? (
               <li className="list-item">No events are scheduled</li>

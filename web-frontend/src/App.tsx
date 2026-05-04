@@ -128,7 +128,7 @@ function Shell() {
         <Link to="/" style={{ display: "flex", alignItems: "center", gap: isPortrait ? 8 : 12, textDecoration: "none", color: "inherit" }}>
           <img src="/logo.png" alt="DENR" style={{ width: isPortrait ? 28 : 36, height: isPortrait ? 28 : 36, objectFit: "contain" }} />
           <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-            <span style={{ fontWeight: 700, fontSize: isPortrait ? 16 : 18, lineHeight: 1 }}>{isPortrait ? "DENR" : "DENR Planner"}</span>
+            <span style={{ fontWeight: 700, fontSize: isPortrait ? 16 : 18, lineHeight: 1 }}>{isPortrait ? "DENR" : "DENR-CAR Planner"}</span>
             <span style={{ fontSize: isPortrait ? 10 : 12, color: "rgba(255,255,255,0.8)", marginTop: 2, lineHeight: 1.1 }}>{isPortrait ? "DENR-CAR" : "Department of Environment and Natural Resources - CAR"}</span>
           </span>
         </Link>

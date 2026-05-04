@@ -107,6 +107,7 @@ export default function AddEventModal({
     title: "",
     description: "",
     location: "",
+    referToAttachments: false,
     dateType: (defaultDateType ?? "single"),
     date: defaultDate,
     startDate: (defaultStartDate ?? defaultDate),
@@ -208,6 +209,10 @@ export default function AddEventModal({
       const ev = initialEvent;
       const isR = String(ev?.dateType || "single") === "range";
       let participantsFromEvent: string[] = Array.isArray(ev.participants) ? [...ev.participants] : [];
+      const refer =
+        !!(ev as any).referToAttachments ||
+        String(ev?.description || "").trim().toLowerCase() === "refer to attachments." ||
+        participantsFromEvent.some((p) => String(p).trim().toLowerCase() === "refer to attachments");
 
       const formatDateForInput = (isoDate: string) => {
         if (!isoDate) return '';
@@ -237,6 +242,7 @@ export default function AddEventModal({
         title: ev.title || "",
         description: ev.description || "",
         location: ev.location || "",
+        referToAttachments: refer,
         dateType: isR ? "range" : "single",
         date: !isR && ev.date ? formatDateForInput(ev.date) : defaultDate,
         startDate: isR && ev.startDate ? formatDateForInput(ev.startDate) : defaultDate,
@@ -256,6 +262,7 @@ export default function AddEventModal({
         title: "",
         description: "",
         location: "",
+        referToAttachments: false,
         dateType: (defaultDateType ?? "single"),
         date: defaultDate,
         startDate: (defaultStartDate ?? defaultDate),
@@ -365,8 +372,9 @@ export default function AddEventModal({
         categoryDetail: normalizeCategory(state.category) === "others - specified" ? (state.categoryDetail || "") : undefined,
         type: state.type || "Internal",
         title: state.title,
-        description: state.description || "",
+        description: state.referToAttachments && !String(state.description || "").trim() ? "Refer to attachments." : (state.description || ""),
         location: state.location,
+        referToAttachments: !!state.referToAttachments,
         dateType: isRange ? "range" as const : "single" as const,
         date: isRange ? "" : state.date,
         startDate: isRange ? (state.startDate || defaultDate) : "",
@@ -461,7 +469,6 @@ export default function AddEventModal({
             {typeError && <div style={{ color: "var(--error-color)", fontSize: 11, marginTop: 2 }}>{typeError}</div>}
           </div>
         </div>
-        <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Details</div>
         {normalizeCategory(state.category) === "others - specified" && (
           <div>
             <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Specify Category</label>
@@ -486,24 +493,50 @@ export default function AddEventModal({
           />
           {titleError && <div style={{ color: "var(--error-color)", fontSize: 11, marginTop: 2 }}>{titleError}</div>}
         </div>
-        <div>
-          <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Description</label>
-          <textarea
-            rows={2}
-            style={{ width: "100%", boxSizing: "border-box", resize: "vertical", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }}
-            placeholder="What is this event about?"
-            value={state.description}
-            onChange={(e) => setState({ ...state, description: e.target.value })}
-          />
-        </div>
-        <div>
-          <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Location</label>
-          <input
-            style={{ width: "100%", boxSizing: "border-box", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }}
-            placeholder="Venue or meeting link"
-            value={state.location}
-            onChange={(e) => setState({ ...state, location: e.target.value })}
-          />
+        <div style={{ padding: 10, border: "1px solid var(--border)", borderRadius: 12, background: "var(--secondary-bg)" }}>
+          <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 8 }}>Details</div>
+          <div style={{ display: "grid", gridTemplateColumns: isPortrait ? "1fr" : "1fr 1fr", gap: 10 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Description</label>
+              <textarea
+                rows={2}
+                style={{ width: "100%", boxSizing: "border-box", resize: "vertical", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }}
+                placeholder="What is this event about?"
+                value={state.description}
+                disabled={!!state.referToAttachments}
+                onChange={(e) => setState({ ...state, description: e.target.value })}
+              />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Location</label>
+              <input
+                style={{ width: "100%", boxSizing: "border-box", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }}
+                placeholder="Venue or meeting link"
+                value={state.location}
+                onChange={(e) => setState({ ...state, location: e.target.value })}
+              />
+            </div>
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 13, fontWeight: 600 }}>
+            <input
+              type="checkbox"
+              checked={!!state.referToAttachments}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                const desc = String(state.description || "").trim();
+                if (checked && !desc) {
+                  setState({ ...state, referToAttachments: true, description: "Refer to attachments." });
+                  return;
+                }
+                if (!checked && desc.toLowerCase() === "refer to attachments.") {
+                  setState({ ...state, referToAttachments: false, description: "" });
+                  return;
+                }
+                setState({ ...state, referToAttachments: checked });
+              }}
+            />
+            Refer to attachments
+          </label>
         </div>
         <div>
           <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4 }}>
@@ -836,6 +869,36 @@ export default function AddEventModal({
           <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 6 }}>
             {officesData ? (
               <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {(() => {
+                    const g = "Refer to attachments";
+                    const checked = Array.isArray(state.participants) && state.participants.includes(g);
+                    return (
+                      <label key={g} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700 }}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(ev) => {
+                            if (ev.target.checked) {
+                              const next = Array.isArray(state.participants) ? [...state.participants, g] : [g];
+                              const desc = String(state.description || "").trim();
+                              setState({
+                                ...state,
+                                participants: next,
+                                referToAttachments: true,
+                                description: desc ? state.description : "Refer to attachments."
+                              });
+                            } else {
+                              const next = (state.participants || []).filter((x: string) => x !== g);
+                              setState({ ...state, participants: next });
+                            }
+                          }}
+                        />
+                        <span>{g}</span>
+                      </label>
+                    );
+                  })()}
+                </div>
                 <div>
                   <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 2 }}>Top-level Offices</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 3, border: "1px solid var(--border)", borderRadius: 6, padding: 4, maxHeight: 100, overflowY: "auto" }}>

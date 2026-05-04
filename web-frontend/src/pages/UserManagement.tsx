@@ -216,8 +216,10 @@ export default function UserManagement() {
   });
 
   return (
-    <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
+    <div style={{ padding: 16, background: "var(--bg)", minHeight: "calc(100vh - 100px)" }}>
+      <div style={{ maxWidth: 1600, margin: "0 auto" }}>
+        <div style={{ border: "1px solid var(--border)", borderRadius: 12, background: "var(--card)", padding: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: 16, flexWrap: "wrap" }}>
         <button
           onClick={() => navigate("/admin")}
           title="Go back to SuperAdmin Dashboard"
@@ -238,7 +240,7 @@ export default function UserManagement() {
           ← Back
         </button>
         <h1 style={{ fontSize: "28px", fontWeight: "700", margin: 0 }}>User Management</h1>
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <div
             title={realtimeStatus === "connected" ? "Realtime connected" : "Realtime disconnected"}
             style={{
@@ -394,11 +396,12 @@ export default function UserManagement() {
           Loading users...
         </div>
       ) : (
-        <div style={{ overflowX: "auto" }}>
+        <div style={{ width: "100%" }}>
           <table style={{
             width: "100%",
             borderCollapse: "collapse",
-            fontSize: "14px"
+            fontSize: "14px",
+            tableLayout: "fixed"
           }}>
             <thead>
               <tr style={{ borderBottom: "2px solid var(--border)" }}>
@@ -421,8 +424,8 @@ export default function UserManagement() {
               ) : (
                 filteredUsers.map((u) => (
                   <tr key={u.username} style={{ borderBottom: "1px solid var(--border)" }}>
-                    <td style={{ padding: "12px", fontWeight: "500" }}>{u.username}</td>
-                    <td style={{ padding: "12px" }}>{u.email || "-"}</td>
+                    <td style={{ padding: "12px", fontWeight: "500", overflowWrap: "anywhere" }}>{u.username}</td>
+                    <td style={{ padding: "12px", overflowWrap: "anywhere" }}>{u.email || "-"}</td>
                     <td style={{ padding: "12px" }}>
                       <span style={{
                         padding: "4px 8px",
@@ -435,8 +438,8 @@ export default function UserManagement() {
                         {u.role}
                       </span>
                     </td>
-                    <td style={{ padding: "12px" }}>{u.officeName || "-"}</td>
-                    <td style={{ padding: "12px" }}>{u.service || "-"}</td>
+                    <td style={{ padding: "12px", overflowWrap: "anywhere" }}>{u.officeName || "-"}</td>
+                    <td style={{ padding: "12px", overflowWrap: "anywhere" }}>{u.service || "-"}</td>
                     <td style={{ padding: "12px" }}>
                       <span style={{
                         padding: "4px 8px",
@@ -449,86 +452,85 @@ export default function UserManagement() {
                         {u.disabled ? "DISABLED" : "ACTIVE"}
                       </span>
                     </td>
-                    <td style={{ padding: "12px", textAlign: "center", whiteSpace: "nowrap" }}>
-                      <button
-                        onClick={() => startEdit(u)}
-                        style={{
-                          padding: "8px 14px",
-                          background: "#3b82f6",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "4px",
-                          cursor: "pointer",
-                          marginRight: "8px",
-                          fontWeight: "500",
-                          fontSize: "13px",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "6px"
-                        }}
-                        title="Edit user"
-                      >
-                        <Edit2 size={16} /> Edit
-                      </button>
-                      <button
-                        onClick={() => handleResetPassword(u)}
-                        style={{
-                          padding: "8px 14px",
-                          background: "var(--card)",
-                          border: "1px solid var(--border)",
-                          borderRadius: "4px",
-                          cursor: "pointer",
-                          marginRight: "8px",
-                          fontWeight: "500",
-                          fontSize: "13px",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          color: "inherit"
-                        }}
-                        title="Reset password"
-                      >
-                        <KeyRound size={16} /> Reset
-                      </button>
-                      <button
-                        onClick={() => handleToggleDisabled(u)}
-                        style={{
-                          padding: "8px 14px",
-                          background: u.disabled ? "rgba(34, 197, 94, 0.12)" : "rgba(239, 68, 68, 0.1)",
-                          border: `1px solid ${u.disabled ? "rgba(34, 197, 94, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
-                          borderRadius: "4px",
-                          cursor: "pointer",
-                          marginRight: "8px",
-                          fontWeight: "500",
-                          fontSize: "13px",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          color: u.disabled ? "#16a34a" : "#dc2626"
-                        }}
-                        title={u.disabled ? "Enable user" : "Disable user"}
-                      >
-                        {u.disabled ? <CheckCircle2 size={16} /> : <Ban size={16} />} {u.disabled ? "Enable" : "Disable"}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(u.username)}
-                        style={{
-                          padding: "8px 14px",
-                          background: "rgba(239, 68, 68, 0.1)",
-                          border: "1px solid rgba(239, 68, 68, 0.3)",
-                          borderRadius: "4px",
-                          cursor: "pointer",
-                          color: "#dc2626",
-                          fontWeight: "500",
-                          fontSize: "13px",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "6px"
-                        }}
-                        title="Delete user"
-                      >
-                        <Trash2 size={16} /> Delete
-                      </button>
+                    <td style={{ padding: "12px", textAlign: "center" }}>
+                      <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          onClick={() => startEdit(u)}
+                          style={{
+                            padding: "8px 14px",
+                            background: "#3b82f6",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontWeight: "500",
+                            fontSize: "13px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px"
+                          }}
+                          title="Edit user"
+                        >
+                          <Edit2 size={16} /> Edit
+                        </button>
+                        <button
+                          onClick={() => handleResetPassword(u)}
+                          style={{
+                            padding: "8px 14px",
+                            background: "var(--card)",
+                            border: "1px solid var(--border)",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontWeight: "500",
+                            fontSize: "13px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            color: "inherit"
+                          }}
+                          title="Reset password"
+                        >
+                          <KeyRound size={16} /> Reset
+                        </button>
+                        <button
+                          onClick={() => handleToggleDisabled(u)}
+                          style={{
+                            padding: "8px 14px",
+                            background: u.disabled ? "rgba(34, 197, 94, 0.12)" : "#b45309",
+                            border: `1px solid ${u.disabled ? "rgba(34, 197, 94, 0.3)" : "#92400e"}`,
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontWeight: "500",
+                            fontSize: "13px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            color: u.disabled ? "#16a34a" : "white"
+                          }}
+                          title={u.disabled ? "Enable user" : "Disable user"}
+                        >
+                          {u.disabled ? <CheckCircle2 size={16} /> : <Ban size={16} />} {u.disabled ? "Enable" : "Disable"}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(u.username)}
+                          style={{
+                            padding: "8px 14px",
+                            background: "rgba(239, 68, 68, 0.1)",
+                            border: "1px solid rgba(239, 68, 68, 0.3)",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            color: "#dc2626",
+                            fontWeight: "500",
+                            fontSize: "13px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px"
+                          }}
+                          title="Delete user"
+                        >
+                          <Trash2 size={16} /> Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -778,6 +780,8 @@ export default function UserManagement() {
           </div>
         </div>
       </Modal>
+        </div>
+      </div>
     </div>
   );
 }
