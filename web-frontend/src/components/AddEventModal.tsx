@@ -8,14 +8,15 @@ function normalizeCategory(s: string) {
 }
 
 type TimeParts = { hour: string; minute: string; ampm: string };
+const DEFAULT_TIME_PARTS: TimeParts = { hour: "", minute: "00", ampm: "AM" };
 function parseTimeToParts(time24: any): TimeParts {
   const s = String(time24 ?? "").trim();
   const m = /^(\d{2}):(\d{2})$/.exec(s);
-  if (!m) return { hour: "", minute: "", ampm: "" };
+  if (!m) return DEFAULT_TIME_PARTS;
   const hh = Number(m[1]);
   const mm = Number(m[2]);
-  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return { hour: "", minute: "", ampm: "" };
-  if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return { hour: "", minute: "", ampm: "" };
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return DEFAULT_TIME_PARTS;
+  if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return DEFAULT_TIME_PARTS;
   const ampm = hh >= 12 ? "PM" : "AM";
   const h12 = hh % 12 === 0 ? 12 : hh % 12;
   return { hour: String(h12).padStart(2, "0"), minute: String(mm).padStart(2, "0"), ampm };
