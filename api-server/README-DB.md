@@ -64,7 +64,7 @@ Same columns as `events`. Used for past events moved out of the active list.
 
 ### office_users
 - username TEXT/VARCHAR PRIMARY KEY  
-- password TEXT NOT NULL             // stored as plain here; you can hash later  
+- password TEXT NOT NULL             // stored as an scrypt hash (format: `scrypt$...`)  
 - role TEXT NOT NULL                 // e.g., 'ADMIN', 'OFFICE'  
 - office_name TEXT NULL  
 - service TEXT NULL
@@ -73,6 +73,9 @@ Same columns as `events`. Used for past events moved out of the active list.
 - month INTEGER NOT NULL  
 - day INTEGER NOT NULL  
 - name TEXT NULL
+
+Recommended constraint:
+- Unique index on `(month, day)` to prevent duplicates.
 
 ### employee_details
 Flexible; returned as-is by the API. The API maps `division` → `officeName`.
@@ -184,6 +187,10 @@ npm run build
 npm start
 ```
 When `DATA_BACKEND=db` is set and the driver is installed, the API reads/writes SQL tables automatically. The frontend keeps using the same `/api` endpoints.
+
+## Notes on Write Behavior
+- The DB backend syncs `events`, `events_archive`, and `office_users` using upserts by key and deletes missing rows (instead of truncating tables on every write).
+- For uploads/backups/audit logs, set `DATA_DIR` so files are stored outside the repo folder.
 
 ## Importing Existing JSON Data (Optional)
 - If you want to move current JSON data to the DB:

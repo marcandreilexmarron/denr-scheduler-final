@@ -1,7 +1,8 @@
 declare module "luxon" {
   export class DateTime {
     static now(): DateTime;
-    static fromObject(obj: any): DateTime;
+    static fromObject(obj: any, opts?: any): DateTime;
+    setZone(zone: string): DateTime;
     hasSame(other: DateTime, unit: string): boolean;
     get day(): number;
     get month(): number;

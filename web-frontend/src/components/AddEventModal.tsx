@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Modal from "./Modal";
-import { api } from "../api";
+import { api, getApiBaseUrl } from "../api";
+import { getToken } from "../auth";
 import EmployeePickerModal from "./EmployeePickerModal";
 
 function normalizeCategory(s: string) {
@@ -9,6 +10,7 @@ function normalizeCategory(s: string) {
 
 type TimeParts = { hour: string; minute: string; ampm: string };
 const DEFAULT_TIME_PARTS: TimeParts = { hour: "", minute: "00", ampm: "AM" };
+const REFER_TO_ATTACHMENTS_TEXT = "Refer to attachments.";
 function parseTimeToParts(time24: any): TimeParts {
   const s = String(time24 ?? "").trim();
   const m = /^(\d{2}):(\d{2})$/.exec(s);
@@ -210,10 +212,12 @@ export default function AddEventModal({
       const ev = initialEvent;
       const isR = String(ev?.dateType || "single") === "range";
       let participantsFromEvent: string[] = Array.isArray(ev.participants) ? [...ev.participants] : [];
-      const refer =
+      const tokensFromEvent: string[] = Array.isArray(ev.participantTokens) ? ev.participantTokens : [];
+      const referDetails =
         !!(ev as any).referToAttachments ||
-        String(ev?.description || "").trim().toLowerCase() === "refer to attachments." ||
-        participantsFromEvent.some((p) => String(p).trim().toLowerCase() === "refer to attachments");
+        String(ev?.description || "").trim().toLowerCase() === REFER_TO_ATTACHMENTS_TEXT.toLowerCase() ||
+        String(ev?.location || "").trim().toLowerCase() === REFER_TO_ATTACHMENTS_TEXT.toLowerCase();
+      const hasReferParticipantToken = tokensFromEvent.some((t) => String(t).trim().toLowerCase() === "refer to attachments");
 
       const formatDateForInput = (isoDate: string) => {
         if (!isoDate) return '';
@@ -236,6 +240,9 @@ export default function AddEventModal({
           participantsFromEvent.push("Division Chiefs");
         }
       }
+      if (hasReferParticipantToken && !participantsFromEvent.includes("Refer to attachments")) {
+        participantsFromEvent.push("Refer to attachments");
+      }
       setState({
         category: ev.category || "meeting",
         categoryDetail: ev.categoryDetail || "",
@@ -243,7 +250,7 @@ export default function AddEventModal({
         title: ev.title || "",
         description: ev.description || "",
         location: ev.location || "",
-        referToAttachments: refer,
+        referToAttachments: referDetails,
         dateType: isR ? "range" : "single",
         date: !isR && ev.date ? formatDateForInput(ev.date) : defaultDate,
         startDate: isR && ev.startDate ? formatDateForInput(ev.startDate) : defaultDate,
@@ -318,13 +325,22 @@ export default function AddEventModal({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function fileToBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (error) => reject(error);
+  async function uploadFile(file: File) {
+    const token = getToken();
+    const fd = new FormData();
+    fd.append("file", file);
+    const response = await fetch(`${getApiBaseUrl()}/api/upload`, {
+      method: "POST",
+      headers: {
+        Authorization: token ? `Bearer ${token}` : ""
+      },
+      body: fd
     });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: response.statusText }));
+      throw new Error(err?.message || `Upload failed (${response.status})`);
+    }
+    return response.json();
   }
 
   async function submit(e: React.FormEvent) {
@@ -338,15 +354,10 @@ export default function AddEventModal({
         for (const file of state.attachments) {
           if (file instanceof File) {
             try {
-              const base64Data = await fileToBase64(file);
-              uploadedAttachments.push({
-                name: file.name,
-                type: file.type,
-                size: file.size,
-                blob: base64Data // Use 'blob' field instead of 'url'
-              });
+              const up = await uploadFile(file);
+              uploadedAttachments.push(up);
             } catch (err) {
-              console.error(`Failed to read file ${file.name}:`, err);
+              console.error(`Failed to upload file ${file.name}:`, err);
             }
           } else {
             uploadedAttachments.push(file);
@@ -358,6 +369,11 @@ export default function AddEventModal({
       participants = Array.from(new Set(participants));
       // Capture high-level participant tokens before expansion
       const participantTokens: string[] = [];
+      const referToken = participants.some((p) => String(p).trim().toLowerCase() === "refer to attachments");
+      if (referToken) {
+        participantTokens.push("Refer to attachments");
+        participants = participants.filter((p) => String(p).trim().toLowerCase() !== "refer to attachments");
+      }
       if (participants.includes("Division Chiefs")) {
         participantTokens.push("Division Chiefs");
       }
@@ -373,9 +389,8 @@ export default function AddEventModal({
         categoryDetail: normalizeCategory(state.category) === "others - specified" ? (state.categoryDetail || "") : undefined,
         type: state.type || "Internal",
         title: state.title,
-        description: state.referToAttachments && !String(state.description || "").trim() ? "Refer to attachments." : (state.description || ""),
-        location: state.location,
-        referToAttachments: !!state.referToAttachments,
+        description: state.referToAttachments ? REFER_TO_ATTACHMENTS_TEXT : (state.description || ""),
+        location: state.referToAttachments ? REFER_TO_ATTACHMENTS_TEXT : state.location,
         dateType: isRange ? "range" as const : "single" as const,
         date: isRange ? "" : state.date,
         startDate: isRange ? (state.startDate || defaultDate) : "",
@@ -514,6 +529,7 @@ export default function AddEventModal({
                 style={{ width: "100%", boxSizing: "border-box", padding: 8, border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13 }}
                 placeholder="Venue or meeting link"
                 value={state.location}
+                disabled={!!state.referToAttachments}
                 onChange={(e) => setState({ ...state, location: e.target.value })}
               />
             </div>
@@ -525,15 +541,17 @@ export default function AddEventModal({
               onChange={(e) => {
                 const checked = e.target.checked;
                 const desc = String(state.description || "").trim();
-                if (checked && !desc) {
-                  setState({ ...state, referToAttachments: true, description: "Refer to attachments." });
+                const loc = String(state.location || "").trim();
+                if (checked) {
+                  setState({ ...state, referToAttachments: true, description: REFER_TO_ATTACHMENTS_TEXT, location: REFER_TO_ATTACHMENTS_TEXT });
                   return;
                 }
-                if (!checked && desc.toLowerCase() === "refer to attachments.") {
-                  setState({ ...state, referToAttachments: false, description: "" });
-                  return;
-                }
-                setState({ ...state, referToAttachments: checked });
+                setState({
+                  ...state,
+                  referToAttachments: false,
+                  description: desc.toLowerCase() === REFER_TO_ATTACHMENTS_TEXT.toLowerCase() ? "" : state.description,
+                  location: loc.toLowerCase() === REFER_TO_ATTACHMENTS_TEXT.toLowerCase() ? "" : state.location
+                });
               }}
             />
             Refer to attachments
@@ -882,16 +900,16 @@ export default function AddEventModal({
                           onChange={(ev) => {
                             if (ev.target.checked) {
                               const next = Array.isArray(state.participants) ? [...state.participants, g] : [g];
-                              const desc = String(state.description || "").trim();
                               setState({
                                 ...state,
-                                participants: next,
-                                referToAttachments: true,
-                                description: desc ? state.description : "Refer to attachments."
+                                participants: next
                               });
                             } else {
                               const next = (state.participants || []).filter((x: string) => x !== g);
-                              setState({ ...state, participants: next });
+                              setState({
+                                ...state,
+                                participants: next
+                              });
                             }
                           }}
                         />

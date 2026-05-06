@@ -11,18 +11,9 @@ export class ApiError extends Error {
 
 export const getApiBaseUrl = () => {
   const envUrl = import.meta.env.VITE_API_BASE_URL;
-  const { protocol, hostname } = window.location;
-
-  // If we are accessing via localhost or 127.0.0.1, we can use the env URL if it exists
-  const isLocalAccess = hostname === "localhost" || hostname === "127.0.0.1";
-  
-  if (envUrl && isLocalAccess) {
-    return envUrl;
-  }
-  
-  // For remote access (via IP address), dynamically build the URL using the current host
-  // and the standard API port (3000)
-  return `${protocol}//${hostname}:3000`;
+  const envUrlString = typeof envUrl === "string" ? envUrl.trim() : "";
+  if (envUrlString) return envUrlString;
+  return "";
 };
 
 export const api = {
@@ -35,7 +26,7 @@ export const api = {
       },
     });
     if (response.status === 401) {
-      if (path !== "/api/login") {
+      if (!path.startsWith("/api/login")) {
         clearToken();
         window.location.assign("/");
       }
@@ -60,7 +51,7 @@ export const api = {
       body: JSON.stringify(body),
     });
     if (response.status === 401) {
-      if (path !== "/api/login") {
+      if (!path.startsWith("/api/login")) {
         clearToken();
         window.location.assign("/");
       }
@@ -85,7 +76,7 @@ export const api = {
       body: JSON.stringify(body),
     });
     if (response.status === 401) {
-      if (path !== "/api/login") {
+      if (!path.startsWith("/api/login")) {
         clearToken();
         window.location.assign("/");
       }
@@ -108,7 +99,7 @@ export const api = {
       },
     });
     if (response.status === 401) {
-      if (path !== "/api/login") {
+      if (!path.startsWith("/api/login")) {
         clearToken();
         window.location.assign("/");
       }
@@ -126,25 +117,47 @@ export const api = {
 export function subscribeAdminEvents(onEvent: (payload: any) => void, onStatus?: (status: "connected" | "error") => void) {
   const token = getToken();
   if (!token) return () => {};
-  const url = `${getApiBaseUrl()}/api/admin/stream?token=${encodeURIComponent(token)}`;
-  const es = new EventSource(url);
-  es.onopen = () => {
-    if (onStatus) onStatus("connected");
-  };
-  es.onmessage = (e) => {
-    const raw = e.data;
+  let closed = false;
+  let es: EventSource | null = null;
+  (async () => {
     try {
-      onEvent(JSON.parse(raw));
+      const resp = await fetch(`${getApiBaseUrl()}/api/admin/stream-token`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!resp.ok) throw new Error("stream_token_failed");
+      const data = await resp.json();
+      const st = String(data?.streamToken || "");
+      if (!st) throw new Error("stream_token_missing");
+      if (closed) return;
+      const url = `${getApiBaseUrl()}/api/admin/stream?st=${encodeURIComponent(st)}`;
+      es = new EventSource(url);
     } catch {
-      onEvent(raw);
+      if (closed) return;
+      if (onStatus) onStatus("error");
+      return;
     }
-  };
-  es.onerror = () => {
-    if (onStatus) onStatus("error");
-  };
+
+    if (!es) return;
+    es.onopen = () => {
+      if (onStatus) onStatus("connected");
+    };
+    es.onmessage = (e) => {
+      const raw = e.data;
+      try {
+        onEvent(JSON.parse(raw));
+      } catch {
+        onEvent(raw);
+      }
+    };
+    es.onerror = () => {
+      if (onStatus) onStatus("error");
+    };
+  })();
   return () => {
     try {
-      es.close();
+      closed = true;
+      es?.close();
     } catch {}
   };
 }

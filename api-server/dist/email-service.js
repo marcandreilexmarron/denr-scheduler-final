@@ -1,6 +1,8 @@
 import "dotenv/config";
 import nodemailer from "nodemailer";
-import { readUsers } from "./storage-select.js";
+import fs from "fs";
+import path from "path";
+import { readUsers, getDataDir } from "./storage-select.js";
 function formatDate(dateStr) {
     if (!dateStr)
         return "N/A";
@@ -28,7 +30,9 @@ function formatTime(timeStr) {
 }
 function buildParticipantsHTML(event) {
     const raw = Array.isArray(event.participants) ? event.participants : [];
-    if (!raw.length)
+    const tokensRaw = Array.isArray(event.participantTokens) ? event.participantTokens : [];
+    const hasReferToken = tokensRaw.some((t) => String(t || "").trim().toLowerCase() === "refer to attachments");
+    if (!raw.length && !hasReferToken)
         return "N/A";
     const byOffice = new Map();
     const officeOnly = new Set();
@@ -50,18 +54,19 @@ function buildParticipantsHTML(event) {
         }
     }
     const sections = [];
+    if (hasReferToken) {
+        sections.push(`<div style="margin:0 0 10px 0;">Refer to attachments.</div>`);
+    }
     for (const [off, empsSet] of Array.from(byOffice.entries()).sort((a, b) => a[0].localeCompare(b[0]))) {
         const emps = Array.from(empsSet.values()).sort((a, b) => a.localeCompare(b));
-        sections.push(`<div><strong>${off}</strong><ul>${emps.map((e) => `<li>${e}</li>`).join("")}</ul></div>`);
+        sections.push(`<div><strong>${off}</strong><ul style="margin:4px 0 10px 18px; padding:0;">${emps.map((e) => `<li style="margin:2px 0;">${e}</li>`).join("")}</ul></div>`);
     }
     if (officeOnly.size) {
         const offices = Array.from(officeOnly.values()).sort((a, b) => a.localeCompare(b));
-        sections.push(`<div><strong>Offices</strong><ul>${offices.map((o) => `<li>${o}</li>`).join("")}</ul></div>`);
+        sections.push(`<div><strong>Offices</strong><ul style="margin:4px 0 10px 18px; padding:0;">${offices.map((o) => `<li style="margin:2px 0;">${o}</li>`).join("")}</ul></div>`);
     }
     return sections.join("");
 }
-console.log("SMTP User:", process.env.SMTP_USER);
-console.log("SMTP Pass:", process.env.SMTP_PASS ? "Loaded" : "Not Loaded");
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || "smtp.ethereal.email",
     port: Number(process.env.SMTP_PORT) || 587,
@@ -133,13 +138,39 @@ export async function sendEventCreatedEmail(event) {
     }
     const sender = await getSenderEmail(event);
     const subject = `New Event: ${event.title}`;
-    const attachments = (event.attachments || []).map((att) => {
-        if (att.blob) {
-            const [header, data] = att.blob.split(',');
-            return { filename: att.name, content: data, encoding: 'base64', contentType: att.type };
+    const attachments = [];
+    const uploadDir = path.join(getDataDir(), "uploads");
+    for (const att of Array.isArray(event.attachments) ? event.attachments : []) {
+        if (att && typeof att.blob === "string" && att.blob) {
+            const parts = att.blob.split(",");
+            const data = parts.length >= 2 ? parts.slice(1).join(",") : parts[0];
+            attachments.push({
+                filename: String(att.name || "attachment"),
+                content: data,
+                encoding: "base64",
+                contentType: att.type || undefined
+            });
+            continue;
         }
-        return null;
-    }).filter(Boolean);
+        if (att && typeof att.url === "string" && att.url.startsWith("/uploads/")) {
+            const urlPath = att.url.split("?")[0];
+            const diskName = path.basename(urlPath);
+            const fullPath = path.join(uploadDir, diskName);
+            try {
+                if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+                    attachments.push({
+                        filename: String(att.name || diskName || "attachment"),
+                        path: fullPath,
+                        contentType: att.type || undefined
+                    });
+                }
+            }
+            catch { }
+        }
+    }
+    const attachmentsHtml = attachments.length
+        ? `<p><strong>Attachments:</strong> ${attachments.map((a) => String(a.filename || "attachment")).join(", ")}</p>`
+        : "";
     const html = `
     <h2>New Event Scheduled</h2>
     <p><strong>Title:</strong> ${event.title}</p>
@@ -149,6 +180,7 @@ export async function sendEventCreatedEmail(event) {
     <p><strong>Participants:</strong><br/>${buildParticipantsHTML(event)}</p>
     <p><strong>Description:</strong><br/>${event.description || 'N/A'}</p>
     <p><strong>Created By:</strong> ${event.createdBy || 'Unknown'} (${event.createdByOffice || 'Unknown'})</p>
+    ${attachmentsHtml}
     <br/>
     <p><a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" style="display: inline-block; padding: 10px 20px; background-color: #0A4B39; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold;">View Calendar</a></p>
   `;
@@ -167,7 +199,9 @@ export async function sendEventCreatedEmail(event) {
         console.error("Failed to send event created email:", err);
     }
 }
-export async function sendReminderEmail(event) {
+export async function sendReminderEmail(event, opts) {
+    const daysAhead = Number.isFinite(Number(opts?.daysAhead)) ? Number(opts?.daysAhead) : null;
+    const hoursAhead = Number.isFinite(Number(opts?.hoursAhead)) ? Number(opts?.hoursAhead) : null;
     const officeName = event.office || event.createdByOffice;
     const participants = Array.isArray(event.participants) ? event.participants : [];
     const involvedOffices = [];
@@ -192,10 +226,15 @@ export async function sendReminderEmail(event) {
     if (recipients.length === 0)
         return;
     const sender = await getSenderEmail(event);
-    const subject = `Reminder: Upcoming Event - ${event.title}`;
+    const subject = hoursAhead
+        ? `Reminder: Event in ${hoursAhead} hour${hoursAhead === 1 ? "" : "s"} - ${event.title}`
+        : `Reminder: Upcoming Event - ${event.title}`;
+    const leadText = hoursAhead
+        ? `coming up in ${hoursAhead} hour${hoursAhead === 1 ? "" : "s"}`
+        : `coming up in ${daysAhead === 1 ? "1 day" : "3 days"}`;
     const html = `
     <h2>Event Reminder</h2>
-    <p>This is a reminder that the following event is coming up in 3 days:</p>
+    <p>This is a reminder that the following event is ${leadText}:</p>
     <p><strong>Title:</strong> ${event.title}</p>
     <p><strong>Date:</strong> ${event.dateType === 'range' ? `${formatDate(event.startDate)} to ${formatDate(event.endDate)}` : formatDate(event.date)}</p>
     <p><strong>Time:</strong> ${event.startTime ? `${formatTime(event.startTime)} - ${formatTime(event.endTime)}` : 'All day'}</p>
@@ -216,4 +255,22 @@ export async function sendReminderEmail(event) {
     catch (err) {
         console.error("Failed to send reminder email:", err);
     }
+}
+export async function sendTwoFactorCodeEmail(toEmail, username, code, expiresMinutes) {
+    const from = process.env.SMTP_FROM || '"DENR Scheduler" <no-reply@denr.gov.ph>';
+    const subject = "Your verification code";
+    const html = `
+    <h2>Login verification</h2>
+    <p>Hello${username ? ` <strong>${username}</strong>` : ""},</p>
+    <p>Your verification code is:</p>
+    <div style="font-size: 28px; font-weight: 800; letter-spacing: 4px; margin: 12px 0;">${code}</div>
+    <p>This code will expire in ${expiresMinutes} minutes.</p>
+    <p>If you did not request this, you can ignore this email.</p>
+  `;
+    await transporter.sendMail({
+        from,
+        to: toEmail,
+        subject,
+        html
+    });
 }

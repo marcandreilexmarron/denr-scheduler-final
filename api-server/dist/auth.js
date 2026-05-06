@@ -1,7 +1,26 @@
 import jwt from "jsonwebtoken";
-const secret = process.env.JWT_SECRET || "dev-insecure-secret";
+const secret = (() => {
+    const configured = process.env.JWT_SECRET;
+    if (configured && configured.trim())
+        return configured;
+    if (process.env.NODE_ENV === "production") {
+        throw new Error("JWT_SECRET must be set in production");
+    }
+    return "dev-insecure-secret";
+})();
 export function signToken(payload) {
     return jwt.sign(payload, secret, { expiresIn: "24h" });
+}
+export function signTokenWithExpiry(payload, expiresIn) {
+    return jwt.sign(payload, secret, { expiresIn });
+}
+export function verifyToken(token) {
+    try {
+        return jwt.verify(token, secret);
+    }
+    catch {
+        return null;
+    }
 }
 export function authMiddleware(req, res, next) {
     const header = req.headers.authorization || "";

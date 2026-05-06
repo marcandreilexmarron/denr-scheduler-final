@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getUserFromToken } from "../auth";
 import { api, subscribeAdminEvents } from "../api";
-import { Trash2, Edit2, Filter, RefreshCw, Activity } from "lucide-react";
+import { Trash2, Edit2, RefreshCw, Activity } from "lucide-react";
 import ConfirmModal from "../components/ConfirmModal";
 import AddEventModal from "../components/AddEventModal";
 
@@ -131,67 +131,71 @@ export default function EventManagement() {
   );
 
   return (
-    <div style={{ padding: "20px", maxWidth: "1400px", margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
-        <button
-          onClick={() => navigate("/admin")}
-          title="Go back to SuperAdmin Dashboard"
-          style={{
-            padding: "10px 16px",
-            background: "#3b82f6",
-            color: "white",
-            border: "none",
-            borderRadius: "6px",
-            cursor: "pointer",
-            fontWeight: "500",
-            fontSize: "14px",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px"
-          }}
-        >
-          ← Back
-        </button>
-        <h1 style={{ fontSize: "28px", fontWeight: "700", margin: 0 }}>Event Management</h1>
-        <div
-          title={realtimeStatus === "connected" ? "Realtime connected" : "Realtime disconnected (fallback polling enabled)"}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "8px 10px",
-            borderRadius: 10,
-            border: "1px solid var(--border)",
-            background: "var(--card)",
-            fontSize: 13,
-            color: "var(--muted)"
-          }}
-        >
-          <Activity size={16} style={{ color: realtimeStatus === "connected" ? "#16a34a" : "#dc2626" }} />
-          {realtimeStatus === "connected" ? "Realtime" : "Offline"}
-        </div>
-        <button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          title="Refresh events list"
-          style={{
-            marginLeft: "auto",
-            padding: "10px 16px",
-            background: "var(--card)",
-            border: "1px solid var(--border)",
-            borderRadius: "6px",
-            cursor: "pointer",
-            fontWeight: "500",
-            fontSize: "14px",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            opacity: isRefreshing ? 0.6 : 1
-          }}
-        >
-          <RefreshCw size={16} style={{ animation: isRefreshing ? "spin 1s linear infinite" : "none" }} /> Refresh
-        </button>
-      </div>
+    <div style={{ padding: 16, background: "var(--bg)", minHeight: "calc(100vh - 100px)" }}>
+      <div style={{ maxWidth: 1600, margin: "0 auto" }}>
+        <div style={{ border: "1px solid var(--border)", borderRadius: 12, background: "var(--card)", padding: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: 16, flexWrap: "wrap" }}>
+            <button
+              onClick={() => navigate("/admin")}
+              title="Go back to SuperAdmin Dashboard"
+              style={{
+                padding: "10px 16px",
+                background: "#3b82f6",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontWeight: "500",
+                fontSize: "14px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px"
+              }}
+            >
+              ← Back
+            </button>
+            <h1 style={{ fontSize: "28px", fontWeight: "700", margin: 0 }}>Event Management</h1>
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <div
+                title={realtimeStatus === "connected" ? "Realtime connected" : "Realtime disconnected (fallback polling enabled)"}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 10px",
+                  borderRadius: 10,
+                  border: "1px solid var(--border)",
+                  background: "var(--card)",
+                  fontSize: 13,
+                  color: "var(--muted)"
+                }}
+              >
+                <Activity size={16} style={{ color: realtimeStatus === "connected" ? "#16a34a" : "#dc2626" }} />
+                {realtimeStatus === "connected" ? "Realtime" : "Offline"}
+              </div>
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                title="Refresh events list"
+                style={{
+                  padding: "10px 14px",
+                  background: "var(--card)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 10,
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  color: "inherit",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  opacity: isRefreshing ? 0.7 : 1
+                }}
+              >
+                <RefreshCw size={16} style={{ animation: isRefreshing ? "spin 1s linear infinite" : "none" }} />
+                Refresh
+              </button>
+            </div>
+          </div>
 
       {error && (
         <div style={{
@@ -207,8 +211,22 @@ export default function EventManagement() {
         </div>
       )}
 
-      {/* Tabs and Filter */}
-      <div style={{ display: "flex", gap: "16px", marginBottom: "20px", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap", alignItems: "center" }}>
+        <input
+          type="text"
+          placeholder="Filter events..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          style={{
+            flex: 1,
+            minWidth: "200px",
+            padding: "8px 12px",
+            border: "1px solid var(--border)",
+            borderRadius: "6px",
+            background: "var(--card)",
+            color: "inherit"
+          }}
+        />
         <div style={{ display: "flex", gap: "8px", borderBottom: "2px solid var(--border)" }}>
           <button
             onClick={() => setTab("active")}
@@ -240,24 +258,6 @@ export default function EventManagement() {
           >
             Archived Events ({archivedEvents.length})
           </button>
-        </div>
-
-        <div style={{ marginLeft: "auto", display: "flex", gap: "8px", alignItems: "center" }}>
-          <Filter size={18} style={{ color: "var(--text-secondary)" }} />
-          <input
-            type="text"
-            placeholder="Search events..."
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            style={{
-              padding: "8px 12px",
-              border: "1px solid var(--border)",
-              borderRadius: "6px",
-              background: "var(--card)",
-              color: "inherit",
-              minWidth: "200px"
-            }}
-          />
         </div>
       </div>
 
@@ -398,6 +398,8 @@ export default function EventManagement() {
         title={confirmState.title}
         message={confirmState.message}
       />
+        </div>
+      </div>
     </div>
   );
 }

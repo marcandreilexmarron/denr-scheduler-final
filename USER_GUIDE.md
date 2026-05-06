@@ -36,6 +36,10 @@ The main dashboard is your primary tool for viewing the regional schedule.
 6.  **Attachments**: Upload PDF programs, invitations, or other relevant documents.
 7.  **Save**: Click "Add Event" to publish. An email notification will be sent automatically.
 
+**Notes on Attachments**
+- Attachments are downloaded through the app and require login. If you open a raw attachment link directly, your browser may block it without authentication.
+- Some file types may be blocked if they are not in the allowed upload types set by the system administrator.
+
 ### 2. Editing or Deleting Events
 -   You can only modify events created by your own office.
 -   Click an event in the calendar to open its details.
@@ -65,12 +69,17 @@ The application is fully responsive and optimized for use on smartphones and tab
 | :--- | :--- |
 | **Public (Guest)** | View calendar, search archive, view event details. |
 | **Office User** | All Guest permissions + Create/Edit/Delete own office events, Upload attachments. |
-| **Admin** | All Office permissions + Manage users, roles, and global system settings. | (WIP)
+| **Admin** | All Office permissions + Manage users, roles, backups, and admin monitoring. |
+
+**Login Notes**
+- Office users may be prompted for email verification (2FA) depending on the system setup.
+- Admin accounts do not require 2FA.
 
 ---
 
 ## 📧 Email Notifications & Reminders
 -   **Creation Alert**: An email is sent to the creator when a new event is successfully added.
+-   **Creation Attachments**: If the event includes uploaded attachments, they are included in the creation email.
 -   **3-Day Reminder**: The system automatically sends a reminder email to participants 3 days before an event is scheduled to start.
 
 ---

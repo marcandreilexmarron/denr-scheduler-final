@@ -1,7 +1,8 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import Modal from "./Modal";
-import { api } from "../api";
+import { api, getApiBaseUrl } from "../api";
+import { getToken } from "../auth";
 
 export default function EventDetailModal({
   open,
@@ -24,6 +25,32 @@ export default function EventDetailModal({
   const [divisionOfficeNames, setDivisionOfficeNames] = React.useState<string[]>([]);
   const [officeServiceMap, setOfficeServiceMap] = React.useState<Record<string, string>>({});
   const [serviceOrder, setServiceOrder] = React.useState<string[]>([]);
+  async function downloadWithAuth(pathOrUrl: string, filename: string) {
+    const token = getToken();
+    const url = /^https?:\/\//i.test(pathOrUrl) ? pathOrUrl : `${getApiBaseUrl()}${pathOrUrl}`;
+    const response = await fetch(url, {
+      headers: {
+        Authorization: token ? `Bearer ${token}` : ""
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`Download failed (${response.status})`);
+    }
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    try {
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = filename || "attachment";
+      a.rel = "noopener noreferrer";
+      a.target = "_blank";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }
   React.useEffect(() => {
     api.get("/api/offices-data")
       .then((d) => {
@@ -296,18 +323,37 @@ export default function EventDetailModal({
               <strong style={{ fontSize: 14, opacity: 0.8 }}>Attachments:</strong>
               <ul style={{ listStyle: "none", padding: 0, marginTop: 4 }}>
                 {event.attachments.map((att: any, idx: number) => {
-                  const downloadUrl = att.blob || att.url;
+                  const hasBlob = typeof att?.blob === "string" && !!att.blob;
+                  const hasUploadsUrl = typeof att?.url === "string" && att.url.startsWith("/uploads/");
                   return (
                     <li key={idx} style={{ marginBottom: 4 }}>
-                      <a 
-                        href={downloadUrl} 
-                        download={att.name || "attachment"}
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        style={{ color: "var(--blue-color)", textDecoration: "underline", cursor: "pointer", fontSize: 14, opacity: 0.9 }}
-                      >
-                        {att.name || "Attachment"}
-                      </a>
+                      {hasBlob ? (
+                        <a
+                          href={att.blob}
+                          download={att.name || "attachment"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: "var(--blue-color)", textDecoration: "underline", cursor: "pointer", fontSize: 14, opacity: 0.9 }}
+                        >
+                          {att.name || "Attachment"}
+                        </a>
+                      ) : hasUploadsUrl ? (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await downloadWithAuth(att.url, String(att.name || "attachment"));
+                            } catch (err) {
+                              alert(err instanceof Error ? err.message : "Failed to download attachment");
+                            }
+                          }}
+                          style={{ background: "transparent", border: "none", padding: 0, margin: 0, color: "var(--blue-color)", textDecoration: "underline", cursor: "pointer", fontSize: 14, opacity: 0.9 }}
+                        >
+                          {att.name || "Attachment"}
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: 13, opacity: 0.75 }}>{att.name || "Attachment"}</span>
+                      )}
                     </li>
                   );
                 })}
