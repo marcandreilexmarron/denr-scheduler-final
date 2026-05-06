@@ -104,7 +104,7 @@ export default function AddEventModal({
   const [state, setState] = useState<any>({
     category: "",
     categoryDetail: "",
-    type: "",
+    type: "Internal",
     title: "",
     description: "",
     location: "",
@@ -259,7 +259,7 @@ export default function AddEventModal({
       setState({
         category: "",
         categoryDetail: "",
-        type: "",
+        type: "Internal",
         title: "",
         description: "",
         location: "",
@@ -875,7 +875,7 @@ export default function AddEventModal({
                     const g = "Refer to attachments";
                     const checked = Array.isArray(state.participants) && state.participants.includes(g);
                     return (
-                      <label key={g} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700 }}>
+                      <label key={g} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, fontWeight: 700, maxWidth: "100%" }}>
                         <input
                           type="checkbox"
                           checked={checked}
@@ -895,7 +895,12 @@ export default function AddEventModal({
                             }
                           }}
                         />
-                        <span>{g}</span>
+                        <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                          <span>{g}</span>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)", lineHeight: 1.25 }}>
+                            Select this when there are too many individuals to list—still select the offices these individuals are under.
+                          </span>
+                        </span>
                       </label>
                     );
                   })()}
