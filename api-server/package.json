@@ -18,7 +18,8 @@
     "luxon": "^3.5.0",
     "multer": "^2.1.1",
     "mysql2": "^3.19.0",
-    "nodemailer": "^8.0.1"
+    "nodemailer": "^8.0.1",
+    "pm2": "^7.0.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
