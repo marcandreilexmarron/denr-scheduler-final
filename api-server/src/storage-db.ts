@@ -98,7 +98,7 @@ export function getDataDir() {
   return "";
 }
 
-const TABLE_PREFIX = String(process.env.DB_TABLE_PREFIX ?? "scheduler_").trim() || "scheduler_";
+const TABLE_PREFIX = String(process.env.DB_TABLE_PREFIX ?? "").trim();
 function tableName(base: string) {
   if (!TABLE_PREFIX) return base;
   return base.startsWith(TABLE_PREFIX) ? base : `${TABLE_PREFIX}${base}`;

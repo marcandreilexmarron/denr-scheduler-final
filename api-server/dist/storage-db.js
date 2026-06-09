@@ -1,5 +1,39 @@
 import knex from "knex";
 let _knex = null;
+function isTruthy(value) {
+    return /^(1|true|yes|on|required)$/i.test((value || "").trim());
+}
+function buildConnectionConfig(client, connection) {
+    if (!isTruthy(process.env.DATABASE_SSL)) {
+        return connection;
+    }
+    const rejectUnauthorized = !/^(0|false|no|off)$/i.test((process.env.DATABASE_SSL_REJECT_UNAUTHORIZED || "true").trim());
+    const ssl = { rejectUnauthorized };
+    const caBase64 = (process.env.DATABASE_CA_CERT_BASE64 || "").trim();
+    if (caBase64) {
+        ssl.ca = Buffer.from(caBase64, "base64").toString("utf-8");
+    }
+    if (client === "pg") {
+        return {
+            connectionString: connection,
+            ssl
+        };
+    }
+    const url = new URL(connection);
+    const extraOptions = {};
+    url.searchParams.forEach((value, key) => {
+        extraOptions[key] = value;
+    });
+    return {
+        host: url.hostname,
+        port: Number(url.port || 3306),
+        user: decodeURIComponent(url.username),
+        password: decodeURIComponent(url.password),
+        database: url.pathname.replace(/^\//, ""),
+        ...extraOptions,
+        ssl
+    };
+}
 function getKnex() {
     if (_knex)
         return _knex;
@@ -10,7 +44,7 @@ function getKnex() {
     }
     _knex = knex({
         client,
-        connection,
+        connection: buildConnectionConfig(client, connection),
         pool: { min: 0, max: 10 }
     });
     return _knex;
@@ -46,7 +80,7 @@ export function getDataDir() {
     // Unused for DB backend; return empty string for compatibility
     return "";
 }
-const TABLE_PREFIX = String(process.env.DB_TABLE_PREFIX ?? "scheduler_").trim() || "scheduler_";
+const TABLE_PREFIX = String(process.env.DB_TABLE_PREFIX ?? "").trim();
 function tableName(base) {
     if (!TABLE_PREFIX)
         return base;

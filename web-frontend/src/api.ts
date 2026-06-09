@@ -9,30 +9,22 @@ export class ApiError extends Error {
   }
 }
 
-<<<<<<< HEAD
-const getApiBaseUrl = () => {
-  const envUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+export const getApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  const envUrlString = typeof envUrl === "string" ? envUrl.trim() : "";
   const { protocol, hostname, origin } = window.location;
 
-  if (envUrl) {
-    return envUrl.replace(/\/+$/, "");
+  if (envUrlString) {
+    return envUrlString.replace(/\/+$/, "");
   }
 
   const isLocalAccess = hostname === "localhost" || hostname === "127.0.0.1";
-
   if (isLocalAccess) {
     return `${protocol}//${hostname}:3000`;
   }
 
   // Fall back to same-origin if the app is ever served behind a reverse proxy.
   return origin;
-=======
-export const getApiBaseUrl = () => {
-  const envUrl = import.meta.env.VITE_API_BASE_URL;
-  const envUrlString = typeof envUrl === "string" ? envUrl.trim() : "";
-  if (envUrlString) return envUrlString;
-  return "";
->>>>>>> 813c25ce91f81177271815eb9fe7546aa7946b35
 };
 
 export const api = {
