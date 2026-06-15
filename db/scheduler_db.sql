@@ -1157,6 +1157,7 @@ CREATE TABLE IF NOT EXISTS `office_users` (
   `office_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `service` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `disabled` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`username`),
   UNIQUE KEY `uq_office_name` (`office_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
