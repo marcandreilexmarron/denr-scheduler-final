@@ -1,6 +1,6 @@
 import "dotenv/config";
 import express from "express";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
@@ -189,7 +189,7 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-app.get("/uploads/:filename", authMiddleware, checkUserDisabled, checkUserDisabled, requireAnyRole(["OFFICE", "ADMIN"]), (req, res) => {
+app.get("/uploads/:filename", authMiddleware, checkUserDisabled, requireAnyRole(["OFFICE", "ADMIN"]), (req: Request, res: Response) => {
   const raw = String(req.params.filename || "");
   const filename = path.basename(raw);
   if (!filename || filename !== raw) return res.status(400).json({ error: "invalid_filename" });
@@ -1428,7 +1428,7 @@ app.put("/api/admin/holidays/:month/:day", authMiddleware, checkUserDisabled, re
 });
 
 // GET /api/admin/stats - Get system statistics
-app.get("/api/admin/stats", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.get("/api/admin/stats", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req: Request, res: Response) => {
   try {
     const users = await readUsers();
     const events = await readEvents();

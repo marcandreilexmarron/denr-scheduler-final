@@ -176,7 +176,7 @@ const uploadDir = path.join(getDataDir(), "uploads");
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
-app.get("/uploads/:filename", authMiddleware, checkUserDisabled, checkUserDisabled, requireAnyRole(["OFFICE", "ADMIN"]), (req, res) => {
+app.get("/uploads/:filename", authMiddleware, checkUserDisabled, requireAnyRole(["OFFICE", "ADMIN"]), (req, res) => {
     const raw = String(req.params.filename || "");
     const filename = path.basename(raw);
     if (!filename || filename !== raw)
