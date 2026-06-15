@@ -7,52 +7,96 @@ function isTruthy(value?: string) {
   return /^(1|true|yes|on|required)$/i.test((value || "").trim());
 }
 
-function buildConnectionConfig(client: string, connection: string) {
-  if (!isTruthy(process.env.DATABASE_SSL)) {
-    return connection;
-  }
+function buildConnectionConfig(client: string, connectionOrConfig: string | Record<string, any>) {
+  const useSsl = isTruthy(process.env.DATABASE_SSL) || isTruthy(process.env.DB_SSL);
 
   const rejectUnauthorized = !/^(0|false|no|off)$/i.test(
-    (process.env.DATABASE_SSL_REJECT_UNAUTHORIZED || "true").trim()
+    (process.env.DATABASE_SSL_REJECT_UNAUTHORIZED || process.env.DB_SSL_REJECT_UNAUTHORIZED || "true").trim()
   );
   const ssl: Record<string, any> = { rejectUnauthorized };
-  const caBase64 = (process.env.DATABASE_CA_CERT_BASE64 || "").trim();
+  const caBase64 = (process.env.DATABASE_CA_CERT_BASE64 || process.env.DB_SSL_CA_BASE64 || "").trim();
+  const rawCaCert = (process.env.DB_SSL_CA || "").trim();
 
   if (caBase64) {
     ssl.ca = Buffer.from(caBase64, "base64").toString("utf-8");
+  } else if (rawCaCert) {
+    ssl.ca = rawCaCert;
   }
 
-  if (client === "pg") {
+  if (typeof connectionOrConfig === "string") {
+    // Handle connection string case (existing behavior for backward compatibility)
+    if (!useSsl) {
+      return connectionOrConfig;
+    }
+
+    if (client === "pg") {
+      return {
+        connectionString: connectionOrConfig,
+        ssl
+      };
+    }
+
+    const url = new URL(connectionOrConfig);
+    const extraOptions: Record<string, string> = {};
+    url.searchParams.forEach((value, key) => {
+      // Skip ssl-mode since mysql2 doesn't use it
+      if (key !== "ssl-mode") {
+        extraOptions[key] = value;
+      }
+    });
+
     return {
-      connectionString: connection,
+      host: url.hostname,
+      port: Number(url.port || 3306),
+      user: decodeURIComponent(url.username),
+      password: decodeURIComponent(url.password),
+      database: url.pathname.replace(/^\//, ""),
+      ...extraOptions,
+      ssl
+    };
+  } else {
+    // Handle individual config object case
+    if (!useSsl) {
+      return connectionOrConfig;
+    }
+    return {
+      ...connectionOrConfig,
       ssl
     };
   }
-
-  const url = new URL(connection);
-  const extraOptions: Record<string, string> = {};
-  url.searchParams.forEach((value, key) => {
-    extraOptions[key] = value;
-  });
-
-  return {
-    host: url.hostname,
-    port: Number(url.port || 3306),
-    user: decodeURIComponent(url.username),
-    password: decodeURIComponent(url.password),
-    database: url.pathname.replace(/^\//, ""),
-    ...extraOptions,
-    ssl
-  };
 }
 
 function getKnex(): Knex {
   if (_knex) return _knex;
-  const client = (process.env.DATABASE_CLIENT || "").trim();
-  const connection = (process.env.DATABASE_URL || "").trim();
-  if (!client || !connection) {
-    throw new Error("DATABASE_CLIENT and DATABASE_URL must be set for DB backend");
+  const client = (process.env.DATABASE_CLIENT || "mysql2").trim();
+
+  // Check if individual DB_* variables are provided (prioritize these first)
+  const dbHost = (process.env.DB_HOST || "").trim();
+  const dbPort = (process.env.DB_PORT || "").trim();
+  const dbUser = (process.env.DB_USER || "").trim();
+  const dbPassword = (process.env.DB_PASSWORD || "").trim();
+  const dbName = (process.env.DB_NAME || "").trim();
+
+  let connection: string | Record<string, any>;
+
+  if (dbHost && dbUser && dbPassword && dbName) {
+    // Use individual variables
+    connection = {
+      host: dbHost,
+      port: dbPort ? Number(dbPort) : 3306,
+      user: dbUser,
+      password: dbPassword,
+      database: dbName
+    };
+  } else {
+    // Fall back to DATABASE_URL (backward compatible)
+    const dbUrl = (process.env.DATABASE_URL || "").trim();
+    if (!dbUrl) {
+      throw new Error("Either DATABASE_URL or DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME must be set for DB backend");
+    }
+    connection = dbUrl;
   }
+
   _knex = knex({
     client,
     connection: buildConnectionConfig(client, connection),
