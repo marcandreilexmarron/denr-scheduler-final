@@ -1,5 +1,6 @@
 import jwt, { type SignOptions, type Secret } from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
+import { readUsers } from "./storage-select.js";
 
 const secret: Secret = (() => {
   const configured = process.env.JWT_SECRET;
@@ -53,6 +54,25 @@ export function authMiddlewareAllowQuery(req: Request, res: Response, next: Next
     next();
   } catch {
     res.status(401).json({ error: "unauthorized" });
+  }
+}
+
+// Middleware to check if user is disabled
+export async function checkUserDisabled(req: Request, res: Response, next: NextFunction) {
+  const user = (req as any).user as any;
+  if (!user || !user.sub) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+  try {
+    const users = await readUsers();
+    const dbUser = users.find((u: any) => u.username === user.sub);
+    if (!dbUser || dbUser.disabled) {
+      return res.status(403).json({ error: "account_disabled" });
+    }
+    next();
+  } catch (err) {
+    console.error("Error checking user status:", err);
+    res.status(500).json({ error: "internal_server_error" });
   }
 }
 

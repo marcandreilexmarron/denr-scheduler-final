@@ -203,8 +203,12 @@ export async function readUsers() {
     const k = getKnex();
     const rows = await k(tableName("office_users")).select("*");
     return rows.map((r) => {
-        const { office_name, ...rest } = r;
-        return { ...rest, officeName: office_name };
+        const { office_name, disabled, ...rest } = r;
+        return {
+            ...rest,
+            officeName: office_name,
+            disabled: Boolean(disabled)
+        };
     });
 }
 export async function writeUsers(users) {
@@ -212,8 +216,12 @@ export async function writeUsers(users) {
     try {
         await k.transaction(async (trx) => {
             const rows = users.map((u) => {
-                const { officeName, ...rest } = u;
-                return { ...rest, office_name: officeName };
+                const { officeName, disabled, ...rest } = u;
+                return {
+                    ...rest,
+                    office_name: officeName,
+                    disabled: disabled ? 1 : 0
+                };
             });
             await syncByKey(trx, tableName("office_users"), "username", rows);
         });

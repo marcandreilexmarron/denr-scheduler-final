@@ -43,6 +43,14 @@ export const api = {
       }
       throw new ApiError("Unauthorized", 401);
     }
+    if (response.status === 403) {
+      const errorData = await response.json().catch(() => ({ error: "forbidden" }));
+      if (errorData.error === "account_disabled") {
+        clearToken();
+        window.location.assign("/");
+      }
+      throw new ApiError(errorData.message || "Forbidden", 403);
+    }
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: response.statusText }));
       throw new ApiError(errorData.message || "Api error", response.status);
@@ -67,6 +75,14 @@ export const api = {
         window.location.assign("/");
       }
       throw new ApiError("Unauthorized", 401);
+    }
+    if (response.status === 403) {
+      const errorData = await response.json().catch(() => ({ error: "forbidden" }));
+      if (errorData.error === "account_disabled") {
+        clearToken();
+        window.location.assign("/");
+      }
+      throw new ApiError(errorData.message || "Forbidden", 403);
     }
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: response.statusText }));
@@ -93,6 +109,14 @@ export const api = {
       }
       throw new ApiError("Unauthorized", 401);
     }
+    if (response.status === 403) {
+      const errorData = await response.json().catch(() => ({ error: "forbidden" }));
+      if (errorData.error === "account_disabled") {
+        clearToken();
+        window.location.assign("/");
+      }
+      throw new ApiError(errorData.message || "Forbidden", 403);
+    }
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: response.statusText }));
       throw new ApiError(errorData.message || "Api error", response.status);
@@ -115,6 +139,14 @@ export const api = {
         window.location.assign("/");
       }
       throw new ApiError("Unauthorized", 401);
+    }
+    if (response.status === 403) {
+      const errorData = await response.json().catch(() => ({ error: "forbidden" }));
+      if (errorData.error === "account_disabled") {
+        clearToken();
+        window.location.assign("/");
+      }
+      throw new ApiError(errorData.message || "Forbidden", 403);
     }
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: response.statusText }));

@@ -4,7 +4,7 @@ import type { Response } from "express";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
-import { authMiddleware, authMiddlewareAllowQuery, signToken, signTokenWithExpiry, verifyToken, requireAnyRole } from "./auth.js";
+import { authMiddleware, authMiddlewareAllowQuery, signToken, signTokenWithExpiry, verifyToken, requireAnyRole, checkUserDisabled } from "./auth.js";
 import crypto from "crypto";
 import { DateTime } from "luxon";
 import { fileURLToPath } from "url";
@@ -189,7 +189,7 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-app.get("/uploads/:filename", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), (req, res) => {
+app.get("/uploads/:filename", authMiddleware, checkUserDisabled, checkUserDisabled, requireAnyRole(["OFFICE", "ADMIN"]), (req, res) => {
   const raw = String(req.params.filename || "");
   const filename = path.basename(raw);
   if (!filename || filename !== raw) return res.status(400).json({ error: "invalid_filename" });
@@ -240,7 +240,7 @@ const upload = multer({
 });
 
 // Route to handle file upload
-app.post("/api/upload", authMiddleware, requireAnyRole(["OFFICE", "ADMIN"]), limitUpload, upload.single("file"), (req, res) => {
+app.post("/api/upload", authMiddleware, checkUserDisabled, requireAnyRole(["OFFICE", "ADMIN"]), limitUpload, upload.single("file"), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No file uploaded" });
   }
@@ -489,7 +489,7 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
-app.get("/api/me", authMiddleware, (req, res) => {
+app.get("/api/me", authMiddleware, checkUserDisabled, (req, res) => {
   const user = (req as any).user;
   res.json(user);
 });
@@ -757,7 +757,7 @@ app.get("/api/events/archive", async (_req, res) => {
   }
 });
 
-app.get("/api/office/events", authMiddleware, async (req, res) => {
+app.get("/api/office/events", authMiddleware, checkUserDisabled, async (req, res) => {
   try {
     await withEventsLock(async () => {
       await archivePastEvents();
@@ -811,7 +811,7 @@ app.get("/api/employees", async (_req, res) => {
   res.json(await readEmployees());
 });
 
-app.post("/api/events", authMiddleware, requireAnyRole(["OFFICE"]), async (req, res) => {
+app.post("/api/events", authMiddleware, checkUserDisabled, requireAnyRole(["OFFICE"]), async (req, res) => {
   try {
     await withEventsLock(async () => {
     const events = await readEvents(); // Get current events directly
@@ -851,7 +851,7 @@ app.post("/api/events", authMiddleware, requireAnyRole(["OFFICE"]), async (req, 
   }
 });
 
-app.put("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE"]), async (req, res) => {
+app.put("/api/events/:id", authMiddleware, checkUserDisabled, requireAnyRole(["OFFICE"]), async (req, res) => {
   try {
     await withEventsLock(async () => {
       await archivePastEvents();
@@ -877,7 +877,7 @@ app.put("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE"]), async (re
   }
 });
 
-app.delete("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE"]), async (req, res) => {
+app.delete("/api/events/:id", authMiddleware, checkUserDisabled, requireAnyRole(["OFFICE"]), async (req, res) => {
   try {
     await withEventsLock(async () => {
       await archivePastEvents();
@@ -904,19 +904,19 @@ app.delete("/api/events/:id", authMiddleware, requireAnyRole(["OFFICE"]), async 
 
 // ====== SUPERADMIN ENDPOINTS ======
 
-app.get("/api/admin/backup/export", authMiddleware, requireAnyRole(["ADMIN"]), async (_req, res) => {
+app.get("/api/admin/backup/export", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (_req, res) => {
   const snapshot = await buildBackupSnapshot();
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="denr-scheduler-backup-${snapshot.at.replace(/[:.]/g, "-")}.json"`);
   res.json(snapshot);
 });
 
-app.post("/api/admin/backup/run", authMiddleware, requireAnyRole(["ADMIN"]), async (_req, res) => {
+app.post("/api/admin/backup/run", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (_req, res) => {
   const out = await runBackupNow();
   res.json(out);
 });
 
-app.get("/api/admin/backup/list", authMiddleware, requireAnyRole(["ADMIN"]), async (_req, res) => {
+app.get("/api/admin/backup/list", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (_req, res) => {
   ensureBackupDir();
   const files = fs.readdirSync(backupDir)
     .filter((f) => /^backup-.*\.json$/i.test(f))
@@ -925,7 +925,7 @@ app.get("/api/admin/backup/list", authMiddleware, requireAnyRole(["ADMIN"]), asy
   res.json({ dir: backupDir, files });
 });
 
-app.post("/api/admin/backup/restore", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.post("/api/admin/backup/restore", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
   if (process.env.ENABLE_ADMIN_RESTORE !== "true") {
     return res.status(403).json({ error: "restore_disabled" });
   }
@@ -1017,7 +1017,7 @@ function adminStreamAuth(req: any, res: any, next: any) {
   return res.status(401).json({ error: "missing_stream_token" });
 }
 
-app.post("/api/admin/stream-token", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.post("/api/admin/stream-token", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
   const ttlMs = (() => {
     const n = Number(process.env.STREAM_TOKEN_TTL_MS);
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : 2 * 60 * 1000;
@@ -1057,14 +1057,14 @@ app.get("/api/admin/stream", adminStreamAuth, requireAnyRole(["ADMIN"]), (req, r
   });
 });
 
-app.get("/api/admin/audit", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.get("/api/admin/audit", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
   const limit = req.query.limit ? Math.max(1, Math.min(500, Number(req.query.limit))) : 50;
   const items = readAdminAudit().slice(0, limit);
   res.json(items);
 });
 
 // GET /api/admin/users - Get all users
-app.get("/api/admin/users", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.get("/api/admin/users", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
   try {
     const users = await readUsers();
     // Remove passwords before sending to client for security
@@ -1080,7 +1080,7 @@ app.get("/api/admin/users", authMiddleware, requireAnyRole(["ADMIN"]), async (re
 });
 
 // POST /api/admin/users - Create a new user
-app.post("/api/admin/users", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.post("/api/admin/users", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
   try {
     await withUsersLock(async () => {
     const { username, password, role, officeName, service, email } = req.body || {};
@@ -1115,7 +1115,7 @@ app.post("/api/admin/users", authMiddleware, requireAnyRole(["ADMIN"]), async (r
 });
 
 // PUT /api/admin/users/:username - Update a user
-app.put("/api/admin/users/:username", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.put("/api/admin/users/:username", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
   try {
     await withUsersLock(async () => {
       const { username } = req.params;
@@ -1173,7 +1173,7 @@ app.put("/api/admin/users/:username", authMiddleware, requireAnyRole(["ADMIN"]),
   }
 });
 
-app.post("/api/admin/users/:username/reset-password", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.post("/api/admin/users/:username/reset-password", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
   try {
     await withUsersLock(async () => {
       const { username } = req.params;
@@ -1198,7 +1198,7 @@ app.post("/api/admin/users/:username/reset-password", authMiddleware, requireAny
 });
 
 // DELETE /api/admin/users/:username - Delete a user
-app.delete("/api/admin/users/:username", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.delete("/api/admin/users/:username", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
   try {
     await withUsersLock(async () => {
       const { username } = req.params;
@@ -1221,7 +1221,7 @@ app.delete("/api/admin/users/:username", authMiddleware, requireAnyRole(["ADMIN"
 });
 
 // GET /api/admin/events - Get all events (admin view)
-app.get("/api/admin/events", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.get("/api/admin/events", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
   try {
     const events = await readEvents();
     res.json(events.map((e: any) => ({
@@ -1235,7 +1235,7 @@ app.get("/api/admin/events", authMiddleware, requireAnyRole(["ADMIN"]), async (r
 });
 
 // GET /api/admin/events/archived - Get all archived events (admin view)
-app.get("/api/admin/events/archived", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.get("/api/admin/events/archived", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
   try {
     const events = await readArchivedEvents();
     res.json(events);
@@ -1246,7 +1246,7 @@ app.get("/api/admin/events/archived", authMiddleware, requireAnyRole(["ADMIN"]),
 });
 
 // DELETE /api/admin/events/:id - Delete any event (admin only)
-app.delete("/api/admin/events/:id", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.delete("/api/admin/events/:id", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
   try {
     await withEventsLock(async () => {
       const events = await readEvents();
@@ -1268,7 +1268,7 @@ app.delete("/api/admin/events/:id", authMiddleware, requireAnyRole(["ADMIN"]), a
 });
 
 // DELETE /api/admin/events/archived/:id - Delete archived event (admin only)
-app.delete("/api/admin/events/archived/:id", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.delete("/api/admin/events/archived/:id", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
   try {
     await withEventsLock(async () => {
       const events = await readArchivedEvents();
@@ -1290,7 +1290,7 @@ app.delete("/api/admin/events/archived/:id", authMiddleware, requireAnyRole(["AD
 });
 
 // PUT /api/admin/events/:id - Update any event (admin only)
-app.put("/api/admin/events/:id", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.put("/api/admin/events/:id", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
   try {
     await withEventsLock(async () => {
       const events = await readEvents();
@@ -1312,7 +1312,7 @@ app.put("/api/admin/events/:id", authMiddleware, requireAnyRole(["ADMIN"]), asyn
 });
 
 // GET /api/admin/holidays - Get all holidays
-app.get("/api/admin/holidays", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.get("/api/admin/holidays", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
   try {
     const holidays = await readHolidays();
     res.json(normalizeHolidaysList(holidays as any));
@@ -1323,7 +1323,7 @@ app.get("/api/admin/holidays", authMiddleware, requireAnyRole(["ADMIN"]), async 
 });
 
 // POST /api/admin/holidays - Add a holiday
-app.post("/api/admin/holidays", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.post("/api/admin/holidays", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
   try {
     await withHolidaysLock(async () => {
       const { month, day, name } = req.body || {};
@@ -1353,7 +1353,7 @@ app.post("/api/admin/holidays", authMiddleware, requireAnyRole(["ADMIN"]), async
 });
 
 // DELETE /api/admin/holidays/:month/:day - Delete a holiday
-app.delete("/api/admin/holidays/:month/:day", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.delete("/api/admin/holidays/:month/:day", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
   try {
     await withHolidaysLock(async () => {
       const { month, day } = req.params;
@@ -1378,7 +1378,7 @@ app.delete("/api/admin/holidays/:month/:day", authMiddleware, requireAnyRole(["A
 });
 
 // PUT /api/admin/holidays/:month/:day - Edit a holiday
-app.put("/api/admin/holidays/:month/:day", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.put("/api/admin/holidays/:month/:day", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
   try {
     await withHolidaysLock(async () => {
       const { month, day } = req.params;
@@ -1428,7 +1428,7 @@ app.put("/api/admin/holidays/:month/:day", authMiddleware, requireAnyRole(["ADMI
 });
 
 // GET /api/admin/stats - Get system statistics
-app.get("/api/admin/stats", authMiddleware, requireAnyRole(["ADMIN"]), async (req, res) => {
+app.get("/api/admin/stats", authMiddleware, checkUserDisabled, requireAnyRole(["ADMIN"]), async (req, res) => {
   try {
     const users = await readUsers();
     const events = await readEvents();
