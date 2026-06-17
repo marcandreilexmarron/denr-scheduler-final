@@ -1,8 +1,9 @@
 import "dotenv/config";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import fs from "fs";
 import path from "path";
 import { readUsers, getDataDir } from "./storage-select.js";
+const resend = new Resend(process.env.RESEND_API_KEY);
 function formatDate(dateStr) {
     if (!dateStr)
         return "N/A";
@@ -67,15 +68,6 @@ function buildParticipantsHTML(event) {
     }
     return sections.join("");
 }
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.ethereal.email",
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: process.env.SMTP_SECURE === "true",
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
-});
 // Helper to find emails for a list of office names
 async function getEmailsForOffices(officeNames) {
     const users = await readUsers();
@@ -92,19 +84,7 @@ async function getEmailsForOffices(officeNames) {
 }
 // Helper to get sender email based on creator info
 async function getSenderEmail(event) {
-    const defaultFrom = process.env.SMTP_FROM || '"DENR Scheduler" <no-reply@denr.gov.ph>';
-    // If we have createdBy (username), try to find their email
-    if (event.createdBy) {
-        const users = await readUsers();
-        const creator = users.find(u => u.username === event.createdBy);
-        if (creator && creator.email) {
-            // We still use the SMTP_USER auth, but set the 'Reply-To' header
-            // or 'From' header if the SMTP server allows spoofing (often it doesn't).
-            // Best practice is to set 'From' as system email, and 'Reply-To' as creator.
-            // However, if the user explicitly wants the creator to be the sender:
-            return `"${event.createdByOffice || creator.officeName || event.createdBy}" <${creator.email}>`;
-        }
-    }
+    const defaultFrom = process.env.RESEND_FROM_EMAIL || '"DENR Scheduler" <no-reply@denr.gov.ph>';
     return defaultFrom;
 }
 export async function sendEventCreatedEmail(event) {
@@ -147,8 +127,6 @@ export async function sendEventCreatedEmail(event) {
             attachments.push({
                 filename: String(att.name || "attachment"),
                 content: data,
-                encoding: "base64",
-                contentType: att.type || undefined
             });
             continue;
         }
@@ -158,10 +136,10 @@ export async function sendEventCreatedEmail(event) {
             const fullPath = path.join(uploadDir, diskName);
             try {
                 if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+                    const fileContent = fs.readFileSync(fullPath).toString("base64");
                     attachments.push({
                         filename: String(att.name || diskName || "attachment"),
-                        path: fullPath,
-                        contentType: att.type || undefined
+                        content: fileContent,
                     });
                 }
             }
@@ -185,15 +163,18 @@ export async function sendEventCreatedEmail(event) {
     <p><a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" style="display: inline-block; padding: 10px 20px; background-color: #0A4B39; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold;">View Calendar</a></p>
   `;
     try {
-        const info = await transporter.sendMail({
-            from: sender, // Note: Some SMTP servers (like Gmail) overwrite this with the authenticated user
-            replyTo: sender, // This ensures replies go to the creator
+        const { data, error } = await resend.emails.send({
+            from: sender,
             to: recipients,
             subject,
             html,
-            attachments
+            attachments,
         });
-        console.log(`Event created email sent to: ${recipients.join(", ")} (ID: ${info.messageId})`);
+        if (error) {
+            console.error("Failed to send event created email:", error);
+            return;
+        }
+        console.log(`Event created email sent to: ${recipients.join(", ")} (ID: ${data?.id})`);
     }
     catch (err) {
         console.error("Failed to send event created email:", err);
@@ -243,21 +224,24 @@ export async function sendReminderEmail(event, opts) {
     <p><a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" style="display: inline-block; padding: 10px 20px; background-color: #0A4B39; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold;">View Calendar</a></p>
   `;
     try {
-        const info = await transporter.sendMail({
+        const { data, error } = await resend.emails.send({
             from: sender,
-            replyTo: sender,
             to: recipients,
             subject,
             html,
         });
-        console.log(`Reminder email sent to: ${recipients.join(", ")} (ID: ${info.messageId})`);
+        if (error) {
+            console.error("Failed to send reminder email:", error);
+            return;
+        }
+        console.log(`Reminder email sent to: ${recipients.join(", ")} (ID: ${data?.id})`);
     }
     catch (err) {
         console.error("Failed to send reminder email:", err);
     }
 }
 export async function sendTwoFactorCodeEmail(toEmail, username, code, expiresMinutes) {
-    const from = process.env.SMTP_FROM || '"DENR Scheduler" <no-reply@denr.gov.ph>';
+    const from = process.env.RESEND_FROM_EMAIL || '"DENR Scheduler" <no-reply@denr.gov.ph>';
     const subject = "Your verification code";
     const html = `
     <h2>Login verification</h2>
@@ -267,10 +251,14 @@ export async function sendTwoFactorCodeEmail(toEmail, username, code, expiresMin
     <p>This code will expire in ${expiresMinutes} minutes.</p>
     <p>If you did not request this, you can ignore this email.</p>
   `;
-    await transporter.sendMail({
+    const { data, error } = await resend.emails.send({
         from,
         to: toEmail,
         subject,
-        html
+        html,
     });
+    if (error) {
+        console.error("Failed to send two-factor email:", error);
+        throw error;
+    }
 }
